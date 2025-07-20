@@ -101,6 +101,27 @@ export function CardSkeleton() {
   )
 }
 
+// ✅ Added Missing SkeletonCard Component
+export function SkeletonCard({ className }: { className?: string }) {
+  return (
+    <div className={cn("p-6 border rounded-lg space-y-4", className)}>
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-5 w-1/3" />
+        <Skeleton className="h-4 w-4 rounded" />
+      </div>
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-16 w-full" />
+      <div className="flex items-center justify-between pt-2">
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-12 rounded-full" />
+          <Skeleton className="h-6 w-12 rounded-full" />
+        </div>
+        <Skeleton className="h-8 w-20" />
+      </div>
+    </div>
+  )
+}
+
 // Table Row Skeleton
 export function TableRowSkeleton({ columns = 4 }: { columns?: number }) {
   return (
@@ -152,6 +173,60 @@ export function StatsSkeleton() {
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// Event Card Skeleton - For Event Manager Dashboard
+export function EventCardSkeleton() {
+  return (
+    <div className="p-6 border rounded-lg space-y-4 bg-card">
+      <div className="flex items-start justify-between">
+        <div className="space-y-2 flex-1">
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+        <Skeleton className="h-8 w-8 rounded" />
+      </div>
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-2/3" />
+      <div className="flex items-center justify-between pt-4">
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-16 rounded-full" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-16" />
+          <Skeleton className="h-8 w-16" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Session Card Skeleton
+export function SessionCardSkeleton() {
+  return (
+    <div className="p-4 border rounded-lg space-y-3 bg-card">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-5 w-1/3" />
+        <Skeleton className="h-4 w-16 rounded-full" />
+      </div>
+      <Skeleton className="h-4 w-2/3" />
+      <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-1">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+        <div className="flex items-center gap-1">
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      </div>
+      <div className="flex gap-2 pt-2">
+        <Skeleton className="h-8 w-16" />
+        <Skeleton className="h-8 w-16" />
+      </div>
     </div>
   )
 }

@@ -1,10 +1,22 @@
+// src/middleware.ts
 import { withAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { UserRole } from '@prisma/client'
+
+// Define User Role enum (copied locally to avoid imports)
+enum UserRole {
+  ORGANIZER = 'ORGANIZER',
+  EVENT_MANAGER = 'EVENT_MANAGER',
+  FACULTY = 'FACULTY',
+  DELEGATE = 'DELEGATE',
+  HALL_COORDINATOR = 'HALL_COORDINATOR',
+  SPONSOR = 'SPONSOR',
+  VOLUNTEER = 'VOLUNTEER',
+  VENDOR = 'VENDOR'
+}
 
 // Define route access permissions
-const routePermissions: Record<string, UserRole[]> = {
+const routePermissions: Record<string, string[]> = {
   '/organizer': ['ORGANIZER'],
   '/event-manager': ['EVENT_MANAGER', 'ORGANIZER'],
   '/faculty': ['FACULTY', 'ORGANIZER', 'EVENT_MANAGER'],
@@ -13,13 +25,6 @@ const routePermissions: Record<string, UserRole[]> = {
   '/sponsor': ['SPONSOR', 'ORGANIZER'],
   '/volunteer': ['VOLUNTEER', 'ORGANIZER', 'EVENT_MANAGER'],
   '/vendor': ['VENDOR', 'ORGANIZER', 'EVENT_MANAGER'],
-  
-  // API routes
-  '/api/events': ['ORGANIZER', 'EVENT_MANAGER'],
-  '/api/faculty': ['ORGANIZER', 'EVENT_MANAGER', 'FACULTY'],
-  '/api/sessions': ['ORGANIZER', 'EVENT_MANAGER', 'FACULTY', 'HALL_COORDINATOR'],
-  '/api/registrations': ['ORGANIZER', 'EVENT_MANAGER'],
-  '/api/attendance': ['ORGANIZER', 'EVENT_MANAGER', 'HALL_COORDINATOR', 'FACULTY'],
 }
 
 // Public routes that don't require authentication
@@ -43,13 +48,12 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 // Function to check role access
-function hasRoleAccess(userRole: UserRole, pathname: string): boolean {
+function hasRoleAccess(userRole: string, pathname: string): boolean {
   // Find the most specific route match
   const routeKeys = Object.keys(routePermissions).sort((a, b) => b.length - a.length)
   const matchedRoute = routeKeys.find(route => pathname.startsWith(route))
   
   if (!matchedRoute) {
-    // If no specific route found, allow access (for general pages)
     return true
   }
   
@@ -58,16 +62,16 @@ function hasRoleAccess(userRole: UserRole, pathname: string): boolean {
 }
 
 // Get default redirect URL based on user role
-function getDefaultRedirectUrl(userRole: UserRole): string {
-  const roleRoutes = {
-    ORGANIZER: '/organizer',
-    EVENT_MANAGER: '/event-manager',
-    FACULTY: '/faculty',
-    DELEGATE: '/delegate',
-    HALL_COORDINATOR: '/hall-coordinator',
-    SPONSOR: '/sponsor',
-    VOLUNTEER: '/volunteer',
-    VENDOR: '/vendor'
+function getDefaultRedirectUrl(userRole: string): string {
+  const roleRoutes: Record<string, string> = {
+    'ORGANIZER': '/organizer',
+    'EVENT_MANAGER': '/event-manager',
+    'FACULTY': '/faculty',
+    'DELEGATE': '/delegate',
+    'HALL_COORDINATOR': '/hall-coordinator',
+    'SPONSOR': '/sponsor',
+    'VOLUNTEER': '/volunteer',
+    'VENDOR': '/vendor'
   }
   
   return roleRoutes[userRole] || '/delegate'
@@ -78,31 +82,39 @@ export default withAuth(
     const { pathname } = req.nextUrl
     const token = req.nextauth.token
     
-    // Skip middleware for static files and API auth routes
+    console.log('🔄 Middleware processing:', pathname, token ? 'authenticated' : 'not authenticated')
+    
+    // Skip middleware for static files
     if (
       pathname.startsWith('/_next') ||
       pathname.startsWith('/api/auth') ||
       pathname.includes('/favicon.ico') ||
       pathname.includes('/images/') ||
-      pathname.includes('/icons/')
+      pathname.includes('/icons/') ||
+      pathname.endsWith('.png') ||
+      pathname.endsWith('.jpg') ||
+      pathname.endsWith('.jpeg') ||
+      pathname.endsWith('.svg') ||
+      pathname.endsWith('.css') ||
+      pathname.endsWith('.js')
     ) {
       return NextResponse.next()
     }
     
     // Handle public routes
     if (isPublicRoute(pathname)) {
-      // If user is logged in and trying to access login/register, redirect to dashboard
       if (token && (pathname === '/login' || pathname === '/register')) {
-        const redirectUrl = getDefaultRedirectUrl(token.role as UserRole)
+        const redirectUrl = getDefaultRedirectUrl(token.role)
+        console.log('🔀 Redirecting authenticated user to:', redirectUrl)
         return NextResponse.redirect(new URL(redirectUrl, req.url))
       }
       return NextResponse.next()
     }
     
-    // Check if user has permission for this route
-    if (token && !hasRoleAccess(token.role as UserRole, pathname)) {
-      // Redirect to appropriate dashboard if no access
-      const redirectUrl = getDefaultRedirectUrl(token.role as UserRole)
+    // Check role access for protected routes
+    if (token && !hasRoleAccess(token.role, pathname)) {
+      const redirectUrl = getDefaultRedirectUrl(token.role)
+      console.log('🚫 Access denied, redirecting to:', redirectUrl)
       return NextResponse.redirect(new URL(redirectUrl, req.url))
     }
     
@@ -113,52 +125,20 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl
         
-        // Allow access to public routes
         if (isPublicRoute(pathname)) {
           return true
         }
         
-        // Require authentication for protected routes
         return !!token
       },
     },
   }
 )
 
-// Configure which routes to run middleware on
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api/auth (NextAuth API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\..*$).*)',
   ],
 }
 
-// Additional middleware utilities
-export function createAuthHeader(token: string): Record<string, string> {
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  }
-}
-
-export function extractUserFromToken(token: any): {
-  id: string
-  email: string
-  role: UserRole
-  name?: string
-} | null {
-  if (!token) return null
-  
-  return {
-    id: token.id,
-    email: token.email,
-    role: token.role,
-    name: token.name
-  }
-}
+// Remove edge runtime specification

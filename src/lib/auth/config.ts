@@ -1,13 +1,103 @@
+// src/lib/auth/config.ts
 import { NextAuthOptions } from 'next-auth'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
-import { prisma } from '@/lib/database/connection'
+import { query } from '@/lib/database/connection'
 import bcrypt from 'bcryptjs'
-import { UserRole } from '@prisma/client'
+
+// Define User Role enum (since we don't have Prisma anymore)
+export enum UserRole {
+  ORGANIZER = 'ORGANIZER',
+  EVENT_MANAGER = 'EVENT_MANAGER',
+  FACULTY = 'FACULTY',
+  DELEGATE = 'DELEGATE',
+  HALL_COORDINATOR = 'HALL_COORDINATOR',
+  SPONSOR = 'SPONSOR',
+  VOLUNTEER = 'VOLUNTEER',
+  VENDOR = 'VENDOR'
+}
+
+// User interface
+export interface User {
+  id: string
+  email: string
+  name?: string | null
+  phone?: string | null
+  role: UserRole
+  institution?: string | null
+  password?: string | null
+  image?: string | null
+  emailVerified?: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+// Database functions for users
+export const UserService = {
+  async findByEmail(email: string): Promise<User | null> {
+    try {
+      const result = await query(
+        'SELECT * FROM users WHERE email = $1',
+        [email.toLowerCase()]
+      )
+      return result.rows[0] || null
+    } catch (error) {
+      console.error('Error finding user by email:', error)
+      return null
+    }
+  },
+
+  async findById(id: string): Promise<User | null> {
+    try {
+      const result = await query(
+        'SELECT * FROM users WHERE id = $1',
+        [id]
+      )
+      return result.rows[0] || null
+    } catch (error) {
+      console.error('Error finding user by id:', error)
+      return null
+    }
+  },
+
+  async create(userData: Partial<User>): Promise<User | null> {
+    try {
+      const result = await query(
+        `INSERT INTO users (email, name, image, role, email_verified, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING *`,
+        [
+          userData.email?.toLowerCase(),
+          userData.name,
+          userData.image,
+          userData.role || UserRole.DELEGATE,
+          userData.emailVerified || new Date()
+        ]
+      )
+      return result.rows[0] || null
+    } catch (error) {
+      console.error('Error creating user:', error)
+      return null
+    }
+  },
+
+  async updateEmailVerified(email: string): Promise<User | null> {
+    try {
+      const result = await query(
+        `UPDATE users SET email_verified = NOW(), updated_at = NOW() 
+         WHERE email = $1 RETURNING *`,
+        [email.toLowerCase()]
+      )
+      return result.rows[0] || null
+    } catch (error) {
+      console.error('Error updating email verification:', error)
+      return null
+    }
+  }
+}
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // Remove Prisma adapter - use JWT sessions only
   providers: [
     // Email & Password Authentication
     CredentialsProvider({
@@ -25,37 +115,43 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Email and password are required')
+          console.log('❌ Missing email or password')
+          return null
         }
 
-        // Find user in database
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email.toLowerCase()
+        try {
+          // Find user in database
+          const user = await UserService.findByEmail(credentials.email)
+
+          if (!user || !user.password) {
+            console.log('❌ User not found or no password set')
+            return null
           }
-        })
 
-        if (!user || !user.password) {
-          throw new Error('Invalid email or password')
-        }
+          // Verify password
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          )
 
-        // Verify password
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        )
+          if (!isPasswordValid) {
+            console.log('❌ Invalid password')
+            return null
+          }
 
-        if (!isPasswordValid) {
-          throw new Error('Invalid email or password')
-        }
+          console.log('✅ User authenticated successfully:', user.email)
 
-        // Return user object
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          image: user.image,
+          // Return user object for JWT
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            image: user.image,
+          }
+        } catch (error) {
+          console.error('❌ Authentication error:', error)
+          return null
         }
       }
     }),
@@ -77,7 +173,7 @@ export const authOptions: NextAuthOptions = {
   ],
 
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt', // JWT-only sessions (no database sessions)
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
@@ -87,35 +183,45 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role
         token.id = user.id
+        console.log('🔄 JWT token updated with user data')
       }
 
       // Handle first-time Google login
       if (account?.provider === 'google' && user) {
         try {
+          console.log('🔄 Processing Google login for:', user.email)
+          
           // Check if user already exists
-          const existingUser = await prisma.user.findUnique({
-            where: { email: user.email! }
-          })
+          const existingUser = await UserService.findByEmail(user.email!)
 
           if (!existingUser) {
+            console.log('➕ Creating new Google user')
             // Create new user with Google data
-            const newUser = await prisma.user.create({
-              data: {
-                email: user.email!,
-                name: user.name!,
-                image: user.image,
-                role: UserRole.DELEGATE,
-                emailVerified: new Date()
-              }
+            const newUser = await UserService.create({
+              email: user.email!,
+              name: user.name!,
+              image: user.image,
+              role: UserRole.DELEGATE,
+              emailVerified: new Date()
             })
-            token.role = newUser.role
-            token.id = newUser.id
+
+            if (newUser) {
+              token.role = newUser.role
+              token.id = newUser.id
+              console.log('✅ New Google user created:', newUser.email)
+            }
           } else {
+            console.log('✅ Existing Google user found')
             token.role = existingUser.role
             token.id = existingUser.id
+
+            // Update email verification if not set
+            if (!existingUser.emailVerified) {
+              await UserService.updateEmailVerified(user.email!)
+            }
           }
         } catch (error) {
-          console.error('Error handling Google login:', error)
+          console.error('❌ Error handling Google login:', error)
         }
       }
 
@@ -124,7 +230,7 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       // Send properties to the client
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.id as string
         session.user.role = token.role as UserRole
       }
@@ -147,15 +253,15 @@ export const authOptions: NextAuthOptions = {
 
   events: {
     async signIn({ user, account, profile }) {
-      console.log('User signed in:', user.email)
+      console.log('👤 User signed in:', user.email, 'via', account?.provider)
     },
     
     async signOut({ session }) {
-      console.log('User signed out:', session?.user?.email)
+      console.log('👋 User signed out:', session?.user?.email)
     },
 
     async createUser({ user }) {
-      console.log('New user created:', user.email)
+      console.log('🆕 New user created:', user.email)
       
       // Send welcome email (implement later)
       // await sendWelcomeEmail(user.email, user.name)
@@ -167,15 +273,15 @@ export const authOptions: NextAuthOptions = {
 
 // Helper function to get user role-based redirect URL
 export function getRoleBasedRedirectUrl(role: UserRole): string {
-  const roleRoutes = {
-    ORGANIZER: '/organizer',
-    EVENT_MANAGER: '/event-manager', 
-    FACULTY: '/faculty',
-    DELEGATE: '/delegate',
-    HALL_COORDINATOR: '/hall-coordinator',
-    SPONSOR: '/sponsor',
-    VOLUNTEER: '/volunteer',
-    VENDOR: '/vendor'
+  const roleRoutes: Record<UserRole, string> = {
+    [UserRole.ORGANIZER]: '/organizer',
+    [UserRole.EVENT_MANAGER]: '/event-manager', 
+    [UserRole.FACULTY]: '/faculty',
+    [UserRole.DELEGATE]: '/delegate',
+    [UserRole.HALL_COORDINATOR]: '/hall-coordinator',
+    [UserRole.SPONSOR]: '/sponsor',
+    [UserRole.VOLUNTEER]: '/volunteer',
+    [UserRole.VENDOR]: '/vendor'
   }
 
   return roleRoutes[role] || '/delegate'
@@ -193,6 +299,16 @@ export async function verifyPassword(
   hashedPassword: string
 ): Promise<boolean> {
   return bcrypt.compare(password, hashedPassword)
+}
+
+// Validate user role
+export function isValidUserRole(role: string): role is UserRole {
+  return Object.values(UserRole).includes(role as UserRole)
+}
+
+// Get user by session
+export async function getUserBySession(sessionUserId: string): Promise<User | null> {
+  return await UserService.findById(sessionUserId)
 }
 
 // Type extensions for NextAuth

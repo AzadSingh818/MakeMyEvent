@@ -1,0 +1,506 @@
+-- database/complete-schema.sql
+-- Complete Conference Management System Database Schema
+
+-- ============================
+-- ENUMS (Custom Types)
+-- ============================
+
+-- User Role Enum
+CREATE TYPE user_role AS ENUM (
+    'ORGANIZER',
+    'EVENT_MANAGER', 
+    'FACULTY',
+    'DELEGATE',
+    'HALL_COORDINATOR',
+    'SPONSOR',
+    'VOLUNTEER',
+    'VENDOR'
+);
+
+-- Event Status Enum
+CREATE TYPE event_status AS ENUM (
+    'DRAFT',
+    'PUBLISHED',
+    'ACTIVE',
+    'COMPLETED',
+    'CANCELLED'
+);
+
+-- Event Role Enum
+CREATE TYPE event_role AS ENUM (
+    'ORGANIZER',
+    'EVENT_MANAGER',
+    'SPEAKER',
+    'MODERATOR',
+    'CHAIRPERSON',
+    'ATTENDEE',
+    'COORDINATOR'
+);
+
+-- Event Permission Enum
+CREATE TYPE event_permission AS ENUM (
+    'FULL_ACCESS',
+    'EDIT_SESSIONS',
+    'MANAGE_FACULTY',
+    'VIEW_ONLY'
+);
+
+-- Speaker Role Enum
+CREATE TYPE speaker_role AS ENUM (
+    'SPEAKER',
+    'MODERATOR',
+    'CHAIRPERSON'
+);
+
+-- Abstract Status Enum
+CREATE TYPE abstract_status AS ENUM (
+    'SUBMITTED',
+    'UNDER_REVIEW',
+    'ACCEPTED',
+    'REJECTED',
+    'REVISION_REQUIRED'
+);
+
+-- Registration Status Enum
+CREATE TYPE registration_status AS ENUM (
+    'PENDING',
+    'APPROVED',
+    'REJECTED',
+    'CANCELLED'
+);
+
+-- Travel Mode Enum
+CREATE TYPE travel_mode AS ENUM (
+    'BUS',
+    'TRAIN',
+    'FLIGHT',
+    'CAR',
+    'OTHER'
+);
+
+-- Attendance Method Enum
+CREATE TYPE attendance_method AS ENUM (
+    'MANUAL',
+    'QR_CODE',
+    'AUTOMATIC'
+);
+
+-- Message Status Enum
+CREATE TYPE message_status AS ENUM (
+    'PENDING',
+    'SENT',
+    'DELIVERED',
+    'FAILED'
+);
+
+-- Notification Type Enum
+CREATE TYPE notification_type AS ENUM (
+    'INFO',
+    'WARNING',
+    'ERROR',
+    'SUCCESS',
+    'REMINDER'
+);
+
+-- Certificate Type Enum
+CREATE TYPE certificate_type AS ENUM (
+    'PARTICIPATION',
+    'SPEAKER',
+    'CHAIRPERSON',
+    'MODERATOR',
+    'ORGANIZER'
+);
+
+-- Document Category Enum
+CREATE TYPE document_category AS ENUM (
+    'PRESENTATION',
+    'CV',
+    'TRAVEL',
+    'ACCOMMODATION',
+    'CERTIFICATE',
+    'OTHER'
+);
+
+-- Issue Status Enum
+CREATE TYPE issue_status AS ENUM (
+    'OPEN',
+    'IN_PROGRESS',
+    'RESOLVED',
+    'CLOSED'
+);
+
+-- ============================
+-- CORE TABLES
+-- ============================
+
+-- Users Table
+CREATE TABLE users (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    phone VARCHAR(50),
+    role user_role DEFAULT 'DELEGATE',
+    institution VARCHAR(255),
+    password VARCHAR(255),
+    image VARCHAR(500),
+    email_verified TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Events Table
+CREATE TABLE events (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
+    location VARCHAR(255),
+    status event_status DEFAULT 'DRAFT',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User Events (Junction Table)
+CREATE TABLE user_events (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    role event_role DEFAULT 'ATTENDEE',
+    permissions event_permission,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, event_id)
+);
+
+-- Halls Table
+CREATE TABLE halls (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    capacity INTEGER NOT NULL,
+    equipment JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Conference Sessions Table
+CREATE TABLE conference_sessions (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    hall_id VARCHAR(255) REFERENCES halls(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Session Speakers Table
+CREATE TABLE session_speakers (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id VARCHAR(255) NOT NULL REFERENCES conference_sessions(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role speaker_role DEFAULT 'SPEAKER',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(session_id, user_id)
+);
+
+-- Presentations Table
+CREATE TABLE presentations (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id VARCHAR(255) NOT NULL REFERENCES conference_sessions(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    file_path VARCHAR(500) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================
+-- ABSTRACT SYSTEM
+-- ============================
+
+-- Abstracts Table
+CREATE TABLE abstracts (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    status abstract_status DEFAULT 'SUBMITTED',
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Abstract Reviews Table
+CREATE TABLE abstract_reviews (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    abstract_id VARCHAR(255) NOT NULL REFERENCES abstracts(id) ON DELETE CASCADE,
+    reviewer_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    score INTEGER,
+    comments TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(abstract_id, reviewer_id)
+);
+
+-- ============================
+-- REGISTRATION SYSTEM
+-- ============================
+
+-- Registrations Table
+CREATE TABLE registrations (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    registration_data JSONB,
+    status registration_status DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(event_id, user_id)
+);
+
+-- Travel Details Table
+CREATE TABLE travel_details (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    mode travel_mode NOT NULL,
+    itinerary_path VARCHAR(500),
+    ticket_path VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, event_id)
+);
+
+-- Accommodations Table
+CREATE TABLE accommodations (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    hotel VARCHAR(255),
+    check_in TIMESTAMP,
+    check_out TIMESTAMP,
+    preferences TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, event_id)
+);
+
+-- ============================
+-- ATTENDANCE SYSTEM
+-- ============================
+
+-- Attendance Records Table
+CREATE TABLE attendance_records (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id VARCHAR(255) NOT NULL REFERENCES conference_sessions(id) ON DELETE CASCADE,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    marked_by VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    method attendance_method DEFAULT 'MANUAL',
+    UNIQUE(session_id, user_id)
+);
+
+-- QR Codes Table
+CREATE TABLE qr_codes (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    code VARCHAR(255) UNIQUE NOT NULL,
+    expires_at TIMESTAMP,
+    used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================
+-- COMMUNICATION SYSTEM
+-- ============================
+
+-- Email Logs Table
+CREATE TABLE email_logs (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipient VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status message_status DEFAULT 'PENDING',
+    user_id VARCHAR(255) REFERENCES users(id)
+);
+
+-- WhatsApp Logs Table
+CREATE TABLE whatsapp_logs (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipient VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status message_status DEFAULT 'PENDING',
+    user_id VARCHAR(255) REFERENCES users(id)
+);
+
+-- Notifications Table
+CREATE TABLE notifications (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type notification_type NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================
+-- DOCUMENTS & CERTIFICATES
+-- ============================
+
+-- Certificates Table
+CREATE TABLE certificates (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    type certificate_type NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Documents Table
+CREATE TABLE documents (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(500) NOT NULL,
+    category document_category NOT NULL,
+    uploaded_by VARCHAR(255) NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================
+-- HALL MANAGEMENT
+-- ============================
+
+-- Hall Assignments Table
+CREATE TABLE hall_assignments (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    hall_id VARCHAR(255) NOT NULL REFERENCES halls(id) ON DELETE CASCADE,
+    session_id VARCHAR(255) REFERENCES conference_sessions(id),
+    coordinator_id VARCHAR(255) NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Issues Table
+CREATE TABLE issues (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    hall_id VARCHAR(255) REFERENCES halls(id),
+    session_id VARCHAR(255) REFERENCES conference_sessions(id),
+    reported_by VARCHAR(255) NOT NULL REFERENCES users(id),
+    description TEXT NOT NULL,
+    status issue_status DEFAULT 'OPEN',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================
+-- NEXTAUTH TABLES (Optional)
+-- ============================
+
+-- Accounts Table (for OAuth)
+CREATE TABLE accounts (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(255) NOT NULL,
+    provider VARCHAR(255) NOT NULL,
+    provider_account_id VARCHAR(255) NOT NULL,
+    refresh_token TEXT,
+    access_token TEXT,
+    expires_at INTEGER,
+    token_type VARCHAR(255),
+    scope VARCHAR(255),
+    id_token TEXT,
+    session_state VARCHAR(255),
+    UNIQUE(provider, provider_account_id)
+);
+
+-- Sessions Table (for database sessions - optional since we use JWT)
+CREATE TABLE sessions (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_token VARCHAR(255) UNIQUE NOT NULL,
+    user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires TIMESTAMP NOT NULL
+);
+
+-- Verification Tokens Table
+CREATE TABLE verification_tokens (
+    identifier VARCHAR(255) NOT NULL,
+    token VARCHAR(255) UNIQUE NOT NULL,
+    expires TIMESTAMP NOT NULL,
+    UNIQUE(identifier, token)
+);
+
+-- ============================
+-- INDEXES FOR PERFORMANCE
+-- ============================
+
+-- User indexes
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+
+-- Event indexes
+CREATE INDEX idx_events_status ON events(status);
+CREATE INDEX idx_events_dates ON events(start_date, end_date);
+
+-- Session indexes
+CREATE INDEX idx_sessions_event ON conference_sessions(event_id);
+CREATE INDEX idx_sessions_time ON conference_sessions(start_time, end_time);
+CREATE INDEX idx_sessions_hall ON conference_sessions(hall_id);
+
+-- Registration indexes
+CREATE INDEX idx_registrations_event ON registrations(event_id);
+CREATE INDEX idx_registrations_user ON registrations(user_id);
+CREATE INDEX idx_registrations_status ON registrations(status);
+
+-- Attendance indexes
+CREATE INDEX idx_attendance_session ON attendance_records(session_id);
+CREATE INDEX idx_attendance_user ON attendance_records(user_id);
+
+-- Communication indexes
+CREATE INDEX idx_email_logs_user ON email_logs(user_id);
+CREATE INDEX idx_whatsapp_logs_user ON whatsapp_logs(user_id);
+CREATE INDEX idx_notifications_user ON notifications(user_id);
+CREATE INDEX idx_notifications_unread ON notifications(user_id, read_at) WHERE read_at IS NULL;
+
+-- QR Code indexes
+CREATE INDEX idx_qr_codes_code ON qr_codes(code);
+CREATE INDEX idx_qr_codes_user_event ON qr_codes(user_id, event_id);
+
+-- ============================
+-- TRIGGERS FOR AUTO-UPDATE
+-- ============================
+
+-- Function to update updated_at column
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Apply triggers to tables with updated_at
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_sessions_updated_at BEFORE UPDATE ON conference_sessions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_abstracts_updated_at BEFORE UPDATE ON abstracts FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_registrations_updated_at BEFORE UPDATE ON registrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_travel_updated_at BEFORE UPDATE ON travel_details FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_accommodations_updated_at BEFORE UPDATE ON accommodations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_issues_updated_at BEFORE UPDATE ON issues FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================
+-- SAMPLE DATA (Optional)
+-- ============================
+
+-- Insert a default organizer user
+INSERT INTO users (email, name, role, password) VALUES 
+('admin@conference.com', 'System Administrator', 'ORGANIZER', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeGuA6ROwT4f.x/t2');
+-- Password is 'admin123' (hashed)
+
+-- Success message
+SELECT 'Database schema created successfully!' as message;

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { prisma } from '@/lib/database/connection';
+import { query, db } from '@/lib/database/connection'; // ✅ Fixed: using pg client instead of prisma
 import { z } from 'zod';
 
 // Types for middleware
@@ -68,20 +68,15 @@ export async function requireAuth(request: NextRequest): Promise<{
       };
     }
 
-    // Verify user exists and is active
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        emailVerified: true,
-        isActive: true
-      }
-    });
+    // ✅ Fixed: Raw SQL query instead of Prisma
+    const result = await query(
+      `SELECT id, email, name, role, email_verified, is_active 
+       FROM users 
+       WHERE id = $1`,
+      [session.user.id]
+    );
 
-    if (!user) {
+    if (result.rows.length === 0) {
       return {
         success: false,
         error: 'User not found',
@@ -89,7 +84,9 @@ export async function requireAuth(request: NextRequest): Promise<{
       };
     }
 
-    if (!user.isActive) {
+    const user = result.rows[0];
+
+    if (!user.is_active) {
       return {
         success: false,
         error: 'Account is disabled',
@@ -99,7 +96,14 @@ export async function requireAuth(request: NextRequest): Promise<{
 
     return {
       success: true,
-      user
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        emailVerified: user.email_verified,
+        isActive: user.is_active
+      }
     };
   } catch (error) {
     console.error('Auth middleware error:', error);
@@ -146,27 +150,23 @@ export async function requireEventAccess(
       };
     }
 
-    // Check if user has access to the event
-    const userEvent = await prisma.userEvent.findFirst({
-      where: {
-        userId,
-        eventId,
-      },
-      include: {
-        event: {
-          select: { id: true, name: true, status: true, createdBy: true }
-        }
-      }
-    });
+    // ✅ Fixed: Raw SQL query for user event access
+    const userEventResult = await query(
+      `SELECT ue.*, e.id as event_id, e.name as event_name, e.status as event_status, e.created_by
+       FROM user_events ue
+       JOIN events e ON e.id = ue.event_id
+       WHERE ue.user_id = $1 AND ue.event_id = $2`,
+      [userId, eventId]
+    );
 
-    if (!userEvent) {
+    if (userEventResult.rows.length === 0) {
       // Check if it's a public event for certain roles
-      const event = await prisma.event.findUnique({
-        where: { id: eventId },
-        select: { status: true, createdBy: true }
-      });
+      const eventResult = await query(
+        `SELECT status, created_by FROM events WHERE id = $1`,
+        [eventId]
+      );
 
-      if (!event) {
+      if (eventResult.rows.length === 0) {
         return {
           success: false,
           error: 'Event not found',
@@ -174,8 +174,10 @@ export async function requireEventAccess(
         };
       }
 
+      const event = eventResult.rows[0];
+
       // Event creator always has access
-      if (event.createdBy === userId) {
+      if (event.created_by === userId) {
         return { success: true };
       }
 
@@ -191,9 +193,12 @@ export async function requireEventAccess(
       };
     }
 
-    // Check permissions
+    const userEvent = userEventResult.rows[0];
+
+    // ✅ Fixed: Check permissions (assuming permissions are stored as JSON array)
+    const permissions = userEvent.permissions || [];
     const hasRequiredPermissions = requiredPermissions.every(permission =>
-      userEvent.permissions.includes(permission)
+      permissions.includes(permission)
     );
 
     if (!hasRequiredPermissions) {
@@ -206,7 +211,18 @@ export async function requireEventAccess(
 
     return {
       success: true,
-      userEvent
+      userEvent: {
+        id: userEvent.id,
+        userId: userEvent.user_id,
+        eventId: userEvent.event_id,
+        permissions: userEvent.permissions,
+        event: {
+          id: userEvent.event_id,
+          name: userEvent.event_name,
+          status: userEvent.event_status,
+          createdBy: userEvent.created_by
+        }
+      }
     };
   } catch (error) {
     console.error('Event access middleware error:', error);
@@ -346,23 +362,24 @@ export function handleApiError(error: any): NextResponse {
     );
   }
 
-  if (error.code === 'P2002') {
+  // ✅ Fixed: PostgreSQL error codes instead of Prisma
+  if (error.code === '23505') { // Unique violation
     return NextResponse.json(
       { error: 'A record with this data already exists' },
       { status: 409 }
     );
   }
 
-  if (error.code === 'P2025') {
+  if (error.code === '23503') { // Foreign key violation
     return NextResponse.json(
-      { error: 'Record not found' },
-      { status: 404 }
+      { error: 'Related record not found' },
+      { status: 400 }
     );
   }
 
-  if (error.code === 'P2003') {
+  if (error.code === '23502') { // Not null violation
     return NextResponse.json(
-      { error: 'Related record not found' },
+      { error: 'Required field is missing' },
       { status: 400 }
     );
   }
@@ -408,32 +425,34 @@ export function getPagination(searchParams: URLSearchParams) {
 
 // Sorting helper
 export function getSorting(searchParams: URLSearchParams, allowedFields: string[] = []) {
-  const sortBy = searchParams.get('sortBy') || 'createdAt';
+  const sortBy = searchParams.get('sortBy') || 'created_at';
   const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
 
   // Validate sortBy field
   if (allowedFields.length > 0 && !allowedFields.includes(sortBy)) {
-    return { sortBy: 'createdAt', sortOrder };
+    return { sortBy: 'created_at', sortOrder };
   }
 
   return { sortBy, sortOrder };
 }
 
-// Search helper
+// Search helper for PostgreSQL
 export function getSearchFilter(searchParams: URLSearchParams, searchFields: string[]) {
   const search = searchParams.get('search');
   
   if (!search || searchFields.length === 0) {
-    return {};
+    return { where: '', params: [] };
   }
 
+  const conditions = searchFields.map((field, index) => 
+    `${field} ILIKE $${index + 1}`
+  );
+  
+  const params = searchFields.map(() => `%${search}%`);
+
   return {
-    OR: searchFields.map(field => ({
-      [field]: {
-        contains: search,
-        mode: 'insensitive' as const
-      }
-    }))
+    where: `(${conditions.join(' OR ')})`,
+    params
   };
 }
 

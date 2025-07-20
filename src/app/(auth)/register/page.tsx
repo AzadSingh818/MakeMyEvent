@@ -38,7 +38,18 @@ import {
   Chrome,
   Building
 } from 'lucide-react'
-import { UserRole } from '@prisma/client'
+
+// ✅ LOCAL UserRole enum (no external import)
+enum UserRole {
+  ORGANIZER = 'ORGANIZER',
+  EVENT_MANAGER = 'EVENT_MANAGER',
+  FACULTY = 'FACULTY',
+  DELEGATE = 'DELEGATE',
+  HALL_COORDINATOR = 'HALL_COORDINATOR',
+  SPONSOR = 'SPONSOR',
+  VOLUNTEER = 'VOLUNTEER',
+  VENDOR = 'VENDOR'
+}
 
 // Registration form validation schema
 const registerSchema = z.object({
@@ -90,7 +101,12 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      // Call registration API
+      console.log('🔄 Submitting registration:', { 
+        email: data.email, 
+        role: data.role,
+        institution: data.institution 
+      })
+
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -109,13 +125,16 @@ export default function RegisterPage() {
       const result = await response.json()
 
       if (!response.ok) {
+        console.error('❌ Registration failed:', result)
         throw new Error(result.message || 'Registration failed')
       }
 
+      console.log('✅ Registration successful:', result)
       setSuccess(true)
       
       // Auto-login after successful registration
       setTimeout(async () => {
+        console.log('🔄 Attempting auto-login...')
         const signInResult = await signIn('credentials', {
           email: data.email.toLowerCase(),
           password: data.password,
@@ -123,26 +142,28 @@ export default function RegisterPage() {
         })
 
         if (signInResult?.ok) {
-          // Redirect based on role
-          const roleRoutes = {
-            ORGANIZER: '/organizer',
-            EVENT_MANAGER: '/event-manager',
-            FACULTY: '/faculty',
-            DELEGATE: '/delegate',
-            HALL_COORDINATOR: '/hall-coordinator',
-            SPONSOR: '/sponsor',
-            VOLUNTEER: '/volunteer',
-            VENDOR: '/vendor'
+          console.log('✅ Auto-login successful, redirecting...')
+          const roleRoutes: Record<string, string> = {
+            'ORGANIZER': '/organizer',
+            'EVENT_MANAGER': '/event-manager',
+            'FACULTY': '/faculty',
+            'DELEGATE': '/delegate',
+            'HALL_COORDINATOR': '/hall-coordinator',
+            'SPONSOR': '/sponsor',
+            'VOLUNTEER': '/volunteer',
+            'VENDOR': '/vendor'
           }
           
           const redirectUrl = roleRoutes[data.role] || '/delegate'
           router.push(redirectUrl)
         } else {
+          console.log('❌ Auto-login failed, redirecting to login page')
           router.push('/login')
         }
       }, 2000)
 
     } catch (err: any) {
+      console.error('❌ Registration error:', err)
       setError(err.message)
     } finally {
       setIsLoading(false)
@@ -155,11 +176,13 @@ export default function RegisterPage() {
     setError('')
 
     try {
+      console.log('🔄 Attempting Google sign-in...')
       await signIn('google', { 
         callbackUrl: '/delegate',
         redirect: true 
       })
     } catch (err) {
+      console.error('❌ Google sign-in error:', err)
       setError('Failed to sign in with Google')
       setIsGoogleLoading(false)
     }
@@ -183,7 +206,6 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
         
-        {/* Back to Home */}
         <div>
           <Link 
             href="/" 
@@ -194,7 +216,6 @@ export default function RegisterPage() {
           </Link>
         </div>
 
-        {/* Registration Card */}
         <Card className="border-0 shadow-xl">
           <CardHeader className="text-center pb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -208,17 +229,14 @@ export default function RegisterPage() {
 
           <CardContent className="space-y-6">
             
-            {/* Registration Error */}
             {error && (
               <ErrorAlert onClose={() => setError('')}>
                 {error}
               </ErrorAlert>
             )}
 
-            {/* Registration Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               
-              {/* Name Field */}
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
                 <div className="relative">
@@ -236,7 +254,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Email Field */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <div className="relative">
@@ -254,7 +271,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Phone Field */}
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone Number</Label>
                 <div className="relative">
@@ -272,7 +288,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Role Selection */}
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
                 <Select onValueChange={(value) => setValue('role', value as UserRole)}>
@@ -295,7 +310,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Institution Field (Optional for most roles) */}
               {(selectedRole === 'FACULTY' || selectedRole === 'ORGANIZER' || selectedRole === 'EVENT_MANAGER') && (
                 <div className="space-y-2">
                   <Label htmlFor="institution">Institution/Organization</Label>
@@ -315,7 +329,6 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* Password Field */}
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <div className="relative">
@@ -340,7 +353,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Confirm Password Field */}
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <div className="relative">
@@ -365,7 +377,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Terms Agreement */}
               <div className="flex items-start space-x-2">
                 <input
                   id="agreeToTerms"
@@ -388,7 +399,6 @@ export default function RegisterPage() {
                 <InlineAlert type="error" message={errors.agreeToTerms.message || ''} />
               )}
 
-              {/* Register Button */}
               <LoadingButton
                 type="submit"
                 loading={isLoading}
@@ -398,7 +408,6 @@ export default function RegisterPage() {
               </LoadingButton>
             </form>
 
-            {/* Divider */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-gray-300" />
@@ -408,7 +417,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Google Sign-up */}
             <LoadingButton
               type="button"
               loading={isGoogleLoading}
@@ -419,7 +427,6 @@ export default function RegisterPage() {
               Continue with Google
             </LoadingButton>
 
-            {/* Sign In Link */}
             <div className="text-center text-sm">
               <span className="text-gray-600 dark:text-gray-400">Already have an account? </span>
               <Link 
