@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 //import { Checkbox } from '@/components/ui/checkbox';
-//import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Send, 
   Mail, 
@@ -501,9 +501,9 @@ export default function CommunicationDashboard({
                     <div className="flex items-center justify-between">
                       <Label>Message Type</Label>
                       <div className="flex items-center space-x-2">
-                        <Switch
+                        <Checkbox
                           checked={isCustomMessage}
-                          onCheckedChange={setIsCustomMessage}
+                          onCheckedChange={(checked: any) => setIsCustomMessage(!!checked)}
                         />
                         <Label className="text-sm">Custom Message</Label>
                       </div>

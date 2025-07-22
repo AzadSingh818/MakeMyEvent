@@ -1,8 +1,20 @@
+// src/app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/database/connection'
+import { query } from '@/lib/database/connection' // ✅ Fixed: Using PostgreSQL instead of Prisma
 import { hashPassword } from '@/lib/auth/config'
-import { UserRole } from '@prisma/client'
 import * as z from 'zod'
+
+// ✅ Fixed: Manual UserRole enum instead of Prisma import
+enum UserRole {
+  ORGANIZER = 'ORGANIZER',
+  EVENT_MANAGER = 'EVENT_MANAGER',
+  FACULTY = 'FACULTY',
+  DELEGATE = 'DELEGATE',
+  HALL_COORDINATOR = 'HALL_COORDINATOR',
+  SPONSOR = 'SPONSOR',
+  VOLUNTEER = 'VOLUNTEER',
+  VENDOR = 'VENDOR'
+}
 
 // Registration validation schema
 const registerSchema = z.object({
@@ -22,13 +34,12 @@ export async function POST(request: NextRequest) {
     const validatedData = registerSchema.parse(body)
     
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: {
-        email: validatedData.email.toLowerCase()
-      }
-    })
+    const existingUserResult = await query(
+      'SELECT id FROM users WHERE email = $1',
+      [validatedData.email.toLowerCase()]
+    )
 
-    if (existingUser) {
+    if (existingUserResult.rows.length > 0) {
       return NextResponse.json(
         { 
           message: 'A user with this email already exists',
@@ -41,25 +52,30 @@ export async function POST(request: NextRequest) {
     // Hash password
     const hashedPassword = await hashPassword(validatedData.password)
 
-    // Create user in database - FIXED: institution field properly included
-    const user = await prisma.user.create({
-      data: {
-        name: validatedData.name,
-        email: validatedData.email.toLowerCase(),
-        phone: validatedData.phone,
-        role: validatedData.role,
-        institution: validatedData.institution || null, // ✅ Fixed: Properly handle institution
-        password: hashedPassword,
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        institution: true, // ✅ Fixed: Include in select
-        createdAt: true
-      }
-    })
+    // Generate user ID
+    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+    // Create user in database
+    const insertUserQuery = `
+      INSERT INTO users (
+        id, name, email, phone, role, institution, password, 
+        is_active, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, true, NOW(), NOW()
+      ) RETURNING id, name, email, phone, role, institution, created_at
+    `
+
+    const userResult = await query(insertUserQuery, [
+      userId,
+      validatedData.name,
+      validatedData.email.toLowerCase(),
+      validatedData.phone,
+      validatedData.role,
+      validatedData.institution || null,
+      hashedPassword
+    ])
+
+    const user = userResult.rows[0]
 
     // Log successful registration
     console.log('New user registered:', {
@@ -80,7 +96,8 @@ export async function POST(request: NextRequest) {
           name: user.name,
           email: user.email,
           role: user.role,
-          institution: user.institution
+          institution: user.institution,
+          createdAt: user.created_at
         }
       },
       { status: 201 }
@@ -105,10 +122,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Handle database errors
-    if (error instanceof Error && 'code' in error) {
+    // Handle database errors (PostgreSQL specific)
+    if (error && typeof error === 'object' && 'code' in error) {
       switch (error.code) {
-        case 'P2002':
+        case '23505': // Unique violation (PostgreSQL equivalent of P2002)
           return NextResponse.json(
             {
               message: 'A user with this email already exists',
@@ -116,7 +133,15 @@ export async function POST(request: NextRequest) {
             },
             { status: 400 }
           )
-        case 'P2000':
+        case '23502': // Not null violation
+          return NextResponse.json(
+            {
+              message: 'Required field is missing',
+              field: 'unknown'
+            },
+            { status: 400 }
+          )
+        case '22001': // String data too long (PostgreSQL equivalent of P2000)
           return NextResponse.json(
             {
               message: 'The provided value is too long for the database field',

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { prisma } from '@/lib/database/connection';
+import { query } from '@/lib/database/connection'; // ✅ Fixed: Using PostgreSQL instead of Prisma
 import { z } from 'zod';
 
 // Validation schemas
@@ -37,60 +37,105 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const sortBy = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: any = {};
-    
+    // Build WHERE clause for filtering
+    let whereClause = 'WHERE 1=1';
+    let queryParams: any[] = [];
+    let paramCount = 0;
+
     // Role-based filtering
     if (session.user.role === 'ORGANIZER') {
-      where.createdBy = session.user.id;
+      paramCount++;
+      whereClause += ` AND e.created_by = $${paramCount}`;
+      queryParams.push(session.user.id);
     } else if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
-      where.status = 'PUBLISHED'; // Only published events for other roles
+      paramCount++;
+      whereClause += ` AND e.status = $${paramCount}`;
+      queryParams.push('PUBLISHED');
     }
 
+    // Status filter
     if (status) {
-      where.status = status;
+      paramCount++;
+      whereClause += ` AND e.status = $${paramCount}`;
+      queryParams.push(status);
     }
 
+    // Search filter
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-        { location: { contains: search, mode: 'insensitive' } },
-      ];
+      paramCount++;
+      whereClause += ` AND (
+        e.name ILIKE $${paramCount} OR 
+        e.description ILIKE $${paramCount} OR 
+        e.location ILIKE $${paramCount}
+      )`;
+      queryParams.push(`%${search}%`);
     }
 
-    const [events, total] = await Promise.all([
-      prisma.event.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { [sortBy]: sortOrder },
-        include: {
-          createdByUser: {
-            select: { id: true, name: true, email: true }
-          },
-          sessions: {
-            select: { id: true, title: true, startTime: true, endTime: true }
-          },
-          registrations: {
-            select: { id: true, status: true }
-          },
-          _count: {
-            select: {
-              sessions: true,
-              registrations: true,
-              userEvents: true
-            }
-          }
-        }
-      }),
-      prisma.event.count({ where })
+    // Get events with user details and counts
+    const eventsQuery = `
+      SELECT 
+        e.*,
+        u.name as creator_name,
+        u.email as creator_email,
+        (SELECT COUNT(*) FROM conference_sessions s WHERE s.event_id = e.id) as sessions_count,
+        (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.id) as registrations_count,
+        (SELECT COUNT(*) FROM user_events ue WHERE ue.event_id = e.id) as user_events_count
+      FROM events e
+      LEFT JOIN users u ON e.created_by = u.id
+      ${whereClause}
+      ORDER BY e.${sortBy} ${sortOrder.toUpperCase()}
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+
+    queryParams.push(limit, skip);
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM events e
+      ${whereClause}
+    `;
+
+    const [eventsResult, countResult] = await Promise.all([
+      query(eventsQuery, queryParams.slice(0, -2).concat([limit, skip])),
+      query(countQuery, queryParams.slice(0, -2))
     ]);
+
+    const events = eventsResult.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      location: row.location,
+      venue: row.venue,
+      maxParticipants: row.max_participants,
+      registrationDeadline: row.registration_deadline,
+      eventType: row.event_type,
+      status: row.status,
+      tags: row.tags,
+      website: row.website,
+      contactEmail: row.contact_email,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdByUser: {
+        id: row.created_by,
+        name: row.creator_name,
+        email: row.creator_email
+      },
+      _count: {
+        sessions: parseInt(row.sessions_count || '0'),
+        registrations: parseInt(row.registrations_count || '0'),
+        userEvents: parseInt(row.user_events_count || '0')
+      }
+    }));
+
+    const total = parseInt(countResult.rows[0].total);
 
     return NextResponse.json({
       success: true,
@@ -141,38 +186,91 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const event = await prisma.event.create({
-      data: {
-        ...validatedData,
-        createdBy: session.user.id,
-      },
-      include: {
-        createdByUser: {
-          select: { id: true, name: true, email: true }
-        },
-        _count: {
-          select: {
-            sessions: true,
-            registrations: true,
-            userEvents: true
-          }
-        }
-      }
-    });
+    // Generate new UUID for event
+    const eventId = `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create organizer relationship
-    await prisma.userEvent.create({
-      data: {
-        userId: session.user.id,
-        eventId: event.id,
-        role: 'ORGANIZER',
-        permissions: ['READ', 'WRITE', 'DELETE', 'MANAGE']
+    // Insert event
+    const insertEventQuery = `
+      INSERT INTO events (
+        id, name, description, start_date, end_date, location, venue,
+        max_participants, registration_deadline, event_type, status,
+        tags, website, contact_email, created_by, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()
+      ) RETURNING *
+    `;
+
+    const eventResult = await query(insertEventQuery, [
+      eventId,
+      validatedData.name,
+      validatedData.description || null,
+      validatedData.startDate,
+      validatedData.endDate,
+      validatedData.location,
+      validatedData.venue || null,
+      validatedData.maxParticipants || null,
+      validatedData.registrationDeadline || null,
+      validatedData.eventType,
+      validatedData.status,
+      validatedData.tags ? JSON.stringify(validatedData.tags) : null,
+      validatedData.website || null,
+      validatedData.contactEmail || null,
+      session.user.id
+    ]);
+
+    const newEvent = eventResult.rows[0];
+
+    // Create organizer relationship in user_events table
+    const userEventId = `ue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await query(`
+      INSERT INTO user_events (id, user_id, event_id, role, permissions, created_at)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+    `, [
+      userEventId,
+      session.user.id,
+      eventId,
+      'ORGANIZER',
+      JSON.stringify(['READ', 'WRITE', 'DELETE', 'MANAGE'])
+    ]);
+
+    // Get creator details for response
+    const userResult = await query(
+      'SELECT name, email FROM users WHERE id = $1',
+      [session.user.id]
+    );
+
+    const responseData = {
+      id: newEvent.id,
+      name: newEvent.name,
+      description: newEvent.description,
+      startDate: newEvent.start_date,
+      endDate: newEvent.end_date,
+      location: newEvent.location,
+      venue: newEvent.venue,
+      maxParticipants: newEvent.max_participants,
+      registrationDeadline: newEvent.registration_deadline,
+      eventType: newEvent.event_type,
+      status: newEvent.status,
+      tags: newEvent.tags ? JSON.parse(newEvent.tags) : [],
+      website: newEvent.website,
+      contactEmail: newEvent.contact_email,
+      createdAt: newEvent.created_at,
+      updatedAt: newEvent.updated_at,
+      createdByUser: {
+        id: session.user.id,
+        name: userResult.rows[0]?.name,
+        email: userResult.rows[0]?.email
+      },
+      _count: {
+        sessions: 0,
+        registrations: 0,
+        userEvents: 1
       }
-    });
+    };
 
     return NextResponse.json({
       success: true,
-      data: event,
+      data: responseData,
       message: 'Event created successfully'
     }, { status: 201 });
 
@@ -214,15 +312,15 @@ export async function PUT(request: NextRequest) {
     const validatedUpdates = UpdateEventSchema.parse(updates);
 
     // Check permissions for each event
-    const userEvents = await prisma.userEvent.findMany({
-      where: {
-        userId: session.user.id,
-        eventId: { in: eventIds },
-        permissions: { has: 'WRITE' }
-      }
-    });
+    const placeholders = eventIds.map((_, i) => `$${i + 2}`).join(',');
+    const permissionQuery = `
+      SELECT event_id FROM user_events 
+      WHERE user_id = $1 AND event_id IN (${placeholders})
+      AND permissions @> '["WRITE"]'
+    `;
 
-    const allowedEventIds = userEvents.map(ue => ue.eventId);
+    const userEventsResult = await query(permissionQuery, [session.user.id, ...eventIds]);
+    const allowedEventIds = userEventsResult.rows.map(row => row.event_id);
     
     if (allowedEventIds.length !== eventIds.length) {
       return NextResponse.json(
@@ -231,15 +329,49 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updatedEvents = await prisma.event.updateMany({
-      where: { id: { in: allowedEventIds } },
-      data: validatedUpdates
+    // Build update query dynamically
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramCount = 0;
+
+    Object.entries(validatedUpdates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        paramCount++;
+        const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        updateFields.push(`${dbField} = $${paramCount}`);
+        updateParams.push(value);
+      }
     });
+
+    if (updateFields.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: { updatedCount: 0 },
+        message: 'No fields to update'
+      });
+    }
+
+    // Add updated_at
+    paramCount++;
+    updateFields.push(`updated_at = $${paramCount}`);
+    updateParams.push(new Date());
+
+    // Add WHERE clause parameters
+    const whereInPlaceholders = allowedEventIds.map((_, i) => `$${paramCount + 1 + i}`).join(',');
+    updateParams.push(...allowedEventIds);
+
+    const updateQuery = `
+      UPDATE events 
+      SET ${updateFields.join(', ')}
+      WHERE id IN (${whereInPlaceholders})
+    `;
+
+    const result = await query(updateQuery, updateParams);
 
     return NextResponse.json({
       success: true,
-      data: { updatedCount: updatedEvents.count },
-      message: `${updatedEvents.count} events updated successfully`
+      data: { updatedCount: result.rowCount },
+      message: `${result.rowCount} events updated successfully`
     });
 
   } catch (error) {
@@ -278,15 +410,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check permissions for each event
-    const userEvents = await prisma.userEvent.findMany({
-      where: {
-        userId: session.user.id,
-        eventId: { in: eventIds },
-        permissions: { has: 'DELETE' }
-      }
-    });
+    const placeholders = eventIds.map((_, i) => `$${i + 2}`).join(',');
+    const permissionQuery = `
+      SELECT event_id FROM user_events 
+      WHERE user_id = $1 AND event_id IN (${placeholders})
+      AND permissions @> '["DELETE"]'
+    `;
 
-    const allowedEventIds = userEvents.map(ue => ue.eventId);
+    const userEventsResult = await query(permissionQuery, [session.user.id, ...eventIds]);
+    const allowedEventIds = userEventsResult.rows.map(row => row.event_id);
     
     if (allowedEventIds.length !== eventIds.length) {
       return NextResponse.json(
@@ -296,15 +428,18 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Soft delete - update status instead of actual deletion
-    const deletedEvents = await prisma.event.updateMany({
-      where: { id: { in: allowedEventIds } },
-      data: { status: 'CANCELLED' }
-    });
+    const deleteQuery = `
+      UPDATE events 
+      SET status = 'CANCELLED', updated_at = NOW()
+      WHERE id IN (${allowedEventIds.map((_, i) => `$${i + 1}`).join(',')})
+    `;
+
+    const result = await query(deleteQuery, allowedEventIds);
 
     return NextResponse.json({
       success: true,
-      data: { deletedCount: deletedEvents.count },
-      message: `${deletedEvents.count} events deleted successfully`
+      data: { deletedCount: result.rowCount },
+      message: `${result.rowCount} events deleted successfully`
     });
 
   } catch (error) {

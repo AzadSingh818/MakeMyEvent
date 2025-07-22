@@ -2,9 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { prisma } from '@/lib/database/connection';
+import { query } from '@/lib/database/connection'; // ✅ Fixed: Using PostgreSQL instead of Prisma
 import { z } from 'zod';
-import { createApiHandler, getPagination, getSorting, getSearchFilter } from '@/lib/api/middleware';
 
 // Validation schemas
 const CreateRegistrationSchema = z.object({
@@ -70,41 +69,68 @@ const UpdateRegistrationSchema = z.object({
   reviewNotes: z.string().optional(),
 });
 
+// Helper functions
+function getPagination(searchParams: URLSearchParams) {
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '20');
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
+
+function getSorting(searchParams: URLSearchParams, allowedFields: string[]) {
+  const sortBy = searchParams.get('sortBy') || 'created_at';
+  const sortOrder = searchParams.get('sortOrder') || 'desc';
+  
+  // Convert camelCase to snake_case for database
+  const dbSortBy = sortBy.replace(/([A-Z])/g, '_$1').toLowerCase();
+  
+  return { 
+    sortBy: allowedFields.includes(dbSortBy) ? dbSortBy : 'created_at', 
+    sortOrder: sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC' 
+  };
+}
+
 // GET /api/registrations - Get all registrations with filters
-export const GET = createApiHandler({
-  requireAuth: true,
-  allowedRoles: ['ORGANIZER', 'EVENT_MANAGER', 'DELEGATE']
-})(async (request: NextRequest, context: any, user: any) => {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId');
     const status = searchParams.get('status');
     const participantType = searchParams.get('participantType');
+    const search = searchParams.get('search');
     const { page, limit, skip } = getPagination(searchParams);
     const { sortBy, sortOrder } = getSorting(searchParams, [
-      'createdAt', 'updatedAt', 'registrationData', 'status'
+      'created_at', 'updated_at', 'status'
     ]);
 
-    // Build where clause
-    const where: any = {};
+    // Build WHERE clause
+    let whereClause = 'WHERE 1=1';
+    let queryParams: any[] = [];
+    let paramCount = 0;
 
     // Role-based filtering
-    if (user.role === 'DELEGATE') {
-      where.userId = user.id; // Users can only see their own registrations
+    if (session.user.role === 'DELEGATE') {
+      paramCount++;
+      whereClause += ` AND r.user_id = $${paramCount}`;
+      queryParams.push(session.user.id);
     } else if (eventId) {
-      where.eventId = eventId;
+      paramCount++;
+      whereClause += ` AND r.event_id = $${paramCount}`;
+      queryParams.push(eventId);
       
       // Verify event access for organizers/managers
-      if (!['ORGANIZER', 'EVENT_MANAGER'].includes(user.role)) {
-        const userEvent = await prisma.userEvent.findFirst({
-          where: {
-            userId: user.id,
-            eventId: eventId,
-            permissions: { has: 'READ' }
-          }
-        });
+      if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+        const userEventResult = await query(`
+          SELECT id FROM user_events 
+          WHERE user_id = $1 AND event_id = $2 AND permissions @> '["read"]'
+        `, [session.user.id, eventId]);
 
-        if (!userEvent) {
+        if (userEventResult.rows.length === 0) {
           return NextResponse.json(
             { error: 'Access denied to event registrations' },
             { status: 403 }
@@ -113,71 +139,98 @@ export const GET = createApiHandler({
       }
     }
 
+    // Status filter
     if (status) {
-      where.status = status;
+      paramCount++;
+      whereClause += ` AND r.status = $${paramCount}`;
+      queryParams.push(status);
     }
 
+    // Participant type filter (JSON field)
     if (participantType) {
-      where.registrationData = {
-        path: ['participantType'],
-        equals: participantType
-      };
+      paramCount++;
+      whereClause += ` AND r.registration_data->>'participantType' = $${paramCount}`;
+      queryParams.push(participantType);
     }
 
     // Search filter
-    const search = searchParams.get('search');
     if (search) {
-      where.OR = [
-        {
-          user: {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { email: { contains: search, mode: 'insensitive' } },
-            ]
-          }
-        },
-        {
-          registrationData: {
-            path: ['institution'],
-            string_contains: search
-          }
-        }
-      ];
+      paramCount++;
+      whereClause += ` AND (
+        u.name ILIKE $${paramCount} OR 
+        u.email ILIKE $${paramCount} OR
+        r.registration_data->>'institution' ILIKE $${paramCount}
+      )`;
+      queryParams.push(`%${search}%`);
     }
 
-    const [registrations, total] = await Promise.all([
-      prisma.registration.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { [sortBy]: sortOrder },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-              role: true,
-              profileImage: true
-            }
-          },
-          event: {
-            select: {
-              id: true,
-              name: true,
-              startDate: true,
-              endDate: true,
-              location: true
-            }
-          },
-          reviewedByUser: {
-            select: { id: true, name: true }
-          }
-        }
-      }),
-      prisma.registration.count({ where })
+    // Main query with joins
+    const registrationsQuery = `
+      SELECT 
+        r.*,
+        u.id as user_id, u.name as user_name, u.email as user_email, 
+        u.phone as user_phone, u.role as user_role, u.image as user_image,
+        e.id as event_id, e.name as event_name, e.start_date as event_start_date,
+        e.end_date as event_end_date, e.location as event_location,
+        ru.id as reviewer_id, ru.name as reviewer_name
+      FROM registrations r
+      JOIN users u ON r.user_id = u.id
+      JOIN events e ON r.event_id = e.id
+      LEFT JOIN users ru ON r.reviewed_by = ru.id
+      ${whereClause}
+      ORDER BY r.${sortBy} ${sortOrder}
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+
+    queryParams.push(limit, skip);
+
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM registrations r
+      JOIN users u ON r.user_id = u.id
+      JOIN events e ON r.event_id = e.id
+      ${whereClause}
+    `;
+
+    const [registrationsResult, countResult] = await Promise.all([
+      query(registrationsQuery, queryParams),
+      query(countQuery, queryParams.slice(0, -2))
     ]);
+
+    // Format response data
+    const registrations = registrationsResult.rows.map(row => ({
+      id: row.id,
+      registrationNumber: row.registration_number,
+      status: row.status,
+      registrationData: row.registration_data,
+      paymentInfo: row.payment_info,
+      reviewNotes: row.review_notes,
+      reviewedAt: row.reviewed_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      user: {
+        id: row.user_id,
+        name: row.user_name,
+        email: row.user_email,
+        phone: row.user_phone,
+        role: row.user_role,
+        profileImage: row.user_image
+      },
+      event: {
+        id: row.event_id,
+        name: row.event_name,
+        startDate: row.event_start_date,
+        endDate: row.event_end_date,
+        location: row.event_location
+      },
+      reviewedByUser: row.reviewer_id ? {
+        id: row.reviewer_id,
+        name: row.reviewer_name
+      } : null
+    }));
+
+    const total = parseInt(countResult.rows[0].total);
 
     return NextResponse.json({
       success: true,
@@ -199,36 +252,36 @@ export const GET = createApiHandler({
       { status: 500 }
     );
   }
-});
+}
 
 // POST /api/registrations - Create new registration
-export const POST = createApiHandler({
-  requireAuth: true
-})(async (request: NextRequest, context: any, user: any) => {
+export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const validatedData = CreateRegistrationSchema.parse(body);
 
     // Check if event exists and is open for registration
-    const event = await prisma.event.findUnique({
-      where: { id: validatedData.eventId },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        startDate: true,
-        registrationDeadline: true,
-        maxParticipants: true,
-        _count: { select: { registrations: true } }
-      }
-    });
+    const eventResult = await query(`
+      SELECT 
+        id, name, status, start_date, registration_deadline, max_participants,
+        (SELECT COUNT(*) FROM registrations WHERE event_id = $1) as registration_count
+      FROM events 
+      WHERE id = $1
+    `, [validatedData.eventId]);
 
-    if (!event) {
+    if (eventResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'Event not found' },
         { status: 404 }
       );
     }
+
+    const event = eventResult.rows[0];
 
     if (event.status !== 'PUBLISHED') {
       return NextResponse.json(
@@ -238,7 +291,7 @@ export const POST = createApiHandler({
     }
 
     // Check registration deadline
-    if (event.registrationDeadline && new Date() > event.registrationDeadline) {
+    if (event.registration_deadline && new Date() > new Date(event.registration_deadline)) {
       return NextResponse.json(
         { error: 'Registration deadline has passed' },
         { status: 400 }
@@ -246,66 +299,104 @@ export const POST = createApiHandler({
     }
 
     // Check if user already registered
-    const existingRegistration = await prisma.registration.findFirst({
-      where: {
-        userId: user.id,
-        eventId: validatedData.eventId
-      }
-    });
+    const existingResult = await query(
+      'SELECT id FROM registrations WHERE user_id = $1 AND event_id = $2',
+      [session.user.id, validatedData.eventId]
+    );
 
-    if (existingRegistration) {
+    if (existingResult.rows.length > 0) {
       return NextResponse.json(
         { error: 'Already registered for this event' },
         { status: 409 }
       );
     }
 
-    // Check capacity
+    // Determine registration status
     let status = 'PENDING';
-    if (event.maxParticipants && event._count.registrations >= event.maxParticipants) {
+    if (event.max_participants && parseInt(event.registration_count) >= event.max_participants) {
       status = 'WAITLIST';
     }
 
     // Generate registration number
     const registrationNumber = `REG-${event.id.slice(-6).toUpperCase()}-${Date.now().toString().slice(-6)}`;
+    const registrationId = `reg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    const registration = await prisma.registration.create({
-      data: {
-        userId: user.id,
-        eventId: validatedData.eventId,
-        registrationNumber,
-        status,
-        registrationData: validatedData.registrationData,
-        paymentInfo: validatedData.paymentInfo || {},
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true, phone: true }
-        },
-        event: {
-          select: { id: true, name: true, startDate: true, endDate: true }
-        }
-      }
-    });
+    // Insert registration
+    const insertQuery = `
+      INSERT INTO registrations (
+        id, user_id, event_id, registration_number, status,
+        registration_data, payment_info, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+      ) RETURNING *
+    `;
+
+    const registrationResult = await query(insertQuery, [
+      registrationId,
+      session.user.id,
+      validatedData.eventId,
+      registrationNumber,
+      status,
+      JSON.stringify(validatedData.registrationData),
+      JSON.stringify(validatedData.paymentInfo || {})
+    ]);
+
+    const registration = registrationResult.rows[0];
+
+    // Get user and event details for response
+    const detailsResult = await query(`
+      SELECT 
+        u.id as user_id, u.name as user_name, u.email as user_email, u.phone as user_phone,
+        e.id as event_id, e.name as event_name, e.start_date, e.end_date
+      FROM users u, events e
+      WHERE u.id = $1 AND e.id = $2
+    `, [session.user.id, validatedData.eventId]);
+
+    const details = detailsResult.rows[0];
 
     // Log email for confirmation
-    await prisma.emailLog.create({
-      data: {
-        recipient: user.email,
-        subject: `Registration Confirmation - ${event.name}`,
-        content: `Your registration for ${event.name} has been submitted successfully. Registration Number: ${registrationNumber}`,
-        type: 'REGISTRATION_CONFIRMATION',
-        status: 'PENDING',
-        metadata: {
-          registrationId: registration.id,
-          registrationNumber
-        }
+    const emailId = `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await query(`
+      INSERT INTO email_logs (
+        id, recipient, subject, content, status, user_id, created_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, NOW()
+      )
+    `, [
+      emailId,
+      session.user.email,
+      `Registration Confirmation - ${event.name}`,
+      `Your registration for ${event.name} has been submitted successfully. Registration Number: ${registrationNumber}`,
+      'PENDING',
+      session.user.id
+    ]);
+
+    // Format response
+    const responseData = {
+      id: registration.id,
+      registrationNumber: registration.registration_number,
+      status: registration.status,
+      registrationData: JSON.parse(registration.registration_data),
+      paymentInfo: JSON.parse(registration.payment_info),
+      createdAt: registration.created_at,
+      updatedAt: registration.updated_at,
+      user: {
+        id: details.user_id,
+        name: details.user_name,
+        email: details.user_email,
+        phone: details.user_phone
+      },
+      event: {
+        id: details.event_id,
+        name: details.event_name,
+        startDate: details.start_date,
+        endDate: details.end_date
       }
-    });
+    };
 
     return NextResponse.json({
       success: true,
-      data: registration,
+      data: responseData,
       message: `Registration ${status === 'WAITLIST' ? 'added to waitlist' : 'submitted'} successfully`
     }, { status: 201 });
 
@@ -324,14 +415,24 @@ export const POST = createApiHandler({
       { status: 500 }
     );
   }
-});
+}
 
 // PUT /api/registrations - Bulk update registrations
-export const PUT = createApiHandler({
-  requireAuth: true,
-  allowedRoles: ['ORGANIZER', 'EVENT_MANAGER']
-})(async (request: NextRequest, context: any, user: any) => {
+export async function PUT(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Check role permissions
+    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { registrationIds, updates } = body;
 
@@ -345,25 +446,20 @@ export const PUT = createApiHandler({
     const validatedUpdates = UpdateRegistrationSchema.parse(updates);
 
     // Verify permissions for each registration
-    const registrations = await prisma.registration.findMany({
-      where: { id: { in: registrationIds } },
-      include: {
-        event: {
-          include: {
-            userEvents: {
-              where: {
-                userId: user.id,
-                permissions: { has: 'WRITE' }
-              }
-            }
-          }
-        }
-      }
-    });
+    const placeholders = registrationIds.map((_, i) => `$${i + 2}`).join(',');
+    const permissionQuery = `
+      SELECT r.id, r.event_id, e.created_by, ue.id as user_event_id
+      FROM registrations r
+      JOIN events e ON r.event_id = e.id
+      LEFT JOIN user_events ue ON e.id = ue.event_id AND ue.user_id = $1 AND ue.permissions @> '["WRITE"]'
+      WHERE r.id IN (${placeholders})
+    `;
 
-    const allowedRegistrationIds = registrations
-      .filter(r => r.event.userEvents.length > 0 || r.event.createdBy === user.id)
-      .map(r => r.id);
+    const permissionResult = await query(permissionQuery, [session.user.id, ...registrationIds]);
+    
+    const allowedRegistrationIds = permissionResult.rows
+      .filter(row => row.user_event_id || row.created_by === session.user.id)
+      .map(row => row.id);
     
     if (allowedRegistrationIds.length !== registrationIds.length) {
       return NextResponse.json(
@@ -372,63 +468,93 @@ export const PUT = createApiHandler({
       );
     }
 
-    // Update registrations
-    const updateData: any = { updatedAt: new Date() };
-    
+    // Build update query dynamically
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramCount = 0;
+
     if (validatedUpdates.status) {
-      updateData.status = validatedUpdates.status;
-      updateData.reviewedBy = user.id;
-      updateData.reviewedAt = new Date();
+      paramCount++;
+      updateFields.push(`status = $${paramCount}`);
+      updateParams.push(validatedUpdates.status);
+      
+      paramCount++;
+      updateFields.push(`reviewed_by = $${paramCount}`);
+      updateParams.push(session.user.id);
+      
+      paramCount++;
+      updateFields.push(`reviewed_at = $${paramCount}`);
+      updateParams.push(new Date());
     }
 
     if (validatedUpdates.registrationData) {
-      updateData.registrationData = validatedUpdates.registrationData;
+      paramCount++;
+      updateFields.push(`registration_data = $${paramCount}`);
+      updateParams.push(JSON.stringify(validatedUpdates.registrationData));
     }
 
     if (validatedUpdates.paymentInfo) {
-      updateData.paymentInfo = validatedUpdates.paymentInfo;
+      paramCount++;
+      updateFields.push(`payment_info = $${paramCount}`);
+      updateParams.push(JSON.stringify(validatedUpdates.paymentInfo));
     }
 
     if (validatedUpdates.reviewNotes) {
-      updateData.reviewNotes = validatedUpdates.reviewNotes;
+      paramCount++;
+      updateFields.push(`review_notes = $${paramCount}`);
+      updateParams.push(validatedUpdates.reviewNotes);
     }
 
-    const updatedRegistrations = await prisma.registration.updateMany({
-      where: { id: { in: allowedRegistrationIds } },
-      data: updateData
-    });
+    paramCount++;
+    updateFields.push(`updated_at = $${paramCount}`);
+    updateParams.push(new Date());
 
-    // Send status update emails
+    // Add WHERE clause parameters
+    const whereInPlaceholders = allowedRegistrationIds.map((_, i) => `$${paramCount + 1 + i}`).join(',');
+    updateParams.push(...allowedRegistrationIds);
+
+    const updateQuery = `
+      UPDATE registrations 
+      SET ${updateFields.join(', ')}
+      WHERE id IN (${whereInPlaceholders})
+    `;
+
+    const result = await query(updateQuery, updateParams);
+
+    // Send status update emails if status was changed
     if (validatedUpdates.status) {
-      const registrationsToEmail = await prisma.registration.findMany({
-        where: { id: { in: allowedRegistrationIds } },
-        include: {
-          user: { select: { email: true, name: true } },
-          event: { select: { name: true } }
-        }
-      });
+      const emailQuery = `
+        SELECT r.id, u.email, u.name, e.name as event_name
+        FROM registrations r
+        JOIN users u ON r.user_id = u.id
+        JOIN events e ON r.event_id = e.id
+        WHERE r.id IN (${whereInPlaceholders})
+      `;
 
-      for (const reg of registrationsToEmail) {
-        await prisma.emailLog.create({
-          data: {
-            recipient: reg.user.email,
-            subject: `Registration Status Update - ${reg.event.name}`,
-            content: `Your registration status has been updated to: ${validatedUpdates.status}`,
-            type: 'REGISTRATION_STATUS_UPDATE',
-            status: 'PENDING',
-            metadata: {
-              registrationId: reg.id,
-              newStatus: validatedUpdates.status
-            }
-          }
-        });
+      const emailResult = await query(emailQuery, allowedRegistrationIds);
+
+      for (const row of emailResult.rows) {
+        const emailId = `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await query(`
+          INSERT INTO email_logs (
+            id, recipient, subject, content, status, created_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, NOW()
+          )
+        `, [
+          emailId,
+          row.email,
+          `Registration Status Update - ${row.event_name}`,
+          `Your registration status has been updated to: ${validatedUpdates.status}`,
+          'PENDING'
+        ]);
       }
     }
 
     return NextResponse.json({
       success: true,
-      data: { updatedCount: updatedRegistrations.count },
-      message: `${updatedRegistrations.count} registrations updated successfully`
+      data: { updatedCount: result.rowCount },
+      message: `${result.rowCount} registrations updated successfully`
     });
 
   } catch (error) {
@@ -446,13 +572,16 @@ export const PUT = createApiHandler({
       { status: 500 }
     );
   }
-});
+}
 
 // DELETE /api/registrations - Cancel registrations
-export const DELETE = createApiHandler({
-  requireAuth: true
-})(async (request: NextRequest, context: any, user: any) => {
+export async function DELETE(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { registrationIds, reason } = body;
 
@@ -464,21 +593,23 @@ export const DELETE = createApiHandler({
     }
 
     // Check permissions
-    const registrations = await prisma.registration.findMany({
-      where: { id: { in: registrationIds } },
-      include: {
-        event: { select: { createdBy: true, startDate: true } },
-        user: { select: { id: true } }
-      }
-    });
+    const placeholders = registrationIds.map((_, i) => `$${i + 2}`).join(',');
+    const permissionQuery = `
+      SELECT r.id, r.user_id, e.created_by, e.start_date
+      FROM registrations r
+      JOIN events e ON r.event_id = e.id
+      WHERE r.id IN (${placeholders})
+    `;
 
-    const allowedRegistrationIds = registrations.filter(r => {
+    const permissionResult = await query(permissionQuery, [session.user.id, ...registrationIds]);
+
+    const allowedRegistrationIds = permissionResult.rows.filter(row => {
       // Users can cancel their own registrations
-      if (r.user.id === user.id) return true;
+      if (row.user_id === session.user.id) return true;
       // Organizers can cancel any registration for their events
-      if (['ORGANIZER', 'EVENT_MANAGER'].includes(user.role) && r.event.createdBy === user.id) return true;
+      if (['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role) && row.created_by === session.user.id) return true;
       return false;
-    }).map(r => r.id);
+    }).map(row => row.id);
 
     if (allowedRegistrationIds.length !== registrationIds.length) {
       return NextResponse.json(
@@ -487,31 +618,42 @@ export const DELETE = createApiHandler({
       );
     }
 
-    // Check if event has already started
-    const startedEvents = registrations.filter(r => r.event.startDate <= new Date());
-    if (startedEvents.length > 0 && user.role !== 'ORGANIZER') {
-      return NextResponse.json(
-        { error: 'Cannot cancel registration for events that have already started' },
-        { status: 400 }
+    // Check if event has already started (for non-organizers)
+    if (session.user.role !== 'ORGANIZER') {
+      const startedEvents = permissionResult.rows.filter(row => 
+        new Date(row.start_date) <= new Date()
       );
+      
+      if (startedEvents.length > 0) {
+        return NextResponse.json(
+          { error: 'Cannot cancel registration for events that have already started' },
+          { status: 400 }
+        );
+      }
     }
 
     // Update status to CANCELLED instead of actual deletion
-    const cancelledRegistrations = await prisma.registration.updateMany({
-      where: { id: { in: allowedRegistrationIds } },
-      data: {
-        status: 'CANCELLED',
-        reviewNotes: reason || 'Registration cancelled',
-        reviewedBy: user.id,
-        reviewedAt: new Date(),
-        updatedAt: new Date()
-      }
-    });
+    const cancelQuery = `
+      UPDATE registrations 
+      SET 
+        status = 'CANCELLED',
+        review_notes = $1,
+        reviewed_by = $2,
+        reviewed_at = NOW(),
+        updated_at = NOW()
+      WHERE id IN (${allowedRegistrationIds.map((_, i) => `$${i + 3}`).join(',')})
+    `;
+
+    const result = await query(cancelQuery, [
+      reason || 'Registration cancelled',
+      session.user.id,
+      ...allowedRegistrationIds
+    ]);
 
     return NextResponse.json({
       success: true,
-      data: { cancelledCount: cancelledRegistrations.count },
-      message: `${cancelledRegistrations.count} registrations cancelled successfully`
+      data: { cancelledCount: result.rowCount },
+      message: `${result.rowCount} registrations cancelled successfully`
     });
 
   } catch (error) {
@@ -521,4 +663,4 @@ export const DELETE = createApiHandler({
       { status: 500 }
     );
   }
-});
+}

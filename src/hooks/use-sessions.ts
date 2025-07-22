@@ -1,15 +1,10 @@
 // src/hooks/use-sessions.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSession } from 'next-auth/react';
+import { useSession as useAuthSession } from 'next-auth/react'; // Renamed to avoid conflict
 import { toast } from 'react-hot-toast';
 
 // Types
 interface Session {
-  sessionId: Key | null | undefined;
-  session: any;
-  session: any;
-  role: string;
-  role: any;
   id: string;
   eventId: string;
   title: string;
@@ -342,12 +337,12 @@ const sessionsApi = {
 
 // Get sessions hook
 export function useSessions(filters: SessionFilters = {}) {
-  const { data: session } = useSession();
+  const { data: authSession } = useAuthSession(); // Fixed: renamed variable
   
   return useQuery({
     queryKey: ['sessions', filters],
     queryFn: () => sessionsApi.getSessions(filters),
-    enabled: !!session?.user,
+    enabled: !!authSession?.user,
     staleTime: 3 * 60 * 1000, // 3 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
@@ -392,14 +387,14 @@ export function useUserSessions(userId?: string, eventId?: string) {
   });
 }
 
-// Get single session
-export function useSession(sessionId: string) {
-  const { data: session } = useSession();
+// Get single session - FIXED: renamed function to avoid conflict
+export function useSessionData(sessionId: string) {
+  const { data: authSession } = useAuthSession(); // Fixed: renamed variable
   
   return useQuery({
     queryKey: ['session', sessionId],
     queryFn: () => sessionsApi.getSession(sessionId),
-    enabled: !!session?.user && !!sessionId,
+    enabled: !!authSession?.user && !!sessionId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -564,12 +559,12 @@ export function useRemoveSpeaker() {
 
 // Session statistics hook
 export function useSessionStats(eventId: string) {
-  const { data: session } = useSession();
+  const { data: authSession } = useAuthSession(); // Fixed: renamed variable
   
   return useQuery({
     queryKey: ['session-stats', eventId],
     queryFn: () => sessionsApi.getSessionStats(eventId),
-    enabled: !!session?.user && !!eventId,
+    enabled: !!authSession?.user && !!eventId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
   });
@@ -592,7 +587,7 @@ export function useUpcomingSessions(eventId?: string) {
 }
 
 export function useOngoingSessions(eventId?: string) {
-  const { data: session } = useSession();
+  const { data: authSession } = useAuthSession(); // Fixed: renamed variable
   
   return useQuery({
     queryKey: ['ongoing-sessions', eventId],
@@ -602,7 +597,7 @@ export function useOngoingSessions(eventId?: string) {
       if (!response.ok) throw new Error('Failed to fetch ongoing sessions');
       return response.json();
     },
-    enabled: !!session?.user && !!eventId,
+    enabled: !!authSession?.user && !!eventId,
     staleTime: 1 * 60 * 1000, // 1 minute
     refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
   });

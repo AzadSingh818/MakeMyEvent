@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { prisma } from '@/lib/database/connection';
+import { query } from '@/lib/database/connection'; // ✅ Fixed: Using PostgreSQL instead of Prisma
 import { z } from 'zod';
 
 // Validation schemas
@@ -43,34 +43,36 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const sessionType = searchParams.get('sessionType');
     const speakerId = searchParams.get('speakerId');
-    const sortBy = searchParams.get('sortBy') || 'startTime';
+    const sortBy = searchParams.get('sortBy') || 'start_time';
     const sortOrder = searchParams.get('sortOrder') || 'asc';
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: any = {};
+    // Build WHERE clause
+    let whereClause = 'WHERE 1=1';
+    let queryParams: any[] = [];
+    let paramCount = 0;
 
+    // Event access check
     if (eventId) {
-      where.eventId = eventId;
+      paramCount++;
+      whereClause += ` AND cs.event_id = $${paramCount}`;
+      queryParams.push(eventId);
       
       // Check if user has access to this event
-      const userEvent = await prisma.userEvent.findFirst({
-        where: {
-          userId: session.user.id,
-          eventId: eventId,
-          permissions: { has: 'READ' }
-        }
-      });
+      const userEventResult = await query(`
+        SELECT id FROM user_events 
+        WHERE user_id = $1 AND event_id = $2 AND permissions @> '["READ"]'
+      `, [session.user.id, eventId]);
 
-      if (!userEvent && session.user.role !== 'ORGANIZER') {
+      if (userEventResult.rows.length === 0 && session.user.role !== 'ORGANIZER') {
         // Check if event is published for non-associated users
-        const event = await prisma.event.findUnique({
-          where: { id: eventId },
-          select: { status: true }
-        });
+        const eventResult = await query(
+          'SELECT status FROM events WHERE id = $1',
+          [eventId]
+        );
 
-        if (!event || event.status !== 'PUBLISHED') {
+        if (eventResult.rows.length === 0 || eventResult.rows[0].status !== 'PUBLISHED') {
           return NextResponse.json(
             { error: 'Access denied to event sessions' },
             { status: 403 }
@@ -79,91 +81,202 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Hall filter
     if (hallId) {
-      where.hallId = hallId;
+      paramCount++;
+      whereClause += ` AND cs.hall_id = $${paramCount}`;
+      queryParams.push(hallId);
     }
 
+    // Date filter
     if (date) {
       const startOfDay = new Date(date);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(date);
       endOfDay.setHours(23, 59, 59, 999);
 
-      where.startTime = {
-        gte: startOfDay,
-        lte: endOfDay
-      };
+      paramCount++;
+      whereClause += ` AND cs.start_time >= $${paramCount}`;
+      queryParams.push(startOfDay);
+      
+      paramCount++;
+      whereClause += ` AND cs.start_time <= $${paramCount}`;
+      queryParams.push(endOfDay);
     }
 
+    // Session type filter
     if (sessionType) {
-      where.sessionType = sessionType;
+      paramCount++;
+      whereClause += ` AND cs.session_type = $${paramCount}`;
+      queryParams.push(sessionType);
     }
 
+    // Speaker filter
     if (speakerId) {
-      where.speakers = {
-        some: {
-          userId: speakerId
+      paramCount++;
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM session_speakers ss 
+        WHERE ss.session_id = cs.id AND ss.user_id = $${paramCount}
+      )`;
+      queryParams.push(speakerId);
+    }
+
+    // Search filter
+    if (search) {
+      paramCount++;
+      whereClause += ` AND (
+        cs.title ILIKE $${paramCount} OR 
+        cs.description ILIKE $${paramCount}
+      )`;
+      queryParams.push(`%${search}%`);
+    }
+
+    // Main query to get sessions with related data
+    const sessionsQuery = `
+      SELECT 
+        cs.*,
+        e.name as event_name, e.start_date as event_start_date, e.end_date as event_end_date,
+        h.name as hall_name, h.capacity as hall_capacity, h.equipment as hall_equipment,
+        (SELECT COUNT(*) FROM session_speakers ss WHERE ss.session_id = cs.id) as speakers_count,
+        (SELECT COUNT(*) FROM presentations p WHERE p.session_id = cs.id) as presentations_count,
+        (SELECT COUNT(*) FROM attendance_records ar WHERE ar.session_id = cs.id) as attendance_count
+      FROM conference_sessions cs
+      LEFT JOIN events e ON cs.event_id = e.id
+      LEFT JOIN halls h ON cs.hall_id = h.id
+      ${whereClause}
+      ORDER BY cs.${sortBy} ${sortOrder.toUpperCase()}
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+
+    queryParams.push(limit, skip);
+
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM conference_sessions cs
+      ${whereClause}
+    `;
+
+    const [sessionsResult, countResult] = await Promise.all([
+      query(sessionsQuery, queryParams),
+      query(countQuery, queryParams.slice(0, -2))
+    ]);
+
+    // Get speakers for all sessions in one query
+    const sessionIds = sessionsResult.rows.map(row => row.id);
+    let speakers: any[] = [];
+    if (sessionIds.length > 0) {
+      const speakersQuery = `
+        SELECT 
+          ss.session_id, ss.role as speaker_role,
+          u.id, u.name, u.email, u.phone, u.institution, u.image
+        FROM session_speakers ss
+        JOIN users u ON ss.user_id = u.id
+        WHERE ss.session_id = ANY($1)
+        ORDER BY ss.session_id, ss.created_at
+      `;
+      
+      const speakersResult = await query(speakersQuery, [sessionIds]);
+      speakers = speakersResult.rows;
+    }
+
+    // Get presentations for all sessions
+    let presentations: any[] = [];
+    if (sessionIds.length > 0) {
+      const presentationsQuery = `
+        SELECT 
+          p.session_id, p.id, p.title, p.file_path, p.uploaded_at,
+          u.name as user_name
+        FROM presentations p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.session_id = ANY($1)
+        ORDER BY p.session_id, p.uploaded_at
+      `;
+      
+      const presentationsResult = await query(presentationsQuery, [sessionIds]);
+      presentations = presentationsResult.rows;
+    }
+
+    // Get attendance records for all sessions
+    let attendanceRecords: any[] = [];
+    if (sessionIds.length > 0) {
+      const attendanceQuery = `
+        SELECT session_id, id, user_id, timestamp, method
+        FROM attendance_records
+        WHERE session_id = ANY($1)
+        ORDER BY session_id, timestamp
+      `;
+      
+      const attendanceResult = await query(attendanceQuery, [sessionIds]);
+      attendanceRecords = attendanceResult.rows;
+    }
+
+    // Format response data
+    const sessions = sessionsResult.rows.map(row => {
+      const sessionSpeakers = speakers.filter(s => s.session_id === row.id).map(s => ({
+        user: {
+          id: s.id,
+          name: s.name,
+          email: s.email,
+          phone: s.phone,
+          institution: s.institution,
+          profileImage: s.image
+        },
+        role: s.speaker_role
+      }));
+
+      const sessionPresentations = presentations.filter(p => p.session_id === row.id).map(p => ({
+        id: p.id,
+        title: p.title,
+        filePath: p.file_path,
+        uploadedAt: p.uploaded_at,
+        user: { name: p.user_name }
+      }));
+
+      const sessionAttendance = attendanceRecords.filter(a => a.session_id === row.id).map(a => ({
+        id: a.id,
+        userId: a.user_id,
+        timestamp: a.timestamp,
+        method: a.method
+      }));
+
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        sessionType: row.session_type,
+        maxParticipants: row.max_participants,
+        requirements: row.requirements ? JSON.parse(row.requirements) : [],
+        tags: row.tags ? JSON.parse(row.tags) : [],
+        isBreak: row.is_break,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        event: {
+          id: row.event_id,
+          name: row.event_name,
+          startDate: row.event_start_date,
+          endDate: row.event_end_date
+        },
+        hall: row.hall_id ? {
+          id: row.hall_id,
+          name: row.hall_name,
+          capacity: row.hall_capacity,
+          equipment: row.hall_equipment ? JSON.parse(row.hall_equipment) : null
+        } : null,
+        speakers: sessionSpeakers,
+        presentations: sessionPresentations,
+        attendanceRecords: sessionAttendance,
+        _count: {
+          speakers: parseInt(row.speakers_count || '0'),
+          presentations: parseInt(row.presentations_count || '0'),
+          attendanceRecords: parseInt(row.attendance_count || '0')
         }
       };
-    }
+    });
 
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const [sessions, total] = await Promise.all([
-      prisma.session.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { [sortBy]: sortOrder },
-        include: {
-          event: {
-            select: { id: true, name: true, startDate: true, endDate: true }
-          },
-          hall: {
-            select: { id: true, name: true, capacity: true, equipment: true }
-          },
-          speakers: {
-            include: {
-              user: {
-                select: { 
-                  id: true, 
-                  name: true, 
-                  email: true, 
-                  designation: true, 
-                  institution: true,
-                  profileImage: true 
-                }
-              }
-            }
-          },
-          presentations: {
-            select: { 
-              id: true, 
-              title: true, 
-              filePath: true, 
-              uploadedAt: true,
-              user: { select: { name: true } }
-            }
-          },
-          attendanceRecords: {
-            select: { id: true, userId: true, timestamp: true, method: true }
-          },
-          _count: {
-            select: {
-              speakers: true,
-              presentations: true,
-              attendanceRecords: true
-            }
-          }
-        }
-      }),
-      prisma.session.count({ where })
-    ]);
+    const total = parseInt(countResult.rows[0].total);
 
     return NextResponse.json({
       success: true,
@@ -207,15 +320,12 @@ export async function POST(request: NextRequest) {
     const validatedData = CreateSessionSchema.parse(body);
 
     // Verify event access
-    const userEvent = await prisma.userEvent.findFirst({
-      where: {
-        userId: session.user.id,
-        eventId: validatedData.eventId,
-        permissions: { has: 'WRITE' }
-      }
-    });
+    const userEventResult = await query(`
+      SELECT id FROM user_events 
+      WHERE user_id = $1 AND event_id = $2 AND permissions @> '["WRITE"]'
+    `, [session.user.id, validatedData.eventId]);
 
-    if (!userEvent) {
+    if (userEventResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'No permission to create sessions for this event' },
         { status: 403 }
@@ -230,93 +340,148 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for schedule conflicts
+    // Check for schedule conflicts if hall is specified
     if (validatedData.hallId) {
-      const conflictingSessions = await prisma.session.findMany({
-        where: {
-          hallId: validatedData.hallId,
-          OR: [
-            {
-              startTime: {
-                lt: validatedData.endTime,
-                gte: validatedData.startTime
-              }
-            },
-            {
-              endTime: {
-                gt: validatedData.startTime,
-                lte: validatedData.endTime
-              }
-            },
-            {
-              startTime: { lte: validatedData.startTime },
-              endTime: { gte: validatedData.endTime }
-            }
-          ]
-        },
-        select: { id: true, title: true, startTime: true, endTime: true }
-      });
+      const conflictQuery = `
+        SELECT id, title, start_time, end_time
+        FROM conference_sessions
+        WHERE hall_id = $1 AND (
+          (start_time < $2 AND start_time >= $3) OR
+          (end_time > $3 AND end_time <= $2) OR
+          (start_time <= $3 AND end_time >= $2)
+        )
+      `;
 
-      if (conflictingSessions.length > 0) {
+      const conflictResult = await query(conflictQuery, [
+        validatedData.hallId,
+        validatedData.endTime,
+        validatedData.startTime
+      ]);
+
+      if (conflictResult.rows.length > 0) {
         return NextResponse.json({
           error: 'Hall is already booked during this time',
-          conflicts: conflictingSessions
+          conflicts: conflictResult.rows.map(row => ({
+            id: row.id,
+            title: row.title,
+            startTime: row.start_time,
+            endTime: row.end_time
+          }))
         }, { status: 409 });
       }
     }
 
+    // Generate session ID
+    const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     // Create session
     const { speakers, ...sessionData } = validatedData;
     
-    const newSession = await prisma.session.create({
-      data: {
-        ...sessionData,
-        createdBy: session.user.id,
-      },
-      include: {
-        event: {
-          select: { id: true, name: true }
-        },
-        hall: {
-          select: { id: true, name: true, capacity: true }
-        }
-      }
-    });
+    const insertSessionQuery = `
+      INSERT INTO conference_sessions (
+        id, event_id, title, description, start_time, end_time, hall_id,
+        session_type, max_participants, requirements, tags, is_break,
+        created_by, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()
+      ) RETURNING *
+    `;
+
+    const sessionResult = await query(insertSessionQuery, [
+      sessionId,
+      sessionData.eventId,
+      sessionData.title,
+      sessionData.description || null,
+      sessionData.startTime,
+      sessionData.endTime,
+      sessionData.hallId || null,
+      sessionData.sessionType,
+      sessionData.maxParticipants || null,
+      sessionData.requirements ? JSON.stringify(sessionData.requirements) : null,
+      sessionData.tags ? JSON.stringify(sessionData.tags) : null,
+      sessionData.isBreak,
+      session.user.id
+    ]);
+
+    const newSession = sessionResult.rows[0];
 
     // Add speakers if provided
     if (speakers && speakers.length > 0) {
-      await prisma.sessionSpeaker.createMany({
-        data: speakers.map(speaker => ({
-          sessionId: newSession.id,
-          userId: speaker.userId,
-          role: speaker.role
-        }))
-      });
+      const speakersValues = speakers.map((speaker, index) => {
+        const speakerId = `ss_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 6)}`;
+        return `('${speakerId}', '${sessionId}', '${speaker.userId}', '${speaker.role}', NOW())`;
+      }).join(',');
+
+      await query(`
+        INSERT INTO session_speakers (id, session_id, user_id, role, created_at)
+        VALUES ${speakersValues}
+      `);
     }
 
-    // Fetch complete session with speakers
-    const completeSession = await prisma.session.findUnique({
-      where: { id: newSession.id },
-      include: {
-        event: {
-          select: { id: true, name: true }
+    // Get complete session data for response
+    const completeSessionQuery = `
+      SELECT 
+        cs.*,
+        e.name as event_name,
+        h.name as hall_name, h.capacity as hall_capacity
+      FROM conference_sessions cs
+      LEFT JOIN events e ON cs.event_id = e.id
+      LEFT JOIN halls h ON cs.hall_id = h.id
+      WHERE cs.id = $1
+    `;
+
+    const completeResult = await query(completeSessionQuery, [sessionId]);
+    const completeSession = completeResult.rows[0];
+
+    // Get speakers with user details
+    const speakersWithDetailsQuery = `
+      SELECT 
+        ss.role as speaker_role,
+        u.id, u.name, u.email, u.phone, u.institution
+      FROM session_speakers ss
+      JOIN users u ON ss.user_id = u.id
+      WHERE ss.session_id = $1
+    `;
+
+    const speakersResult = await query(speakersWithDetailsQuery, [sessionId]);
+
+    const responseData = {
+      id: completeSession.id,
+      title: completeSession.title,
+      description: completeSession.description,
+      startTime: completeSession.start_time,
+      endTime: completeSession.end_time,
+      sessionType: completeSession.session_type,
+      maxParticipants: completeSession.max_participants,
+      requirements: completeSession.requirements ? JSON.parse(completeSession.requirements) : [],
+      tags: completeSession.tags ? JSON.parse(completeSession.tags) : [],
+      isBreak: completeSession.is_break,
+      createdAt: completeSession.created_at,
+      updatedAt: completeSession.updated_at,
+      event: {
+        id: completeSession.event_id,
+        name: completeSession.event_name
+      },
+      hall: completeSession.hall_id ? {
+        id: completeSession.hall_id,
+        name: completeSession.hall_name,
+        capacity: completeSession.hall_capacity
+      } : null,
+      speakers: speakersResult.rows.map(row => ({
+        user: {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          institution: row.institution
         },
-        hall: {
-          select: { id: true, name: true, capacity: true }
-        },
-        speakers: {
-          include: {
-            user: {
-              select: { id: true, name: true, email: true, designation: true }
-            }
-          }
-        }
-      }
-    });
+        role: row.speaker_role
+      }))
+    };
 
     return NextResponse.json({
       success: true,
-      data: completeSession,
+      data: responseData,
       message: 'Session created successfully'
     }, { status: 201 });
 
@@ -358,25 +523,18 @@ export async function PUT(request: NextRequest) {
     const validatedUpdates = UpdateSessionSchema.parse(updates);
 
     // Check permissions for each session
-    const sessions = await prisma.session.findMany({
-      where: { id: { in: sessionIds } },
-      include: {
-        event: {
-          include: {
-            userEvents: {
-              where: {
-                userId: session.user.id,
-                permissions: { has: 'WRITE' }
-              }
-            }
-          }
-        }
-      }
-    });
+    const placeholders = sessionIds.map((_, i) => `$${i + 2}`).join(',');
+    const permissionQuery = `
+      SELECT cs.id
+      FROM conference_sessions cs
+      JOIN events e ON cs.event_id = e.id
+      JOIN user_events ue ON e.id = ue.event_id
+      WHERE ue.user_id = $1 AND cs.id IN (${placeholders})
+      AND ue.permissions @> '["WRITE"]'
+    `;
 
-    const allowedSessionIds = sessions
-      .filter(s => s.event.userEvents.length > 0)
-      .map(s => s.id);
+    const permissionResult = await query(permissionQuery, [session.user.id, ...sessionIds]);
+    const allowedSessionIds = permissionResult.rows.map(row => row.id);
     
     if (allowedSessionIds.length !== sessionIds.length) {
       return NextResponse.json(
@@ -385,18 +543,64 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updatedSessions = await prisma.session.updateMany({
-      where: { id: { in: allowedSessionIds } },
-      data: {
-        ...validatedUpdates,
-        updatedAt: new Date()
+    // Build update query dynamically
+    const updateFields: string[] = [];
+    const updateParams: any[] = [];
+    let paramCount = 0;
+
+    Object.entries(validatedUpdates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        paramCount++;
+        let dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        
+        // Handle special field mappings
+        if (dbField === 'session_type') dbField = 'session_type';
+        if (dbField === 'max_participants') dbField = 'max_participants';
+        if (dbField === 'is_break') dbField = 'is_break';
+        if (dbField === 'start_time') dbField = 'start_time';
+        if (dbField === 'end_time') dbField = 'end_time';
+        if (dbField === 'hall_id') dbField = 'hall_id';
+
+        updateFields.push(`${dbField} = $${paramCount}`);
+        
+        // Handle JSON fields
+        if (key === 'requirements' || key === 'tags') {
+          updateParams.push(Array.isArray(value) ? JSON.stringify(value) : value);
+        } else {
+          updateParams.push(value);
+        }
       }
     });
 
+    if (updateFields.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: { updatedCount: 0 },
+        message: 'No fields to update'
+      });
+    }
+
+    // Add updated_at
+    paramCount++;
+    updateFields.push(`updated_at = $${paramCount}`);
+    updateParams.push(new Date());
+
+    // Add WHERE clause parameters
+    const whereInPlaceholders = allowedSessionIds.map((_, i) => `$${paramCount + 1 + i}`).join(',');
+    updateParams.push(...allowedSessionIds);
+
+    const updateQuery = `
+      UPDATE conference_sessions 
+      SET ${updateFields.join(', ')}
+      WHERE id IN (${whereInPlaceholders})
+    `;
+
+    const result = await query(updateQuery, updateParams);
+
     return NextResponse.json({
       success: true,
-      data: { updatedCount: updatedSessions.count },
-      message: `${updatedSessions.count} sessions updated successfully`
+      data: { updatedCount: result.rowCount },
+      message: `${result.rowCount} sessions updated successfully`
     });
 
   } catch (error) {
@@ -435,25 +639,19 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check permissions for each session
-    const sessions = await prisma.session.findMany({
-      where: { id: { in: sessionIds } },
-      include: {
-        event: {
-          include: {
-            userEvents: {
-              where: {
-                userId: session.user.id,
-                permissions: { has: 'DELETE' }
-              }
-            }
-          }
-        }
-      }
-    });
+    const placeholders = sessionIds.map((_, i) => `$${i + 2}`).join(',');
+    const permissionQuery = `
+      SELECT cs.id, cs.title, cs.start_time
+      FROM conference_sessions cs
+      JOIN events e ON cs.event_id = e.id
+      JOIN user_events ue ON e.id = ue.event_id
+      WHERE ue.user_id = $1 AND cs.id IN (${placeholders})
+      AND ue.permissions @> '["DELETE"]'
+    `;
 
-    const allowedSessionIds = sessions
-      .filter(s => s.event.userEvents.length > 0)
-      .map(s => s.id);
+    const permissionResult = await query(permissionQuery, [session.user.id, ...sessionIds]);
+    const allowedSessions = permissionResult.rows;
+    const allowedSessionIds = allowedSessions.map(row => row.id);
     
     if (allowedSessionIds.length !== sessionIds.length) {
       return NextResponse.json(
@@ -464,7 +662,7 @@ export async function DELETE(request: NextRequest) {
 
     // Check if any sessions have already started
     const currentTime = new Date();
-    const startedSessions = sessions.filter(s => s.startTime <= currentTime);
+    const startedSessions = allowedSessions.filter(s => new Date(s.start_time) <= currentTime);
     
     if (startedSessions.length > 0) {
       return NextResponse.json({
@@ -473,28 +671,38 @@ export async function DELETE(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Delete related records first
-    await prisma.sessionSpeaker.deleteMany({
-      where: { sessionId: { in: allowedSessionIds } }
-    });
+    // Delete related records first (cascade delete)
+    const deleteParams = allowedSessionIds;
+    const deletePlaceholders = allowedSessionIds.map((_, i) => `$${i + 1}`).join(',');
 
-    await prisma.presentation.deleteMany({
-      where: { sessionId: { in: allowedSessionIds } }
-    });
+    // Delete session speakers
+    await query(`
+      DELETE FROM session_speakers 
+      WHERE session_id IN (${deletePlaceholders})
+    `, deleteParams);
 
-    await prisma.attendanceRecord.deleteMany({
-      where: { sessionId: { in: allowedSessionIds } }
-    });
+    // Delete presentations
+    await query(`
+      DELETE FROM presentations 
+      WHERE session_id IN (${deletePlaceholders})
+    `, deleteParams);
+
+    // Delete attendance records
+    await query(`
+      DELETE FROM attendance_records 
+      WHERE session_id IN (${deletePlaceholders})
+    `, deleteParams);
 
     // Delete sessions
-    const deletedSessions = await prisma.session.deleteMany({
-      where: { id: { in: allowedSessionIds } }
-    });
+    const deleteResult = await query(`
+      DELETE FROM conference_sessions 
+      WHERE id IN (${deletePlaceholders})
+    `, deleteParams);
 
     return NextResponse.json({
       success: true,
-      data: { deletedCount: deletedSessions.count },
-      message: `${deletedSessions.count} sessions deleted successfully`
+      data: { deletedCount: deleteResult.rowCount },
+      message: `${deleteResult.rowCount} sessions deleted successfully`
     });
 
   } catch (error) {
