@@ -117,11 +117,9 @@ export {
   useAttendanceTrends
 } from './use-attendance';
 
-// Hook combinations for common use cases
-export { useEventManagement } from './use-event-management';
-export { useFacultyManagement } from './use-faculty-management';
-export { useSessionManagement } from './use-session-management';
-export { useAttendanceManagement } from './use-attendance-management';
+// ✅ FIXED: Removed problematic exports for non-existent files
+// Hook combinations for common use cases would be implemented later
+// when those specific hook files are created
 
 // Custom combined hooks that use multiple base hooks
 // These would be separate files that combine multiple hooks for common workflows
