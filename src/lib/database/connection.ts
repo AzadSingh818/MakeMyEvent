@@ -153,4 +153,4 @@ if (process.env.NODE_ENV !== 'test') {
   testConnection(1).catch(() => {
     console.warn('⚠️ Initial database connection test failed - will retry on first query')
   })
-}
+}  

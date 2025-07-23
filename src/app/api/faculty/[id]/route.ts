@@ -72,87 +72,147 @@ export async function GET(
       );
     }
 
-    // Build include clause based on permissions
-    const includeClause: any = {
-      userEvents: {
-        where: eventId ? { eventId } : undefined,
-        include: {
-          event: {
-            select: { 
-              id: true, 
-              name: true, 
-              startDate: true, 
-              endDate: true,
-              status: true
-            }
-          }
-        }
-      },
-      sessionSpeakers: {
-        include: {
-          session: {
-            select: { 
-              id: true, 
-              title: true, 
-              startTime: true, 
-              endTime: true,
-              eventId: true,
-              hall: { select: { name: true } }
-            }
-          }
-        }
-      },
-    };
+    // Get basic faculty profile
+    const facultyResult = await query(`
+      SELECT * FROM users 
+      WHERE id = $1 AND role = 'FACULTY'
+    `, [facultyId]);
 
-    // Add sensitive data only for authorized users
-    if (canViewFullProfile) {
-      includeClause.travelDetails = {
-        where: eventId ? { eventId } : undefined
-      };
-      includeClause.accommodations = {
-        where: eventId ? { eventId } : undefined
-      };
-      includeClause.presentations = {
-        where: eventId ? { 
-          session: { eventId } 
-        } : undefined,
-        select: {
-          id: true,
-          title: true,
-          filePath: true,
-          uploadedAt: true,
-          session: { select: { title: true } }
-        }
-      };
-      includeClause.certificates = {
-        where: eventId ? { eventId } : undefined,
-        select: {
-          id: true,
-          type: true,
-          filePath: true,
-          generatedAt: true
-        }
-      };
-    }
-
-    const faculty = await prisma.user.findUnique({
-      where: { 
-        id: facultyId,
-        role: { in: ['FACULTY', 'SPEAKER', 'MODERATOR', 'CHAIRPERSON'] }
-      },
-      include: includeClause
-    });
-
-    if (!faculty) {
+    if (facultyResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'Faculty member not found' },
         { status: 404 }
       );
     }
 
+    const faculty = facultyResult.rows[0];
+
+    // Get user events
+    let userEventsQuery = `
+      SELECT ue.*, e.id as event_id, e.name as event_name, 
+             e.start_date, e.end_date, e.status as event_status
+      FROM user_events ue
+      JOIN events e ON e.id = ue.event_id
+      WHERE ue.user_id = $1
+    `;
+    const userEventsParams = [facultyId];
+
+    if (eventId) {
+      userEventsQuery += ` AND ue.event_id = $2`;
+      userEventsParams.push(eventId);
+    }
+
+    const userEventsResult = await query(userEventsQuery, userEventsParams);
+    faculty.userEvents = userEventsResult.rows.map(row => ({
+      ...row,
+      event: {
+        id: row.event_id,
+        name: row.event_name,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        status: row.event_status
+      }
+    }));
+
+    // Get session speakers
+    const sessionSpeakersResult = await query(`
+      SELECT ss.*, cs.id as session_id, cs.title as session_title,
+             cs.start_time, cs.end_time, cs.event_id, h.name as hall_name
+      FROM session_speakers ss
+      JOIN conference_sessions cs ON cs.id = ss.session_id
+      LEFT JOIN halls h ON h.id = cs.hall_id
+      WHERE ss.user_id = $1
+    `, [facultyId]);
+
+    faculty.sessionSpeakers = sessionSpeakersResult.rows.map(row => ({
+      ...row,
+      session: {
+        id: row.session_id,
+        title: row.session_title,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        eventId: row.event_id,
+        hall: { name: row.hall_name }
+      }
+    }));
+
+    // Add sensitive data only for authorized users
+    if (canViewFullProfile) {
+      // Get travel details
+      let travelQuery = `
+        SELECT * FROM travel_details WHERE user_id = $1
+      `;
+      const travelParams = [facultyId];
+
+      if (eventId) {
+        travelQuery += ` AND event_id = $2`;
+        travelParams.push(eventId);
+      }
+
+      const travelResult = await query(travelQuery, travelParams);
+      faculty.travelDetails = travelResult.rows;
+
+      // Get accommodations
+      let accommodationQuery = `
+        SELECT * FROM accommodations WHERE user_id = $1
+      `;
+      const accommodationParams = [facultyId];
+
+      if (eventId) {
+        accommodationQuery += ` AND event_id = $2`;
+        accommodationParams.push(eventId);
+      }
+
+      const accommodationResult = await query(accommodationQuery, accommodationParams);
+      faculty.accommodations = accommodationResult.rows;
+
+      // Get presentations
+      let presentationsQuery = `
+        SELECT p.id, p.title, p.file_path, p.uploaded_at, cs.title as session_title
+        FROM presentations p
+        JOIN conference_sessions cs ON cs.id = p.session_id
+        WHERE p.user_id = $1
+      `;
+      const presentationsParams = [facultyId];
+
+      if (eventId) {
+        presentationsQuery += ` AND cs.event_id = $2`;
+        presentationsParams.push(eventId);
+      }
+
+      const presentationsResult = await query(presentationsQuery, presentationsParams);
+      faculty.presentations = presentationsResult.rows.map(row => ({
+        id: row.id,
+        title: row.title,
+        filePath: row.file_path,
+        uploadedAt: row.uploaded_at,
+        session: { title: row.session_title }
+      }));
+
+      // Get certificates
+      let certificatesQuery = `
+        SELECT id, type, file_path, generated_at
+        FROM certificates WHERE recipient_id = $1
+      `;
+      const certificatesParams = [facultyId];
+
+      if (eventId) {
+        certificatesQuery += ` AND event_id = $2`;
+        certificatesParams.push(eventId);
+      }
+
+      const certificatesResult = await query(certificatesQuery, certificatesParams);
+      faculty.certificates = certificatesResult.rows.map(row => ({
+        id: row.id,
+        type: row.type,
+        filePath: row.file_path,
+        generatedAt: row.generated_at
+      }));
+    }
+
     // Remove sensitive fields for non-authorized users
     if (!canViewFullProfile) {
-      const { phone, email, emergencyContact, dietaryRequirements, ...publicProfile } = faculty;
+      const { phone, email, emergency_contact, dietary_requirements, ...publicProfile } = faculty;
       return NextResponse.json({
         success: true,
         data: publicProfile
@@ -201,14 +261,12 @@ export async function PUT(
     }
 
     // Validate faculty exists
-    const existingFaculty = await prisma.user.findUnique({
-      where: { 
-        id: facultyId,
-        role: { in: ['FACULTY', 'SPEAKER', 'MODERATOR', 'CHAIRPERSON'] }
-      }
-    });
+    const existingFacultyResult = await query(`
+      SELECT * FROM users 
+      WHERE id = $1 AND role = 'FACULTY'
+    `, [facultyId]);
 
-    if (!existingFaculty) {
+    if (existingFacultyResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'Faculty member not found' },
         { status: 404 }
@@ -229,41 +287,86 @@ export async function PUT(
       validatedUpdates.socialLinks = processedLinks;
     }
 
-    // Update faculty profile
-    const updatedFaculty = await prisma.user.update({
-      where: { id: facultyId },
-      data: {
-        ...validatedUpdates,
-        updatedAt: new Date()
-      },
-      include: {
-        userEvents: {
-          include: {
-            event: {
-              select: { 
-                id: true, 
-                name: true, 
-                startDate: true, 
-                endDate: true 
-              }
-            }
-          }
-        },
-        sessionSpeakers: {
-          include: {
-            session: {
-              select: { 
-                id: true, 
-                title: true, 
-                startTime: true, 
-                endTime: true,
-                hall: { select: { name: true } }
-              }
-            }
-          }
+    // Build update query
+    const updateFields = [];
+    const queryParams = [];
+    let paramCount = 0;
+
+    for (const [key, value] of Object.entries(validatedUpdates)) {
+      if (value !== undefined) {
+        paramCount++;
+        // Convert camelCase to snake_case for database
+        const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        
+        if (typeof value === 'object' && value !== null) {
+          updateFields.push(`${dbField} = $${paramCount}::jsonb`);
+          queryParams.push(JSON.stringify(value));
+        } else {
+          updateFields.push(`${dbField} = $${paramCount}`);
+          queryParams.push(value);
         }
       }
-    });
+    }
+
+    // Add updated_at field
+    paramCount++;
+    updateFields.push(`updated_at = $${paramCount}`);
+    queryParams.push(new Date());
+
+    // Add WHERE condition
+    paramCount++;
+    queryParams.push(facultyId);
+
+    const updateQuery = `
+      UPDATE users 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const updateResult = await query(updateQuery, queryParams);
+    const updatedFaculty = updateResult.rows[0];
+
+    // Get additional data for response
+    // Get user events
+    const userEventsResult = await query(`
+      SELECT ue.*, e.id as event_id, e.name as event_name, 
+             e.start_date, e.end_date
+      FROM user_events ue
+      JOIN events e ON e.id = ue.event_id
+      WHERE ue.user_id = $1
+    `, [facultyId]);
+
+    updatedFaculty.userEvents = userEventsResult.rows.map(row => ({
+      ...row,
+      event: {
+        id: row.event_id,
+        name: row.event_name,
+        startDate: row.start_date,
+        endDate: row.end_date
+      }
+    }));
+
+    // Get session speakers
+    const sessionSpeakersResult = await query(`
+      SELECT ss.*, cs.id as session_id, cs.title as session_title,
+             cs.start_time, cs.end_time, h.name as hall_name
+      FROM session_speakers ss
+      JOIN conference_sessions cs ON cs.id = ss.session_id
+      LEFT JOIN halls h ON h.id = cs.hall_id
+      WHERE ss.user_id = $1
+    `, [facultyId]);
+
+    updatedFaculty.sessionSpeakers = sessionSpeakersResult.rows.map(row => ({
+      ...row,
+      session: {
+        id: row.session_id,
+        title: row.session_title,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        hall: { name: row.hall_name }
+      }
+    }));
 
     return NextResponse.json({
       success: true,
@@ -313,14 +416,12 @@ export async function DELETE(
     }
 
     // Validate faculty exists
-    const existingFaculty = await prisma.user.findUnique({
-      where: { 
-        id: facultyId,
-        role: { in: ['FACULTY', 'SPEAKER', 'MODERATOR', 'CHAIRPERSON'] }
-      }
-    });
+    const existingFacultyResult = await query(`
+      SELECT * FROM users 
+      WHERE id = $1 AND role = 'FACULTY'
+    `, [facultyId]);
 
-    if (!existingFaculty) {
+    if (existingFacultyResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'Faculty member not found' },
         { status: 404 }
@@ -329,9 +430,7 @@ export async function DELETE(
 
     if (removeFromSystem) {
       // Complete removal from system (use with caution)
-      await prisma.user.delete({
-        where: { id: facultyId }
-      });
+      await query('DELETE FROM users WHERE id = $1', [facultyId]);
 
       return NextResponse.json({
         success: true,
@@ -339,20 +438,18 @@ export async function DELETE(
       });
     } else if (eventId) {
       // Remove from specific event only
-      await prisma.userEvent.deleteMany({
-        where: {
-          userId: facultyId,
-          eventId: eventId
-        }
-      });
+      await query(`
+        DELETE FROM user_events 
+        WHERE user_id = $1 AND event_id = $2
+      `, [facultyId, eventId]);
 
       // Also remove from session speakers for this event
-      await prisma.sessionSpeaker.deleteMany({
-        where: {
-          userId: facultyId,
-          session: { eventId: eventId }
-        }
-      });
+      await query(`
+        DELETE FROM session_speakers 
+        WHERE user_id = $1 AND session_id IN (
+          SELECT id FROM conference_sessions WHERE event_id = $2
+        )
+      `, [facultyId, eventId]);
 
       return NextResponse.json({
         success: true,
@@ -410,29 +507,59 @@ async function handleInvitationResponse(facultyId: string, body: any) {
   const { response, reason, additionalInfo } = validatedData;
 
   // Update user event status
-  const updatedUserEvent = await prisma.userEvent.updateMany({
-    where: { 
-      userId: facultyId,
-      status: 'PENDING'
-    },
-    data: {
-      status: response === 'ACCEPT' ? 'ACTIVE' : 'DECLINED',
-      responseAt: new Date(),
-      responseReason: reason
-    }
-  });
+  const updateResult = await query(`
+    UPDATE user_events 
+    SET status = $1, response_at = NOW(), response_reason = $2, updated_at = NOW()
+    WHERE user_id = $3 AND status = 'PENDING'
+  `, [
+    response === 'ACCEPT' ? 'ACTIVE' : 'DECLINED',
+    reason,
+    facultyId
+  ]);
 
   // If accepted, update profile with additional info
   if (response === 'ACCEPT' && additionalInfo) {
-    await prisma.user.update({
-      where: { id: facultyId },
-      data: {
-        bio: additionalInfo.bio || undefined,
-        dietaryRequirements: additionalInfo.dietaryRequirements || undefined,
-        emergencyContact: additionalInfo.emergencyContact || undefined,
-        emailVerified: new Date() // Mark email as verified
-      }
-    });
+    const updateFields = [];
+    const queryParams = [];
+    let paramCount = 0;
+
+    if (additionalInfo.bio) {
+      paramCount++;
+      updateFields.push(`bio = $${paramCount}`);
+      queryParams.push(additionalInfo.bio);
+    }
+
+    if (additionalInfo.dietaryRequirements) {
+      paramCount++;
+      updateFields.push(`dietary_requirements = $${paramCount}`);
+      queryParams.push(additionalInfo.dietaryRequirements);
+    }
+
+    if (additionalInfo.emergencyContact) {
+      paramCount++;
+      updateFields.push(`emergency_contact = $${paramCount}::jsonb`);
+      queryParams.push(JSON.stringify(additionalInfo.emergencyContact));
+    }
+
+    // Mark email as verified
+    paramCount++;
+    updateFields.push(`email_verified = $${paramCount}`);
+    queryParams.push(new Date());
+
+    paramCount++;
+    updateFields.push(`updated_at = $${paramCount}`);
+    queryParams.push(new Date());
+
+    if (updateFields.length > 0) {
+      paramCount++;
+      queryParams.push(facultyId);
+
+      await query(`
+        UPDATE users 
+        SET ${updateFields.join(', ')}
+        WHERE id = $${paramCount}
+      `, queryParams);
+    }
   }
 
   return NextResponse.json({
@@ -453,27 +580,34 @@ async function handleResendInvitation(facultyId: string, body: any) {
 
   const { eventId, customMessage } = body;
 
-  // Get faculty and event details
-  const faculty = await prisma.user.findUnique({
-    where: { id: facultyId }
-  });
-
-  const userEvent = await prisma.userEvent.findFirst({
-    where: {
-      userId: facultyId,
-      eventId: eventId
-    },
-    include: {
-      event: { select: { name: true } }
-    }
-  });
-
-  if (!faculty || !userEvent) {
+  // Get faculty details
+  const facultyResult = await query('SELECT * FROM users WHERE id = $1', [facultyId]);
+  
+  if (facultyResult.rows.length === 0) {
     return NextResponse.json(
-      { error: 'Faculty or event association not found' },
+      { error: 'Faculty not found' },
       { status: 404 }
     );
   }
+
+  const faculty = facultyResult.rows[0];
+
+  // Get user event details
+  const userEventResult = await query(`
+    SELECT ue.*, e.name as event_name
+    FROM user_events ue
+    JOIN events e ON e.id = ue.event_id
+    WHERE ue.user_id = $1 AND ue.event_id = $2
+  `, [facultyId, eventId]);
+
+  if (userEventResult.rows.length === 0) {
+    return NextResponse.json(
+      { error: 'Event association not found' },
+      { status: 404 }
+    );
+  }
+
+  const userEvent = userEventResult.rows[0];
 
   // Generate new invitation token
   const invitationToken = Buffer.from(
@@ -486,20 +620,22 @@ async function handleResendInvitation(facultyId: string, body: any) {
   ).toString('base64');
 
   // Log email for resending
-  await prisma.emailLog.create({
-    data: {
-      recipient: faculty.email,
-      subject: `Reminder: Invitation to ${userEvent.event?.name}`,
-      content: customMessage || `This is a reminder about your invitation to participate in our conference.`,
-      type: 'FACULTY_INVITATION_REMINDER',
-      status: 'PENDING',
-      metadata: {
-        eventId: eventId,
-        facultyId: facultyId,
-        invitationToken
-      }
-    }
-  });
+  await query(`
+    INSERT INTO email_logs (
+      recipient, subject, content, type, status, metadata, created_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+  `, [
+    faculty.email,
+    `Reminder: Invitation to ${userEvent.event_name}`,
+    customMessage || `This is a reminder about your invitation to participate in our conference.`,
+    'FACULTY_INVITATION_REMINDER',
+    'PENDING',
+    JSON.stringify({
+      eventId: eventId,
+      facultyId: facultyId,
+      invitationToken
+    })
+  ]);
 
   return NextResponse.json({
     success: true,

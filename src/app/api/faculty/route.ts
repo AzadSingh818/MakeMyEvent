@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { prisma } from '@/lib/database/connection';
+import { query } from '@/lib/database/connection';
 import { z } from 'zod';
 
 // Validation schemas
@@ -15,7 +15,7 @@ const FacultyInviteSchema = z.object({
     designation: z.string().optional(),
     institution: z.string().optional(),
     specialization: z.string().optional(),
-    role: z.enum(['SPEAKER', 'MODERATOR', 'CHAIRPERSON']).default('SPEAKER'),
+    role: z.enum(['FACULTY']).default('FACULTY'), // ✅ Fixed: Only valid database role
     sessionId: z.string().optional(),
     invitationMessage: z.string().optional(),
   }))
@@ -60,106 +60,130 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role');
     const status = searchParams.get('status');
     const institution = searchParams.get('institution');
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
+    const sortBy = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    const skip = (page - 1) * limit;
+    const offset = (page - 1) * limit;
 
-    // Build where clause
-    const where: any = {
-      role: { in: ['FACULTY', 'SPEAKER', 'MODERATOR', 'CHAIRPERSON'] }
-    };
+    // Build WHERE conditions
+    const whereConditions = [];
+    const queryParams = [];
+    let paramCount = 0;
 
+    // Base condition for faculty roles - ✅ Fixed: Only FACULTY role exists
+    whereConditions.push(`u.role = 'FACULTY'`);
+
+    // Event filter
     if (eventId) {
-      where.userEvents = {
-        some: {
-          eventId: eventId,
-          permissions: { has: 'READ' }
-        }
-      };
+      paramCount++;
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM user_events ue 
+        WHERE ue.user_id = u.id 
+        AND ue.event_id = $${paramCount}
+      )`);
+      queryParams.push(eventId);
     }
 
+    // Search filter
     if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { institution: { contains: search, mode: 'insensitive' } },
-        { specialization: { contains: search, mode: 'insensitive' } },
-      ];
+      paramCount++;
+      whereConditions.push(`(
+        u.name ILIKE $${paramCount} OR 
+        u.email ILIKE $${paramCount} OR 
+        u.institution ILIKE $${paramCount} OR 
+        u.specialization ILIKE $${paramCount}
+      )`);
+      queryParams.push(`%${search}%`);
     }
 
+    // Institution filter
     if (institution) {
-      where.institution = { contains: institution, mode: 'insensitive' };
+      paramCount++;
+      whereConditions.push(`u.institution ILIKE $${paramCount}`);
+      queryParams.push(`%${institution}%`);
     }
 
-    const [faculty, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { [sortBy]: sortOrder },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          role: true,
-          designation: true,
-          institution: true,
-          specialization: true,
-          bio: true,
-          profileImage: true,
-          experience: true,
-          qualifications: true,
-          achievements: true,
-          socialLinks: true,
-          dietaryRequirements: true,
-          emergencyContact: true,
-          createdAt: true,
-          updatedAt: true,
-          userEvents: {
-            where: eventId ? { eventId } : undefined,
-            include: {
-              event: {
-                select: { id: true, name: true, startDate: true, endDate: true }
-              }
-            }
-          },
-          sessionSpeakers: {
-            include: {
-              session: {
-                select: { 
-                  id: true, 
-                  title: true, 
-                  startTime: true, 
-                  endTime: true,
-                  hall: { select: { name: true } }
-                }
-              }
-            }
-          },
-          travelDetails: {
-            where: eventId ? { eventId } : undefined
-          },
-          accommodations: {
-            where: eventId ? { eventId } : undefined
-          },
-          presentations: {
-            where: eventId ? { 
-              session: { eventId } 
-            } : undefined,
-            select: {
-              id: true,
-              title: true,
-              filePath: true,
-              uploadedAt: true,
-              session: { select: { title: true } }
-            }
-          }
-        }
-      }),
-      prisma.user.count({ where })
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Main query for faculty with basic info
+    const facultyQuery = `
+      SELECT 
+        u.id, u.name, u.email, u.phone, u.role, u.designation, 
+        u.institution, u.specialization, u.bio, u.profile_image,
+        u.experience, u.qualifications, u.achievements, u.social_links,
+        u.dietary_requirements, u.emergency_contact, u.created_at, u.updated_at
+      FROM users u
+      ${whereClause}
+      ORDER BY u.${sortBy} ${sortOrder.toUpperCase()}
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `;
+
+    queryParams.push(limit, offset);
+
+    // Count query
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM users u
+      ${whereClause}
+    `;
+
+    const [facultyResult, countResult] = await Promise.all([
+      query(facultyQuery, queryParams),
+      query(countQuery, queryParams.slice(0, -2)) // Remove limit and offset for count
     ]);
+
+    const faculty = facultyResult.rows;
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get additional data for each faculty member if needed
+    for (const member of faculty) {
+      // Get user events for this faculty
+      if (eventId) {
+        const eventsResult = await query(`
+          SELECT ue.*, e.id as event_id, e.name as event_name, e.start_date, e.end_date
+          FROM user_events ue
+          JOIN events e ON e.id = ue.event_id
+          WHERE ue.user_id = $1 AND ue.event_id = $2
+        `, [member.id, eventId]);
+        member.userEvents = eventsResult.rows;
+      }
+
+      // Get session speakers
+      const speakersResult = await query(`
+        SELECT ss.*, cs.id as session_id, cs.title as session_title, 
+               cs.start_time, cs.end_time, h.name as hall_name
+        FROM session_speakers ss
+        JOIN conference_sessions cs ON cs.id = ss.session_id
+        LEFT JOIN halls h ON h.id = cs.hall_id
+        WHERE ss.user_id = $1
+      `, [member.id]);
+      member.sessionSpeakers = speakersResult.rows;
+
+      // Get travel details if eventId specified
+      if (eventId) {
+        const travelResult = await query(`
+          SELECT * FROM travel_details 
+          WHERE user_id = $1 AND event_id = $2
+        `, [member.id, eventId]);
+        member.travelDetails = travelResult.rows;
+
+        // Get accommodations
+        const accommodationResult = await query(`
+          SELECT * FROM accommodations 
+          WHERE user_id = $1 AND event_id = $2
+        `, [member.id, eventId]);
+        member.accommodations = accommodationResult.rows;
+
+        // Get presentations
+        const presentationsResult = await query(`
+          SELECT p.id, p.title, p.file_path, p.uploaded_at, cs.title as session_title
+          FROM presentations p
+          JOIN conference_sessions cs ON cs.id = p.session_id
+          WHERE p.user_id = $1 AND cs.event_id = $2
+        `, [member.id, eventId]);
+        member.presentations = presentationsResult.rows;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -203,88 +227,92 @@ export async function POST(request: NextRequest) {
     const validatedData = FacultyInviteSchema.parse(body);
 
     // Verify event access
-    const userEvent = await prisma.userEvent.findFirst({
-      where: {
-        userId: session.user.id,
-        eventId: validatedData.eventId,
-        permissions: { has: 'WRITE' }
-      }
-    });
+    const userEventResult = await query(`
+      SELECT ue.*, e.name as event_name
+      FROM user_events ue
+      JOIN events e ON e.id = ue.event_id
+      WHERE ue.user_id = $1 AND ue.event_id = $2 AND 'WRITE' = ANY(ue.permissions)
+    `, [session.user.id, validatedData.eventId]);
 
-    if (!userEvent) {
+    if (userEventResult.rows.length === 0) {
       return NextResponse.json(
         { error: 'No permission to invite faculty for this event' },
         { status: 403 }
       );
     }
 
+    const userEvent = userEventResult.rows[0];
     const results = [];
     const errors = [];
 
     for (const faculty of validatedData.facultyList) {
       try {
         // Check if user already exists
-        let user = await prisma.user.findUnique({
-          where: { email: faculty.email }
-        });
+        const existingUserResult = await query(
+          'SELECT * FROM users WHERE email = $1',
+          [faculty.email]
+        );
 
-        if (!user) {
+        let user;
+        if (existingUserResult.rows.length === 0) {
           // Create new user account
-          user = await prisma.user.create({
-            data: {
-              name: faculty.name,
-              email: faculty.email,
-              phone: faculty.phone,
-              role: 'FACULTY',
-              designation: faculty.designation,
-              institution: faculty.institution,
-              specialization: faculty.specialization,
-              // Generate temporary password - user will reset on first login
-              password: 'temp_password_' + Math.random().toString(36).slice(-8),
-              emailVerified: null, // Will be verified when they accept invitation
-            }
-          });
+          const createUserResult = await query(`
+            INSERT INTO users (
+              name, email, phone, role, designation, institution, 
+              specialization, password, email_verified, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            RETURNING *
+          `, [
+            faculty.name,
+            faculty.email,
+            faculty.phone,
+            'FACULTY',
+            faculty.designation,
+            faculty.institution,
+            faculty.specialization,
+            'temp_password_' + Math.random().toString(36).slice(-8),
+            null
+          ]);
+          user = createUserResult.rows[0];
+        } else {
+          user = existingUserResult.rows[0];
         }
 
-        // Create event association
-        const existingAssociation = await prisma.userEvent.findFirst({
-          where: {
-            userId: user.id,
-            eventId: validatedData.eventId
-          }
-        });
+        // Check existing event association
+        const existingAssociationResult = await query(`
+          SELECT * FROM user_events 
+          WHERE user_id = $1 AND event_id = $2
+        `, [user.id, validatedData.eventId]);
 
-        if (!existingAssociation) {
-          await prisma.userEvent.create({
-            data: {
-              userId: user.id,
-              eventId: validatedData.eventId,
-              role: faculty.role,
-              permissions: ['READ'],
-              invitedBy: session.user.id,
-              invitedAt: new Date(),
-              status: 'PENDING'
-            }
-          });
+        if (existingAssociationResult.rows.length === 0) {
+          // Create event association
+          await query(`
+            INSERT INTO user_events (
+              user_id, event_id, role, permissions, invited_by, 
+              invited_at, status, created_at
+            ) VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW())
+          `, [
+            user.id,
+            validatedData.eventId,
+            faculty.role,
+            JSON.stringify(['READ']),
+            session.user.id,
+            'PENDING'
+          ]);
         }
 
         // Create session speaker association if sessionId provided
         if (faculty.sessionId) {
-          const existingSpeaker = await prisma.sessionSpeaker.findFirst({
-            where: {
-              userId: user.id,
-              sessionId: faculty.sessionId
-            }
-          });
+          const existingSpeakerResult = await query(`
+            SELECT * FROM session_speakers 
+            WHERE user_id = $1 AND session_id = $2
+          `, [user.id, faculty.sessionId]);
 
-          if (!existingSpeaker) {
-            await prisma.sessionSpeaker.create({
-              data: {
-                userId: user.id,
-                sessionId: faculty.sessionId,
-                role: faculty.role
-              }
-            });
+          if (existingSpeakerResult.rows.length === 0) {
+            await query(`
+              INSERT INTO session_speakers (user_id, session_id, role, created_at)
+              VALUES ($1, $2, $3, NOW())
+            `, [user.id, faculty.sessionId, faculty.role]);
           }
         }
 
@@ -298,21 +326,23 @@ export async function POST(request: NextRequest) {
           })
         ).toString('base64');
 
-        // Log email for sending (actual email sending would be handled by email service)
-        await prisma.emailLog.create({
-          data: {
-            recipient: faculty.email,
-            subject: `Invitation to ${userEvent.event?.name || 'Conference'}`,
-            content: faculty.invitationMessage || `You are invited to participate as ${faculty.role} in our conference.`,
-            type: 'FACULTY_INVITATION',
-            status: 'PENDING',
-            metadata: {
-              eventId: validatedData.eventId,
-              facultyRole: faculty.role,
-              invitationToken
-            }
-          }
-        });
+        // Log email for sending
+        await query(`
+          INSERT INTO email_logs (
+            recipient, subject, content, type, status, metadata, created_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        `, [
+          faculty.email,
+          `Invitation to ${userEvent.event_name || 'Conference'}`,
+          faculty.invitationMessage || `You are invited to participate as ${faculty.role} in our conference.`,
+          'FACULTY_INVITATION',
+          'PENDING',
+          JSON.stringify({
+            eventId: validatedData.eventId,
+            facultyRole: faculty.role,
+            invitationToken
+          })
+        ]);
 
         results.push({
           email: faculty.email,
@@ -398,21 +428,56 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updatedFaculty = await prisma.user.updateMany({
-      where: { 
-        id: { in: facultyIds },
-        role: { in: ['FACULTY', 'SPEAKER', 'MODERATOR', 'CHAIRPERSON'] }
-      },
-      data: {
-        ...validatedUpdates,
-        updatedAt: new Date()
+    // Build update query
+    const updateFields = [];
+    const queryParams = [];
+    let paramCount = 0;
+
+    for (const [key, value] of Object.entries(validatedUpdates)) {
+      if (value !== undefined) {
+        paramCount++;
+        // Convert camelCase to snake_case for database
+        const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        
+        if (typeof value === 'object' && value !== null) {
+          updateFields.push(`${dbField} = $${paramCount}::jsonb`);
+          queryParams.push(JSON.stringify(value));
+        } else {
+          updateFields.push(`${dbField} = $${paramCount}`);
+          queryParams.push(value);
+        }
       }
-    });
+    }
+
+    if (updateFields.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid fields to update' },
+        { status: 400 }
+      );
+    }
+
+    // Add updated_at field
+    paramCount++;
+    updateFields.push(`updated_at = $${paramCount}`);
+    queryParams.push(new Date());
+
+    // Add WHERE conditions - ✅ Fixed: Only FACULTY role exists
+    const placeholders = facultyIds.map((_, index) => `$${paramCount + 1 + index}`).join(', ');
+    queryParams.push(...facultyIds);
+
+    const updateQuery = `
+      UPDATE users 
+      SET ${updateFields.join(', ')}
+      WHERE id IN (${placeholders}) 
+      AND role = 'FACULTY'
+    `;
+
+    const result = await query(updateQuery, queryParams);
 
     return NextResponse.json({
       success: true,
-      data: { updatedCount: updatedFaculty.count },
-      message: `${updatedFaculty.count} faculty profiles updated successfully`
+      data: { updatedCount: result.rowCount },
+      message: `${result.rowCount} faculty profiles updated successfully`
     });
 
   } catch (error) {

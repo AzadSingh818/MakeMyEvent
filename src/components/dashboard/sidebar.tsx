@@ -59,7 +59,7 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
   const commonItems = [
     {
       label: 'Dashboard',
-      href: `/${role.toLowerCase()}`,
+      href: '/event-manager', // ✅ Hard-coded for EVENT_MANAGER
       icon: Home
     }
   ]
@@ -155,7 +155,6 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
       }
     ],
     
-    // ✅ Enhanced EVENT_MANAGER with children navigation
     EVENT_MANAGER: [
       {
         label: 'Events',
@@ -471,13 +470,11 @@ export function NavigationSidebar({
     return false
   }
 
-  // ✅ Enhanced logout function with better error handling
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true)
       console.log('👋 User logging out...')
       
-      // Sign out with NextAuth and redirect to home page
       await signOut({ 
         callbackUrl: '/',
         redirect: true  
@@ -487,28 +484,28 @@ export function NavigationSidebar({
     } catch (error) {
       console.error('❌ Logout error:', error)
       setIsLoggingOut(false)
-      
-      // Show error toast if needed (you can add toast notification here)
-      // toast.error('Failed to logout. Please try again.')
-      
-      // Fallback: manual redirect if signOut fails
       router.push('/')
     }
   }
 
-  // ✅ Enhanced settings navigation
   const handleSettings = () => {
     router.push(`/${userRole.toLowerCase()}/settings`)
   }
 
-  // ✅ Enhanced navigation click handler
-  const handleNavigation = (item: NavigationItem, event: React.MouseEvent) => {
-    // If item has children and sidebar is not collapsed, toggle expansion instead of navigation
+  // ✅ SIMPLIFIED: Direct router navigation for all items
+  const handleNavClick = (item: NavigationItem, e: React.MouseEvent) => {
+    console.log('🔄 Navigation clicked:', item.label, item.href)
+    
+    // If item has children, toggle expansion instead of navigating
     if (item.children && !isCollapsed) {
-      event.preventDefault()
+      e.preventDefault()
       toggleExpanded(item.label)
+      return
     }
-    // Otherwise, let the Link component handle navigation
+
+    // For Dashboard and other direct links, use router.push
+    e.preventDefault()
+    router.push(item.href)
   }
 
   return (
@@ -546,59 +543,58 @@ export function NavigationSidebar({
       <nav className="flex-1 overflow-y-auto p-2 space-y-1">
         {navigationItems.map((item) => (
           <div key={item.label}>
-            <Link href={item.href}>
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
-                  isParentActive(item)
-                    ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
-                  isCollapsed && "justify-center"
-                )}
-                onClick={(e) => handleNavigation(item, e)}
-              >
-                <item.icon className={cn("h-4 w-4 flex-shrink-0")} />
-                
-                {!isCollapsed && (
-                  <>
-                    <span className="flex-1">{item.label}</span>
-                    
-                    {item.badge && (
-                      <span className="bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300 text-xs px-2 py-0.5 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                    
-                    {item.children && (
-                      <ChevronRight 
-                        className={cn(
-                          "h-4 w-4 transition-transform",
-                          expandedItems.includes(item.label) && "rotate-90"
-                        )} 
-                      />
-                    )}
-                  </>
-                )}
-              </div>
-            </Link>
+            {/* ✅ FIXED: No Link wrapper - just div with router.push */}
+            <div
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer",
+                isParentActive(item)
+                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
+                isCollapsed && "justify-center"
+              )}
+              onClick={(e) => handleNavClick(item, e)}
+            >
+              <item.icon className="h-4 w-4 flex-shrink-0" />
+              
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1">{item.label}</span>
+                  
+                  {item.badge && (
+                    <span className="bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300 text-xs px-2 py-0.5 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                  
+                  {item.children && (
+                    <ChevronRight 
+                      className={cn(
+                        "h-4 w-4 transition-transform",
+                        expandedItems.includes(item.label) && "rotate-90"
+                      )} 
+                    />
+                  )}
+                </>
+              )}
+            </div>
 
-            {/* ✅ Enhanced Submenu with better styling */}
+            {/* Submenu */}
             {item.children && !isCollapsed && expandedItems.includes(item.label) && (
               <div className="ml-6 mt-1 space-y-1">
                 {item.children.map((child) => (
-                  <Link key={child.label} href={child.href}>
-                    <div
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
-                        isItemActive(child.href)
-                          ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-                      )}
-                    >
-                      <child.icon className="h-3 w-3" />
-                      <span>{child.label}</span>
-                    </div>
-                  </Link>
+                  <div
+                    key={child.label}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
+                      isItemActive(child.href)
+                        ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                    )}
+                    onClick={() => router.push(child.href)}
+                  >
+                    <child.icon className="h-3 w-3" />
+                    <span>{child.label}</span>
+                  </div>
                 ))}
               </div>
             )}
@@ -627,7 +623,6 @@ export function NavigationSidebar({
             </div>
             
             <div className="flex gap-2">
-              {/* ✅ Enhanced Settings Button */}
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -638,7 +633,6 @@ export function NavigationSidebar({
                 Settings
               </Button>
               
-              {/* ✅ Enhanced Logout Button */}
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -661,7 +655,6 @@ export function NavigationSidebar({
               </div>
             </Button>
             
-            {/* ✅ Enhanced Collapsed Settings Button */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -671,7 +664,6 @@ export function NavigationSidebar({
               <Settings className="h-4 w-4" />
             </Button>
             
-            {/* ✅ Enhanced Collapsed Logout Button */}
             <Button 
               variant="ghost" 
               size="sm" 
@@ -688,18 +680,18 @@ export function NavigationSidebar({
   )
 }
 
-// ✅ Enhanced Mobile sidebar overlay
+// Mobile sidebar
 interface MobileSidebarProps extends SidebarProps {
   isOpen: boolean
-  onCloseAction: () => void
+  onClose: () => void
 }
 
-export function MobileSidebar({ isOpen, onCloseAction, ...props }: MobileSidebarProps) {
+export function MobileSidebar({ isOpen, onClose, ...props }: MobileSidebarProps) {
   if (!isOpen) return null
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={onCloseAction} />
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed left-0 top-0 h-full">
         <NavigationSidebar {...props} />
       </div>

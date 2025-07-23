@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading';
 import { EventManagerLayout } from '@/components/dashboard/layout';
-//import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-//import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 import { 
   useFaculty, 
@@ -271,7 +271,7 @@ export default function EventManagerFacultyPage() {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Filters - ✅ FIXED: Select components with proper values */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -294,13 +294,13 @@ export default function EventManagerFacultyPage() {
                 </div>
               </div>
 
-              {/* Event Filter */}
-              <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+              {/* Event Filter - ✅ FIXED: No empty string values */}
+              <Select value={selectedEvent || "all"} onValueChange={(value) => setSelectedEvent(value === "all" ? "" : value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Events" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Events</SelectItem>
+                  <SelectItem value="all">All Events</SelectItem>
                   {events?.data?.events?.map((event) => (
                     <SelectItem key={event.id} value={event.id}>
                       {event.name}
@@ -309,7 +309,7 @@ export default function EventManagerFacultyPage() {
                 </SelectContent>
               </Select>
 
-              {/* Status Filter */}
+              {/* Status Filter - ✅ FIXED: No empty string values */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Statuses" />
@@ -323,7 +323,7 @@ export default function EventManagerFacultyPage() {
                 </SelectContent>
               </Select>
 
-              {/* Role Filter */}
+              {/* Role Filter - ✅ FIXED: No empty string values */}
               <Select value={roleFilter} onValueChange={setRoleFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Roles" />
