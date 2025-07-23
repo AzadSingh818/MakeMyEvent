@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { signOut } from 'next-auth/react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui'
 import {
@@ -154,23 +155,35 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
       }
     ],
     
+    // ✅ Enhanced EVENT_MANAGER with children navigation
     EVENT_MANAGER: [
       {
         label: 'Events',
         href: '/event-manager/events',
-        icon: Calendar
+        icon: Calendar,
+        children: [
+          { label: 'All Events', href: '/event-manager/events', icon: Calendar },
+          { label: 'Create Event', href: '/event-manager/events/create', icon: CalendarPlus },
+          { label: 'Event Analytics', href: '/event-manager/events/analytics', icon: BarChart3 }
+        ]
       },
       {
         label: 'Faculty',
         href: '/event-manager/faculty',
         icon: Users,
-        badge: '8'
+        badge: '8',
+        children: [
+          { label: 'All Faculty', href: '/event-manager/faculty', icon: Users },
+          { label: 'Invite Faculty', href: '/event-manager/faculty/invite', icon: UserPlus },
+          { label: 'Faculty Sessions', href: '/event-manager/faculty/sessions', icon: Monitor }
+        ]
       },
       {
         label: 'Sessions',
         href: '/event-manager/sessions',
         icon: Monitor,
         children: [
+          { label: 'All Sessions', href: '/event-manager/sessions', icon: Monitor },
           { label: 'Schedule', href: '/event-manager/sessions/schedule', icon: Calendar },
           { label: 'Assignments', href: '/event-manager/sessions/assignments', icon: Users }
         ]
@@ -179,17 +192,42 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
         label: 'Approvals',
         href: '/event-manager/approvals',
         icon: UserCheck,
-        badge: '23'
+        badge: '23',
+        children: [
+          { label: 'Pending Requests', href: '/event-manager/approvals', icon: Clock },
+          { label: 'Approved', href: '/event-manager/approvals/approved', icon: UserCheck },
+          { label: 'Rejected', href: '/event-manager/approvals/rejected', icon: Eye }
+        ]
       },
       {
         label: 'Venues',
         href: '/event-manager/venues',
-        icon: MapPin
+        icon: MapPin,
+        children: [
+          { label: 'All Venues', href: '/event-manager/venues', icon: MapPin },
+          { label: 'Hall Management', href: '/event-manager/venues/halls', icon: Building },
+          { label: 'Equipment', href: '/event-manager/venues/equipment', icon: Settings }
+        ]
+      },
+      {
+        label: 'Certificates',
+        href: '/event-manager/certificates',
+        icon: Award,
+        children: [
+          { label: 'Generate', href: '/event-manager/certificates/generate', icon: Award },
+          { label: 'Templates', href: '/event-manager/certificates/templates', icon: FileText },
+          { label: 'Download', href: '/event-manager/certificates/download', icon: Download }
+        ]
       },
       {
         label: 'Reports',
         href: '/event-manager/reports',
-        icon: BarChart3
+        icon: BarChart3,
+        children: [
+          { label: 'Event Reports', href: '/event-manager/reports', icon: BarChart3 },
+          { label: 'Analytics', href: '/event-manager/reports/analytics', icon: BarChart3 },
+          { label: 'Export Data', href: '/event-manager/reports/export', icon: Download }
+        ]
       }
     ],
 
@@ -407,7 +445,9 @@ export function NavigationSidebar({
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [expandedItems, setExpandedItems] = useState<string[]>([])
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
 
   const navigationItems = getNavigationItems(userRole)
 
@@ -429,6 +469,46 @@ export function NavigationSidebar({
       return item.children.some(child => isItemActive(child.href))
     }
     return false
+  }
+
+  // ✅ Enhanced logout function with better error handling
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true)
+      console.log('👋 User logging out...')
+      
+      // Sign out with NextAuth and redirect to home page
+      await signOut({ 
+        callbackUrl: '/',
+        redirect: true  
+      })
+      
+      console.log('✅ Logout successful')
+    } catch (error) {
+      console.error('❌ Logout error:', error)
+      setIsLoggingOut(false)
+      
+      // Show error toast if needed (you can add toast notification here)
+      // toast.error('Failed to logout. Please try again.')
+      
+      // Fallback: manual redirect if signOut fails
+      router.push('/')
+    }
+  }
+
+  // ✅ Enhanced settings navigation
+  const handleSettings = () => {
+    router.push(`/${userRole.toLowerCase()}/settings`)
+  }
+
+  // ✅ Enhanced navigation click handler
+  const handleNavigation = (item: NavigationItem, event: React.MouseEvent) => {
+    // If item has children and sidebar is not collapsed, toggle expansion instead of navigation
+    if (item.children && !isCollapsed) {
+      event.preventDefault()
+      toggleExpanded(item.label)
+    }
+    // Otherwise, let the Link component handle navigation
   }
 
   return (
@@ -475,11 +555,7 @@ export function NavigationSidebar({
                     : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
                   isCollapsed && "justify-center"
                 )}
-                onClick={() => {
-                  if (item.children && !isCollapsed) {
-                    toggleExpanded(item.label)
-                  }
-                }}
+                onClick={(e) => handleNavigation(item, e)}
               >
                 <item.icon className={cn("h-4 w-4 flex-shrink-0")} />
                 
@@ -506,7 +582,7 @@ export function NavigationSidebar({
               </div>
             </Link>
 
-            {/* Submenu */}
+            {/* ✅ Enhanced Submenu with better styling */}
             {item.children && !isCollapsed && expandedItems.includes(item.label) && (
               <div className="ml-6 mt-1 space-y-1">
                 {item.children.map((child) => (
@@ -551,13 +627,27 @@ export function NavigationSidebar({
             </div>
             
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="flex-1 justify-start">
+              {/* ✅ Enhanced Settings Button */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex-1 justify-start hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={handleSettings}
+              >
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
-              <Button variant="ghost" size="sm" className="flex-1 justify-start">
+              
+              {/* ✅ Enhanced Logout Button */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex-1 justify-start hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
                 <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                {isLoggingOut ? 'Logging out...' : 'Logout'}
               </Button>
             </div>
           </div>
@@ -570,10 +660,25 @@ export function NavigationSidebar({
                 </span>
               </div>
             </Button>
-            <Button variant="ghost" size="sm" className="w-full p-2">
+            
+            {/* ✅ Enhanced Collapsed Settings Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              onClick={handleSettings}
+            >
               <Settings className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="sm" className="w-full p-2">
+            
+            {/* ✅ Enhanced Collapsed Logout Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full p-2 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -583,7 +688,7 @@ export function NavigationSidebar({
   )
 }
 
-// Mobile sidebar overlay
+// ✅ Enhanced Mobile sidebar overlay
 interface MobileSidebarProps extends SidebarProps {
   isOpen: boolean
   onCloseAction: () => void
@@ -594,7 +699,7 @@ export function MobileSidebar({ isOpen, onCloseAction, ...props }: MobileSidebar
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
-      <div className="fixed inset-0 bg-black/20" onClick={onCloseAction} />
+      <div className="fixed inset-0 bg-black/20 backdrop-blur-sm" onClick={onCloseAction} />
       <div className="fixed left-0 top-0 h-full">
         <NavigationSidebar {...props} />
       </div>

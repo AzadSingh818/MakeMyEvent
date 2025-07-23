@@ -65,7 +65,7 @@ type EventFormData = z.infer<typeof eventSchema>;
 interface EventFormProps {
   eventId?: string;
   initialData?: Partial<EventFormData>;
-  onSuccess?: () => void;
+  onSuccess?: (eventId?: string) => void;
   onCancel?: () => void;
 }
 
@@ -137,11 +137,12 @@ export function EventForm({ eventId, initialData, onSuccess, onCancel }: EventFo
           eventId,
           updates: eventData,
         });
+        onSuccess?.(eventId);
       } else {
-        await createEvent.mutateAsync(eventData);
+        const response = await createEvent.mutateAsync(eventData);
+        // ✅ Fixed: Correct API response structure
+        onSuccess?.(response.data.id);
       }
-
-      onSuccess?.();
     } catch (error) {
       console.error('Event form error:', error);
     }

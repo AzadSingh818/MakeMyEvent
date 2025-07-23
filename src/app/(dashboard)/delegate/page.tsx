@@ -7,37 +7,68 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading';
 import { DelegateLayout } from '@/components/dashboard/layout';
+import { useRouter } from 'next/navigation';
 
 import { useEvents } from '@/hooks/use-events';
 import { useMyRegistrations, useRegistrationEligibility, useCreateRegistration } from '@/hooks/use-registrations';
 import { useMyAttendance } from '@/hooks/use-attendance';
-import { useTodaysSessions } from '@/hooks/use-sessions';
-import { useAuth } from '@/hooks/use-auth';
+import { useTodaysSessions, useUpcomingSessions } from '@/hooks/use-sessions';
+import { useAuth, useNotifications } from '@/hooks/use-auth';
 
 import { 
   Calendar, 
   Clock, 
-  MapPin, 
-  Award, 
-  BookOpen,
-  UserPlus,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
+  Users, 
+  CheckCircle, 
+  AlertTriangle, 
+  BarChart3,
+  FileText,
+  MapPin,
+  Activity,
+  ExternalLink,
+  ArrowRight,
+  Plus,
+  Mail,
+  MessageSquare,
+  Award,
   Download,
   QrCode,
-  Users,
+  Bell,
+  Eye,
+  Target,
+  Zap,
+  Globe,
+  Star,
+  Shield,
+  User,
+  Coffee,
+  Wifi,
+  Building,
+  Phone,
+  BookOpen,
+  Briefcase,
+  UserCheck,
   Ticket,
-  Star
+  CreditCard,
+  Navigation,
+  Info,
+  Heart,
+  ThumbsUp,
+  Share2,
+  CalendarPlus,
+  CheckSquare,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 
 export default function DelegateDashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [selectedEventId, setSelectedEventId] = useState<string>('');
 
-  // Data fetching hooks
+  // Delegate-specific data fetching
   const { data: events, isLoading: eventsLoading } = useEvents({ 
     status: 'PUBLISHED',
     limit: 10,
@@ -48,6 +79,8 @@ export default function DelegateDashboardPage() {
   const { data: myRegistrations, isLoading: registrationsLoading } = useMyRegistrations();
   const { data: myAttendance, isLoading: attendanceLoading } = useMyAttendance();
   const { data: todaysSessions, isLoading: todaysLoading } = useTodaysSessions();
+  const { data: upcomingSessions, isLoading: upcomingLoading } = useUpcomingSessions();
+  const { data: notifications, isLoading: notificationsLoading } = useNotifications();
   
   // Get eligibility for selected event
   const { data: eligibility } = useRegistrationEligibility(selectedEventId);
@@ -55,38 +88,54 @@ export default function DelegateDashboardPage() {
   // Mutations
   const createRegistration = useCreateRegistration();
 
-  // Calculate stats
+  // Navigation functions
+  const handleViewRegistration = () => router.push('/delegate/registration');
+  const handleViewSchedule = () => router.push('/delegate/schedule');
+  const handleViewSessions = () => router.push('/delegate/sessions');
+  const handleViewAttendance = () => router.push('/delegate/attendance');
+  const handleViewCertificates = () => router.push('/delegate/certificates');
+  const handleViewFeedback = () => router.push('/delegate/feedback');
+  const handleEventClick = (eventId: string) => router.push(`/delegate/events/${eventId}`);
+  const handleSessionClick = (sessionId: string) => router.push(`/delegate/sessions/${sessionId}`);
+
+  // Handle event registration
+  const handleRegisterForEvent = (eventId: string) => {
+    if (user?.id) {
+      createRegistration.mutate({
+        eventId,
+        userId: user.id,
+        registrationType: 'DELEGATE'
+      });
+    }
+  };
+
+  // Calculate delegate statistics
   const registeredEvents = myRegistrations?.data?.registrations || [];
   const approvedRegistrations = registeredEvents.filter(r => r.status === 'APPROVED');
   const pendingRegistrations = registeredEvents.filter(r => r.status === 'PENDING');
+  const rejectedRegistrations = registeredEvents.filter(r => r.status === 'REJECTED');
+  
   const attendanceRate = myAttendance?.data?.attendanceRate || 0;
   const attendedSessions = myAttendance?.data?.attendedSessions || 0;
   const totalSessions = myAttendance?.data?.totalSessions || 0;
+  const unreadNotifications = notifications?.data?.notifications?.filter(n => !n.readAt).length || 0;
 
   // Available events to register for
   const availableEvents = events?.data?.events?.filter(event => 
-    !registeredEvents.some(reg => reg.eventId === event.id && reg.status !== 'CANCELLED')
+    !registeredEvents.some(reg => reg.eventId === event.id && reg.status !== 'REJECTED')
   ) || [];
 
-  // Today's sessions for registered events
+  // My upcoming sessions (from registered events)
+  const myUpcomingSessions = upcomingSessions?.data?.sessions?.filter(session =>
+    approvedRegistrations.some(reg => reg.eventId === session.eventId)
+  ) || [];
+
+  // Today's sessions I can attend
   const myTodaysSessions = todaysSessions?.data?.sessions?.filter(session =>
     approvedRegistrations.some(reg => reg.eventId === session.eventId)
   ) || [];
 
-  // Handle event registration
-  const handleRegister = (eventId: string) => {
-    createRegistration.mutate({
-      eventId,
-      registrationData: {
-        participantType: 'DELEGATE',
-        certificateRequired: true,
-        consentForPhotography: true,
-        consentForMarketing: false
-      }
-    });
-  };
-
-  if (eventsLoading) {
+  if (eventsLoading || registrationsLoading) {
     return (
       <DelegateLayout>
         <div className="space-y-6">
@@ -109,251 +158,159 @@ export default function DelegateDashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Welcome, {user?.name || 'Delegate'}!
+              Welcome, {user?.name}
             </h1>
             <p className="text-muted-foreground">
-              Discover conferences and manage your learning journey
+              Your conference participation and learning hub
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button>
-              <BookOpen className="h-4 w-4 mr-2" />
-              Browse Events
+            <Button onClick={handleViewSchedule} variant="outline">
+              <Calendar className="h-4 w-4 mr-2" />
+              My Schedule
             </Button>
-            <Button variant="outline">
-              <Award className="h-4 w-4 mr-2" />
-              Certificates
+            <Button onClick={handleViewRegistration} className="bg-gradient-to-r from-green-600 to-blue-600">
+              <Ticket className="h-4 w-4 mr-2" />
+              My Registrations
             </Button>
           </div>
         </div>
 
-        {/* Pending Registrations Alert */}
+        {/* Registration Status Alerts */}
         {pendingRegistrations.length > 0 && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
+          <Alert className="border-orange-200 bg-orange-50">
+            <Clock className="h-4 w-4" />
             <AlertDescription>
-              You have {pendingRegistrations.length} registration{pendingRegistrations.length > 1 ? 's' : ''} pending approval.
-              You'll be notified once they are reviewed.
+              You have {pendingRegistrations.length} registration(s) awaiting approval.
+              <Button variant="link" className="p-0 ml-1 h-auto" onClick={handleViewRegistration}>
+                Check status
+              </Button>
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Quick Stats */}
+        {/* Notifications Alert */}
+        {unreadNotifications > 0 && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <Bell className="h-4 w-4" />
+            <AlertDescription>
+              You have {unreadNotifications} new updates from conference organizers.
+              <Button variant="link" className="p-0 ml-1 h-auto" onClick={() => router.push('/delegate/notifications')}>
+                View updates
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Delegate Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          {/* My Registrations */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleViewRegistration}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Registered Events</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">My Events</CardTitle>
+              <Ticket className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {registrationsLoading ? <LoadingSpinner size="sm" /> : approvedRegistrations.length}
+              <div className="text-2xl font-bold">{registeredEvents.length}</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <div className="flex items-center space-x-4">
+                  <span className="text-green-600">Approved: {approvedRegistrations.length}</span>
+                  {pendingRegistrations.length > 0 && (
+                    <span className="text-orange-600">Pending: {pendingRegistrations.length}</span>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {pendingRegistrations.length} pending approval
-              </p>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <CheckCircle className="h-3 w-3 mr-1 text-green-500" />
+                Active participant
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Attendance Rate */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleViewAttendance}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sessions Today</CardTitle>
+              <CardTitle className="text-sm font-medium">Attendance</CardTitle>
+              <QrCode className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{attendanceRate.toFixed(0)}%</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <Target className="h-3 w-3 mr-1" />
+                {attendedSessions}/{totalSessions} sessions attended
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Star className="h-3 w-3 mr-1 text-yellow-500" />
+                {attendanceRate >= 80 ? 'Excellent' : attendanceRate >= 60 ? 'Good' : 'Needs improvement'} participation
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Today's Sessions */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleViewSessions}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Today's Sessions</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
                 {todaysLoading ? <LoadingSpinner size="sm" /> : myTodaysSessions.length}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {myTodaysSessions.filter(s => new Date(s.startTime) > new Date()).length} upcoming
-              </p>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <Activity className="h-3 w-3 mr-1" />
+                Sessions available to attend
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Globe className="h-3 w-3 mr-1 text-blue-500" />
+                Conference in progress
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Certificates */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleViewCertificates}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">Certificates</CardTitle>
               <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {attendanceLoading ? <LoadingSpinner size="sm" /> : `${attendanceRate}%`}
+                {approvedRegistrations.filter(r => r.certificateIssued).length}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {attendedSessions} of {totalSessions} sessions
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Available Events</CardTitle>
-              <UserPlus className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{availableEvents.length}</div>
-              <p className="text-xs text-muted-foreground">Open for registration</p>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <Download className="h-3 w-3 mr-1" />
+                Available for download
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Shield className="h-3 w-3 mr-1 text-green-500" />
+                Verified participation
+              </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Main Content Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Today's Sessions */}
+          
+          {/* Available Events & Registration */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Today's Sessions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {todaysLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  Available Events
+                </CardTitle>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" onClick={handleViewRegistration}>
+                    <Ticket className="h-3 w-3 mr-1" />
+                    My Registrations
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => router.push('/delegate/events')}>
+                    Browse All
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
                 </div>
-              ) : myTodaysSessions.length > 0 ? (
-                <div className="space-y-4">
-                  {myTodaysSessions.map((session) => {
-                    const isCompleted = new Date(session.endTime) < new Date();
-                    const isOngoing = new Date(session.startTime) <= new Date() && new Date(session.endTime) > new Date();
-                    const isUpcoming = new Date(session.startTime) > new Date();
-
-                    return (
-                      <div key={session.id} className={`p-3 border rounded-lg ${
-                        isCompleted ? 'bg-gray-50' :
-                        isOngoing ? 'bg-green-50 border-green-200' :
-                        'bg-blue-50 border-blue-200'
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">{session.title}</h4>
-                            <div className="flex items-center text-sm text-muted-foreground mt-1">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
-                              <MapPin className="h-3 w-3 ml-2 mr-1" />
-                              {session.hall?.name}
-                            </div>
-                            <div className="flex items-center text-xs text-muted-foreground mt-1">
-                              <Badge variant="outline" className="text-xs mr-2">
-                                {session.sessionType}
-                              </Badge>
-                              <Users className="h-3 w-3 mr-1" />
-                              {session._count?.speakers || 0} speakers
-                            </div>
-                          </div>
-                          <div className="flex flex-col space-y-1">
-                            {isOngoing && (
-                              <Badge variant="default" className="text-xs">
-                                Live Now
-                              </Badge>
-                            )}
-                            {isUpcoming && (
-                              <Badge variant="outline" className="text-xs">
-                                Upcoming
-                              </Badge>
-                            )}
-                            {isCompleted && (
-                              <Badge variant="secondary" className="text-xs">
-                                Completed
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Clock className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No sessions scheduled for today</p>
-                  <p className="text-sm mt-1">Check your registered events for upcoming sessions</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* My Registrations */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Ticket className="h-5 w-5" />
-                My Registrations
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {registrationsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : registeredEvents.length > 0 ? (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {registeredEvents.map((registration) => (
-                    <div key={registration.id} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-medium truncate">{registration.event?.name}</h5>
-                          <div className="flex items-center text-sm text-muted-foreground mt-1">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {format(new Date(registration.event?.startDate || ''), 'MMM dd, yyyy')}
-                          </div>
-                        </div>
-                        <Badge 
-                          variant={
-                            registration.status === 'APPROVED' ? 'success' :
-                            registration.status === 'PENDING' ? 'default' :
-                            registration.status === 'REJECTED' ? 'destructive' :
-                            'secondary'
-                          }
-                          className="text-xs"
-                        >
-                          {registration.status === 'APPROVED' && <CheckCircle className="h-3 w-3 mr-1" />}
-                          {registration.status === 'REJECTED' && <XCircle className="h-3 w-3 mr-1" />}
-                          {registration.status}
-                        </Badge>
-                      </div>
-                      {registration.status === 'APPROVED' && (
-                        <div className="flex items-center mt-2 space-x-2">
-                          <Button size="sm" variant="outline" className="text-xs">
-                            <QrCode className="h-3 w-3 mr-1" />
-                            QR Code
-                          </Button>
-                          <Button size="sm" variant="outline" className="text-xs">
-                            <Download className="h-3 w-3 mr-1" />
-                            Ticket
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Ticket className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No registrations yet</p>
-                  <Button className="mt-2" size="sm">Register for Event</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Available Events */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star className="h-5 w-5" />
-                Available Events
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent>
               {eventsLoading ? (
@@ -366,80 +323,374 @@ export default function DelegateDashboardPage() {
                   ))}
                 </div>
               ) : availableEvents.length > 0 ? (
-                <div className="space-y-4 max-h-64 overflow-y-auto">
-                  {availableEvents.slice(0, 5).map((event) => (
-                    <div key={event.id} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1 min-w-0">
+                <div className="space-y-4">
+                  {availableEvents.slice(0, 4).map((event) => (
+                    <div 
+                      key={event.id} 
+                      className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
                           <h4 className="font-medium truncate">{event.name}</h4>
-                          <div className="flex items-center text-sm text-muted-foreground mt-1">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {format(new Date(event.startDate), 'MMM dd, yyyy')}
-                            <MapPin className="h-3 w-3 ml-2 mr-1" />
-                            {event.location}
-                          </div>
-                          <div className="flex items-center text-xs text-muted-foreground mt-1">
-                            <Badge variant="outline" className="text-xs mr-2">
-                              {event.eventType}
-                            </Badge>
-                            <Users className="h-3 w-3 mr-1" />
-                            {event._count?.registrations || 0} registered
-                          </div>
+                          <Badge 
+                            variant="default"
+                            className="ml-2"
+                          >
+                            Open Registration
+                          </Badge>
                         </div>
+                        <div className="flex items-center text-sm text-muted-foreground mt-1">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {format(new Date(event.startDate), 'MMM dd, yyyy')}
+                          <MapPin className="h-3 w-3 ml-3 mr-1" />
+                          {event.location}
+                        </div>
+                        <div className="flex items-center text-xs text-muted-foreground mt-1 space-x-4">
+                          <span className="flex items-center">
+                            <Users className="h-3 w-3 mr-1" />
+                            {event._count?.sessions || 0} sessions
+                          </span>
+                          <span className="flex items-center">
+                            <UserCheck className="h-3 w-3 mr-1" />
+                            {event._count?.registrations || 0} participants
+                          </span>
+                          {event.registrationDeadline && (
+                            <span className="flex items-center text-orange-600">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Deadline: {format(new Date(event.registrationDeadline), 'MMM dd')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
                         <Button 
                           size="sm" 
-                          onClick={() => handleRegister(event.id)}
-                          disabled={createRegistration.isPending}
+                          onClick={() => handleEventClick(event.id)}
+                          variant="outline"
                         >
-                          {createRegistration.isPending ? (
-                            <LoadingSpinner size="sm" />
-                          ) : (
-                            <>
-                              <UserPlus className="h-4 w-4 mr-1" />
-                              Register
-                            </>
-                          )}
+                          <Eye className="h-3 w-3 mr-1" />
+                          Details
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleRegisterForEvent(event.id)}
+                          disabled={createRegistration.isLoading}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Register
                         </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Star className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No events available for registration</p>
-                  <p className="text-sm mt-1">Check back later for new events</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="font-medium mb-2">No new events available</h3>
+                  <p className="text-sm mb-4">You're registered for all current events</p>
+                  <Button variant="outline" onClick={handleViewRegistration}>
+                    <Ticket className="h-4 w-4 mr-2" />
+                    View My Registrations
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
+          {/* Delegate Quick Actions */}
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Quick Actions
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <BookOpen className="h-4 w-4 mr-2" />
-                Browse All Events
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewSchedule}
+              >
                 <Calendar className="h-4 w-4 mr-2" />
-                My Schedule
+                View Full Schedule
               </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Award className="h-4 w-4 mr-2" />
-                My Certificates
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewSessions}
+              >
+                <BookOpen className="h-4 w-4 mr-2" />
+                Browse Sessions
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewAttendance}
+              >
                 <QrCode className="h-4 w-4 mr-2" />
-                QR Codes
+                Check-in to Sessions
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewCertificates}
+              >
+                <Award className="h-4 w-4 mr-2" />
+                Download Certificates
+              </Button>
+
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewFeedback}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Submit Feedback
+              </Button>
+
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={() => router.push('/delegate/networking')}
+              >
                 <Users className="h-4 w-4 mr-2" />
-                Update Profile
+                Networking Hub
               </Button>
+
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={() => router.push('/delegate/support')}
+              >
+                <Phone className="h-4 w-4 mr-2" />
+                Get Support
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Today's Schedule */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Today's Schedule
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {todaysLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                      <div className="h-2 bg-gray-200 rounded w-2/3"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : myTodaysSessions.length > 0 ? (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {myTodaysSessions.slice(0, 6).map((session) => (
+                    <div 
+                      key={session.id} 
+                      className="p-3 border rounded text-sm cursor-pointer hover:bg-gray-50"
+                      onClick={() => handleSessionClick(session.id)}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <h5 className="font-medium truncate">{session.title}</h5>
+                        <Badge variant="outline" className="text-xs">
+                          {session.sessionType}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
+                        <MapPin className="h-3 w-3 ml-2 mr-1" />
+                        {session.hall?.name || 'Venue TBA'}
+                      </div>
+                      {session.speakers?.length > 0 && (
+                        <div className="flex items-center text-xs text-muted-foreground mt-1">
+                          <Users className="h-3 w-3 mr-1" />
+                          {session.speakers.slice(0, 2).map(speaker => speaker.user.name).join(', ')}
+                          {session.speakers.length > 2 && ` +${session.speakers.length - 2} more`}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-xs text-blue-600">Click to check-in</span>
+                        <QrCode className="h-3 w-3 text-blue-600" />
+                      </div>
+                    </div>
+                  ))}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-2"
+                    onClick={handleViewSchedule}
+                  >
+                    View Full Schedule
+                  </Button>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Coffee className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No sessions today</p>
+                  <p className="text-xs">Check back tomorrow!</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* My Registrations Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Registration Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {approvedRegistrations.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-green-800">Approved Events</h5>
+                    <p className="text-xs text-green-600">{approvedRegistrations.length} confirmed registrations</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleViewRegistration}
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    View
+                  </Button>
+                </div>
+              )}
+
+              {pendingRegistrations.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-orange-800">Pending Approval</h5>
+                    <p className="text-xs text-orange-600">{pendingRegistrations.length} awaiting organizer review</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleViewRegistration}
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    Track
+                  </Button>
+                </div>
+              )}
+
+              {rejectedRegistrations.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-red-800">Action Required</h5>
+                    <p className="text-xs text-red-600">{rejectedRegistrations.length} registration(s) need attention</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleViewRegistration}
+                  >
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Review
+                  </Button>
+                </div>
+              )}
+
+              {registeredEvents.length === 0 && (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Ticket className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No registrations yet</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => router.push('/delegate/events')}
+                  >
+                    <Plus className="h-3 w-3 mr-2" />
+                    Register for Events
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Conference Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Conference Guide
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-blue-800">Welcome Package</h5>
+                    <p className="text-xs text-blue-600">Conference guide & materials</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => router.push('/delegate/welcome')}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Access
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-purple-800">Mobile App</h5>
+                    <p className="text-xs text-purple-600">Download for better experience</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => router.push('/delegate/app')}
+                  >
+                    <Share2 className="h-3 w-3 mr-1" />
+                    Get App
+                  </Button>
+                </div>
+              </div>
+
+              <div className="pt-2 space-y-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => router.push('/delegate/venue-map')}
+                >
+                  <Navigation className="h-3 w-3 mr-2" />
+                  Venue Map
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => router.push('/delegate/networking')}
+                >
+                  <Heart className="h-3 w-3 mr-2" />
+                  Connect with Peers
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => router.push('/delegate/feedback')}
+                >
+                  <ThumbsUp className="h-3 w-3 mr-2" />
+                  Rate Sessions
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

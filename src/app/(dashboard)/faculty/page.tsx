@@ -7,31 +7,85 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading';
 import { FacultyLayout } from '@/components/dashboard/layout';
+import { useRouter } from 'next/navigation';
 
 import { useMyFacultyProfile, useUploadCV } from '@/hooks/use-faculty';
-import { useUserSessions } from '@/hooks/use-sessions';
+import { useUserSessions, useTodaysSessions, useUpcomingSessions } from '@/hooks/use-sessions';
 import { useMyAttendance } from '@/hooks/use-attendance';
 import { useMyRegistrations } from '@/hooks/use-registrations';
 import { useAuth, useDashboardStats, useNotifications } from '@/hooks/use-auth';
 
-import { Calendar, Clock, MapPin, Upload, FileText, Users, Award, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { 
+  Calendar, 
+  Clock, 
+  Users, 
+  CheckCircle, 
+  AlertTriangle, 
+  BarChart3,
+  Upload,
+  FileText,
+  MapPin,
+  Activity,
+  ExternalLink,
+  ArrowRight,
+  Plus,
+  Mail,
+  MessageSquare,
+  Award,
+  Download,
+  QrCode,
+  Hotel,
+  Plane,
+  Bell,
+  Eye,
+  Target,
+  Zap,
+  Globe,
+  Star,
+  Shield,
+  User,
+  Presentation,
+  Coffee,
+  Car,
+  Wifi,
+  Building,
+  Phone,
+  Edit,
+  Send,
+  BookOpen,
+  Briefcase,
+  UserCheck
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { useState } from 'react';
 
 export default function FacultyDashboardPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  // Data fetching hooks
+  // Faculty-specific data fetching
   const { data: profile, isLoading: profileLoading } = useMyFacultyProfile();
-  const { data: sessions, isLoading: sessionsLoading } = useUserSessions(user?.id);
-  const { data: attendance, isLoading: attendanceLoading } = useMyAttendance();
-  const { data: registrations, isLoading: registrationsLoading } = useMyRegistrations();
-  const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
-  const { data: notifications } = useNotifications();
+  const { data: mySessions, isLoading: sessionsLoading } = useUserSessions(user?.id);
+  const { data: todaysSessions, isLoading: todaysLoading } = useTodaysSessions();
+  const { data: upcomingSessions, isLoading: upcomingLoading } = useUpcomingSessions();
+  const { data: myAttendance, isLoading: attendanceLoading } = useMyAttendance();
+  const { data: myRegistrations, isLoading: registrationsLoading } = useMyRegistrations();
+  const { data: notifications, isLoading: notificationsLoading } = useNotifications();
 
   // Mutations
   const uploadCV = useUploadCV();
+
+  // Navigation functions
+  const handleViewProfile = () => router.push('/faculty/profile');
+  const handleManageSessions = () => router.push('/faculty/sessions');
+  const handlePresentations = () => router.push('/faculty/presentations');
+  const handleUploadDocuments = () => router.push('/faculty/presentations/upload');
+  const handleTravelDetails = () => router.push('/faculty/travel');
+  const handleAccommodation = () => router.push('/faculty/travel/accommodation');
+  const handleSchedule = () => router.push('/faculty/schedule');
+  const handleCertificates = () => router.push('/faculty/certificates');
+  const handleSessionClick = (sessionId: string) => router.push(`/faculty/sessions/${sessionId}`);
 
   // Handle CV upload
   const handleCVUpload = () => {
@@ -41,33 +95,48 @@ export default function FacultyDashboardPage() {
     }
   };
 
-  // Get upcoming sessions
-  const upcomingSessions = sessions?.data?.sessions?.filter(
-    session => new Date(session.session.startTime) > new Date()
-  ).slice(0, 3) || [];
-
-  // Get recent events
-  const recentEvents = registrations?.data?.registrations?.slice(0, 3) || [];
+  // Calculate faculty-specific statistics
+  const mySessionsCount = mySessions?.data?.sessions?.length || 0;
+  const todaysSessionsCount = todaysSessions?.data?.sessions?.filter(s => 
+    s.speakers?.some(speaker => speaker.userId === user?.id)
+  ).length || 0;
+  const upcomingSessionsCount = upcomingSessions?.data?.sessions?.filter(s => 
+    s.speakers?.some(speaker => speaker.userId === user?.id)
+  ).length || 0;
+  
+  const registeredEvents = myRegistrations?.data?.registrations?.length || 0;
+  const attendanceRate = myAttendance?.data?.attendanceRate || 0;
+  const totalPresentations = profile?.data?.presentations?.length || 0;
+  const unreadNotifications = notifications?.data?.notifications?.filter(n => !n.readAt).length || 0;
 
   // Profile completion percentage
-  const getProfileCompleteness = () => {
-    if (!profile?.data) return 0;
-    const fields = [
-      'phone', 'designation', 'institution', 'specialization', 
-      'bio', 'experience', 'cv'
-    ];
-    const completed = fields.filter(field => profile.data[field as keyof typeof profile.data]).length;
-    return Math.round((completed / fields.length) * 100);
-  };
+  const profileFields = [
+    profile?.data?.bio,
+    profile?.data?.institution,
+    profile?.data?.expertise,
+    profile?.data?.cv,
+    profile?.data?.photo
+  ];
+  const completedFields = profileFields.filter(field => field).length;
+  const profileCompletionRate = Math.round((completedFields / profileFields.length) * 100);
 
-  const profileCompleteness = getProfileCompleteness();
+  // Get upcoming sessions for faculty
+  const myUpcomingSessions = upcomingSessions?.data?.sessions?.filter(session => 
+    session.speakers?.some(speaker => speaker.userId === user?.id)
+  ) || [];
 
-  if (profileLoading) {
+  // Get today's sessions for faculty
+  const myTodaysSessions = todaysSessions?.data?.sessions?.filter(session => 
+    session.speakers?.some(speaker => speaker.userId === user?.id)
+  ) || [];
+
+  if (profileLoading || sessionsLoading) {
     return (
       <FacultyLayout>
         <div className="space-y-6">
           <SkeletonCard />
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
@@ -84,103 +153,163 @@ export default function FacultyDashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Welcome back, {user?.name || 'Faculty'}!
+              Welcome, {profile?.data?.user?.name || user?.name}
             </h1>
             <p className="text-muted-foreground">
-              Here's what's happening with your academic activities
+              Your academic conference participation hub
             </p>
+            {profile?.data?.institution && (
+              <p className="text-sm text-blue-600 font-medium">
+                {profile.data.institution}
+              </p>
+            )}
           </div>
           <div className="flex items-center space-x-2">
-            {notifications?.data?.filter((n: any) => !n.read).length > 0 && (
-              <Badge variant="destructive">
-                {notifications.data.filter((n: any) => !n.read).length} new
-              </Badge>
-            )}
+            <Button onClick={handleViewProfile} variant="outline">
+              <User className="h-4 w-4 mr-2" />
+              My Profile
+            </Button>
+            <Button onClick={handleUploadDocuments} className="bg-gradient-to-r from-purple-600 to-blue-600">
+              <Upload className="h-4 w-4 mr-2" />
+              Upload Documents
+            </Button>
           </div>
         </div>
 
-        {/* Profile Completeness Alert */}
-        {profileCompleteness < 80 && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
+        {/* Profile Completion Alert */}
+        {profileCompletionRate < 80 && (
+          <Alert className="border-orange-200 bg-orange-50">
+            <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Your profile is {profileCompleteness}% complete. 
-              <Button variant="link" className="p-0 h-auto ml-1">
+              Your profile is {profileCompletionRate}% complete. 
+              <Button variant="link" className="p-0 ml-1 h-auto" onClick={handleViewProfile}>
                 Complete your profile
-              </Button> to get more opportunities.
+              </Button> to enhance your conference experience.
             </AlertDescription>
           </Alert>
         )}
 
-        {/* Quick Stats */}
+        {/* Notifications Alert */}
+        {unreadNotifications > 0 && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <Bell className="h-4 w-4" />
+            <AlertDescription>
+              You have {unreadNotifications} new notifications from organizers.
+              <Button variant="link" className="p-0 ml-1 h-auto" onClick={() => router.push('/faculty/notifications')}>
+                View all
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Faculty Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          {/* My Sessions */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleManageSessions}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Upcoming Sessions</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">My Sessions</CardTitle>
+              <Presentation className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {sessionsLoading ? <LoadingSpinner size="sm" /> : upcomingSessions.length}
+              <div className="text-2xl font-bold">{mySessionsCount}</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <div className="flex items-center space-x-4">
+                  <span className="text-green-600">Today: {todaysSessionsCount}</span>
+                  <span className="text-blue-600">Upcoming: {upcomingSessionsCount}</span>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Next session in {upcomingSessions[0] ? 
-                  format(new Date(upcomingSessions[0].session.startTime), 'dd MMM') : 'N/A'}
-              </p>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Activity className="h-3 w-3 mr-1 text-purple-500" />
+                Active speaker
+              </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Events Registered</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {registrationsLoading ? <LoadingSpinner size="sm" /> : recentEvents.length}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {recentEvents.filter(r => r.status === 'APPROVED').length} approved
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {attendanceLoading ? <LoadingSpinner size="sm" /> : 
-                  `${attendance?.data?.attendanceRate || 0}%`}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {attendance?.data?.attendedSessions || 0} of {attendance?.data?.totalSessions || 0} sessions
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
+          {/* Profile Completion */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleViewProfile}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Profile Status</CardTitle>
+              <User className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{profileCompletionRate}%</div>
+              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                <div 
+                  className={`h-2 rounded-full ${
+                    profileCompletionRate >= 80 ? 'bg-green-500' : 
+                    profileCompletionRate >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${profileCompletionRate}%` }}
+                ></div>
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                {completedFields}/5 sections completed
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Documents & Presentations */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handlePresentations}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">My Documents</CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{profileCompleteness}%</div>
-              <p className="text-xs text-muted-foreground">Profile completion</p>
+              <div className="text-2xl font-bold">{totalPresentations}</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <Upload className="h-3 w-3 mr-1" />
+                Presentations uploaded
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Shield className="h-3 w-3 mr-1 text-green-500" />
+                {profile?.data?.cv ? 'CV uploaded' : 'CV pending'}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Attendance Rate */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => router.push('/faculty/attendance')}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Attendance</CardTitle>
+              <UserCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{attendanceRate.toFixed(0)}%</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <Target className="h-3 w-3 mr-1" />
+                Conference participation
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Star className="h-3 w-3 mr-1 text-yellow-500" />
+                {registeredEvents} events registered
+              </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Main Content Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Upcoming Sessions */}
+          
+          {/* My Sessions & Schedule */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Upcoming Sessions
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  My Speaking Schedule
+                </CardTitle>
+                <div className="flex space-x-2">
+                  <Button variant="outline" size="sm" onClick={handleSchedule}>
+                    <Calendar className="h-3 w-3 mr-1" />
+                    Full Schedule
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleManageSessions}>
+                    Manage Sessions
+                    <ArrowRight className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {sessionsLoading ? (
@@ -192,191 +321,394 @@ export default function FacultyDashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : upcomingSessions.length > 0 ? (
+              ) : myUpcomingSessions.length > 0 ? (
                 <div className="space-y-4">
-                  {upcomingSessions.map((sessionSpeaker) => (
-                    <div key={sessionSpeaker.sessionId} className="flex items-center space-x-4 p-3 border rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{sessionSpeaker.session.title}</h4>
-                        <div className="flex items-center text-sm text-muted-foreground mt-1">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {format(new Date(sessionSpeaker.session.startTime), 'MMM dd, yyyy • HH:mm')}
-                          {sessionSpeaker.session.hall && (
-                            <>
-                              <MapPin className="h-3 w-3 ml-2 mr-1" />
-                              {sessionSpeaker.session.hall.name}
-                            </>
-                          )}
+                  {myUpcomingSessions.slice(0, 4).map((session) => {
+                    const myRole = session.speakers?.find(s => s.userId === user?.id)?.role;
+                    return (
+                      <div 
+                        key={session.id} 
+                        className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => handleSessionClick(session.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium truncate">{session.title}</h4>
+                            <Badge 
+                              variant={
+                                myRole === 'SPEAKER' ? 'default' :
+                                myRole === 'MODERATOR' ? 'secondary' :
+                                myRole === 'CHAIRPERSON' ? 'destructive' :
+                                'outline'
+                              }
+                              className="ml-2"
+                            >
+                              {myRole}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center text-sm text-muted-foreground mt-1">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {format(new Date(session.startTime), 'MMM dd, yyyy')}
+                            <Clock className="h-3 w-3 ml-3 mr-1" />
+                            {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
+                          </div>
+                          <div className="flex items-center text-xs text-muted-foreground mt-1">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {session.hall?.name || 'Venue TBA'}
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {session.sessionType}
+                            </Badge>
+                          </div>
                         </div>
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <Badge variant={sessionSpeaker.role === 'SPEAKER' ? 'default' : 'secondary'}>
-                        {sessionSpeaker.role}
-                      </Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No upcoming sessions</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="font-medium mb-2">No upcoming sessions</h3>
+                  <p className="text-sm mb-4">Your speaking schedule will appear here</p>
+                  <Button variant="outline" onClick={() => router.push('/faculty/contact')}>
+                    <Mail className="h-4 w-4 mr-2" />
+                    Contact Organizers
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Profile Overview */}
+          {/* Quick Actions for Faculty */}
           <Card>
             <CardHeader>
-              <CardTitle>Profile Overview</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Faculty Tools
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                  {profile?.data?.profileImage ? (
-                    <img src={profile.data.profileImage} alt="Profile" className="w-12 h-12 rounded-full" />
-                  ) : (
-                    <Users className="h-6 w-6 text-primary" />
+            <CardContent className="space-y-3">
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewProfile}
+              >
+                <User className="h-4 w-4 mr-2" />
+                Update Profile
+              </Button>
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleUploadDocuments}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Presentations
+              </Button>
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleTravelDetails}
+              >
+                <Plane className="h-4 w-4 mr-2" />
+                Travel Information
+              </Button>
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleAccommodation}
+              >
+                <Hotel className="h-4 w-4 mr-2" />
+                Accommodation Details
+              </Button>
+
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleCertificates}
+              >
+                <Award className="h-4 w-4 mr-2" />
+                Download Certificates
+              </Button>
+
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={() => router.push('/faculty/feedback')}
+              >
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Submit Feedback
+              </Button>
+
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={() => router.push('/faculty/contact')}
+              >
+                <Phone className="h-4 w-4 mr-2" />
+                Contact Support
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Today's Agenda */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Today's Agenda
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {todaysLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
+                      <div className="h-2 bg-gray-200 rounded w-2/3"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : myTodaysSessions.length > 0 ? (
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {myTodaysSessions.map((session) => {
+                    const myRole = session.speakers?.find(s => s.userId === user?.id)?.role;
+                    return (
+                      <div 
+                        key={session.id} 
+                        className="p-3 border rounded text-sm cursor-pointer hover:bg-gray-50"
+                        onClick={() => handleSessionClick(session.id)}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <h5 className="font-medium truncate">{session.title}</h5>
+                          <Badge variant="outline" className="text-xs">
+                            {myRole}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
+                          <MapPin className="h-3 w-3 ml-2 mr-1" />
+                          {session.hall?.name || 'Venue TBA'}
+                        </div>
+                        <div className="flex items-center text-xs text-muted-foreground mt-1">
+                          <Users className="h-3 w-3 mr-1" />
+                          {session.speakers?.length || 0} speakers
+                          {session.expectedAttendees && (
+                            <>
+                              <Target className="h-3 w-3 ml-2 mr-1" />
+                              ~{session.expectedAttendees} attendees
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Coffee className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No sessions today</p>
+                  <p className="text-xs">Enjoy your free time!</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Travel & Accommodation Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plane className="h-5 w-5" />
+                Travel & Stay
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {profile?.data?.travelDetails ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div>
+                      <h5 className="font-medium text-green-800">Travel Confirmed</h5>
+                      <p className="text-xs text-green-600">
+                        {profile.data.travelDetails.mode} • {format(new Date(profile.data.travelDetails.arrivalDate), 'MMM dd')}
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={handleTravelDetails}
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                  </div>
+
+                  {profile?.data?.accommodationDetails && (
+                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div>
+                        <h5 className="font-medium text-blue-800">Accommodation Ready</h5>
+                        <p className="text-xs text-blue-600">
+                          {profile.data.accommodationDetails.hotelName}
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={handleAccommodation}
+                      >
+                        <Building className="h-3 w-3 mr-1" />
+                        Details
+                      </Button>
+                    </div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-medium">{profile?.data?.name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {profile?.data?.designation} • {profile?.data?.institution}
-                  </p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div>
+                      <h5 className="font-medium text-orange-800">Travel Details Pending</h5>
+                      <p className="text-xs text-orange-600">Please provide your travel information</p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={handleTravelDetails}
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      Add
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div>
+                      <h5 className="font-medium text-orange-800">Accommodation Pending</h5>
+                      <p className="text-xs text-orange-600">Accommodation details will be shared</p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={handleAccommodation}
+                    >
+                      <Hotel className="h-3 w-3 mr-1" />
+                      Check
+                    </Button>
+                  </div>
                 </div>
+              )}
+
+              <div className="pt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => router.push('/faculty/travel')}
+                >
+                  <Car className="h-3 w-3 mr-2" />
+                  Manage Travel & Stay
+                </Button>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm">Profile Completeness</span>
-                  <span className="text-sm font-medium">{profileCompleteness}%</span>
+          {/* Important Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Important Updates
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {profile?.data?.cv ? (
+                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-green-800">CV Uploaded</h5>
+                    <p className="text-xs text-green-600">Your CV is on file</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => router.push('/faculty/profile')}
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    View
+                  </Button>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300" 
-                    style={{ width: `${profileCompleteness}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">CV Status</span>
-                  {profile?.data?.cv ? (
-                    <Badge variant="success" className="text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Uploaded
-                    </Badge>
-                  ) : (
-                    <Badge variant="destructive" className="text-xs">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Missing
-                    </Badge>
-                  )}
-                </div>
-
-                {!profile?.data?.cv && (
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-red-800">CV Required</h5>
+                    <p className="text-xs text-red-600">Please upload your updated CV</p>
+                  </div>
                   <div className="space-y-2">
                     <input
                       type="file"
                       accept=".pdf,.doc,.docx"
                       onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/80"
+                      className="hidden"
+                      id="cv-upload"
                     />
-                    <Button 
-                      onClick={handleCVUpload}
-                      disabled={!selectedFile || uploadCV.isPending}
-                      size="sm" 
-                      className="w-full"
-                    >
-                      {uploadCV.isPending ? (
-                        <LoadingSpinner size="sm" className="mr-2" />
-                      ) : (
-                        <Upload className="h-4 w-4 mr-2" />
-                      )}
-                      Upload CV
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Events */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Recent Events
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {registrationsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : recentEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {recentEvents.map((registration) => (
-                    <div key={registration.id} className="flex items-center space-x-4 p-3 border rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{registration.event?.name}</h4>
-                        <div className="flex items-center text-sm text-muted-foreground mt-1">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {format(new Date(registration.event?.startDate || ''), 'MMM dd, yyyy')}
-                          <MapPin className="h-3 w-3 ml-2 mr-1" />
-                          {registration.event?.location}
-                        </div>
-                      </div>
-                      <Badge 
-                        variant={
-                          registration.status === 'APPROVED' ? 'success' :
-                          registration.status === 'PENDING' ? 'default' :
-                          registration.status === 'REJECTED' ? 'destructive' :
-                          'secondary'
-                        }
+                    <label htmlFor="cv-upload">
+                      <Button size="sm" variant="outline" asChild>
+                        <span>
+                          <Upload className="h-3 w-3 mr-1" />
+                          Upload
+                        </span>
+                      </Button>
+                    </label>
+                    {selectedFile && (
+                      <Button 
+                        size="sm" 
+                        onClick={handleCVUpload}
+                        disabled={uploadCV.isLoading}
                       >
-                        {registration.status}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No event registrations</p>
+                        <Send className="h-3 w-3 mr-1" />
+                        Submit
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
-                <FileText className="h-4 w-4 mr-2" />
-                Upload Presentation
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Calendar className="h-4 w-4 mr-2" />
-                View Schedule
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Users className="h-4 w-4 mr-2" />
-                Update Profile
-              </Button>
-              <Button className="w-full justify-start" variant="outline">
-                <Award className="h-4 w-4 mr-2" />
-                View Certificates
-              </Button>
+              {unreadNotifications > 0 && (
+                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-blue-800">New Messages</h5>
+                    <p className="text-xs text-blue-600">{unreadNotifications} unread notifications</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => router.push('/faculty/notifications')}
+                  >
+                    <Bell className="h-3 w-3 mr-1" />
+                    Read
+                  </Button>
+                </div>
+              )}
+
+              <div className="pt-2 space-y-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => router.push('/faculty/guidelines')}
+                >
+                  <BookOpen className="h-3 w-3 mr-2" />
+                  Conference Guidelines
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => router.push('/faculty/resources')}
+                >
+                  <Briefcase className="h-3 w-3 mr-2" />
+                  Presentation Resources
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

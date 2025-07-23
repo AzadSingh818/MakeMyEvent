@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading';
 import { EventManagerLayout } from '@/components/dashboard/layout';
+import { useRouter } from 'next/navigation'; // ✅ Added useRouter import
 
 import { useEvents } from '@/hooks/use-events';
 import { useSessions, useTodaysSessions, useOngoingSessions } from '@/hooks/use-sessions';
@@ -25,12 +26,15 @@ import {
   FileText,
   MapPin,
   TrendingUp,
-  Activity
+  Activity,
+  ExternalLink,
+  ArrowRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function EventManagerDashboardPage() {
   const { user } = useAuth();
+  const router = useRouter(); // ✅ Added router hook
 
   // Data fetching hooks
   const { data: events, isLoading: eventsLoading } = useEvents({ 
@@ -48,6 +52,43 @@ export default function EventManagerDashboardPage() {
   const firstEventId = events?.data?.events?.[0]?.id;
   const { data: registrationStats } = useRegistrationStats(firstEventId);
   const { data: facultyStats } = useFacultyStats(firstEventId);
+
+  // ✅ Navigation functions
+  const handleEventClick = (eventId: string) => {
+    router.push(`/event-manager/events/${eventId}`);
+  };
+
+  const handleViewAllEvents = () => {
+    router.push('/event-manager/events');
+  };
+
+  const handleInviteFaculty = () => {
+    router.push('/event-manager/faculty');
+  };
+
+  const handleReviewRegistrations = () => {
+    router.push('/event-manager/approvals');
+  };
+
+  const handleViewReports = () => {
+    router.push('/event-manager/reports');
+  };
+
+  const handleGenerateCertificates = () => {
+    router.push('/event-manager/certificates');
+  };
+
+  const handleCreateEvent = () => {
+    router.push('/event-manager/events/create');
+  };
+
+  const handleViewSessions = () => {
+    router.push('/event-manager/sessions');
+  };
+
+  const handleManageVenues = () => {
+    router.push('/event-manager/venues');
+  };
 
   // Quick stats calculations
   const totalEvents = events?.data?.events?.length || 0;
@@ -90,11 +131,12 @@ export default function EventManagerDashboardPage() {
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button>
+            {/* ✅ Fixed header buttons */}
+            <Button onClick={handleInviteFaculty}>
               <UserPlus className="h-4 w-4 mr-2" />
               Invite Faculty
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => router.push('/event-manager/settings')}>
               <Settings className="h-4 w-4 mr-2" />
               Settings
             </Button>
@@ -103,7 +145,8 @@ export default function EventManagerDashboardPage() {
 
         {/* Quick Stats */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          {/* ✅ Made stats cards clickable */}
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleViewAllEvents}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Events</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -116,7 +159,7 @@ export default function EventManagerDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleViewSessions}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Today's Sessions</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -131,7 +174,7 @@ export default function EventManagerDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleReviewRegistrations}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
@@ -144,7 +187,7 @@ export default function EventManagerDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleInviteFaculty}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Faculty</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -164,10 +207,17 @@ export default function EventManagerDashboardPage() {
           {/* Recent Events */}
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Recent Events
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Recent Events
+                </CardTitle>
+                {/* ✅ Added View All Events button */}
+                <Button variant="outline" size="sm" onClick={handleViewAllEvents}>
+                  View All
+                  <ArrowRight className="h-3 w-3 ml-1" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {eventsLoading ? (
@@ -182,7 +232,11 @@ export default function EventManagerDashboardPage() {
               ) : (events?.data?.events?.length ?? 0) > 0 ? (
                 <div className="space-y-4">
                   {events?.data?.events?.map((event) => (
-                    <div key={event.id} className="flex items-center space-x-4 p-3 border rounded-lg">
+                    <div 
+                      key={event.id} 
+                      className="flex items-center space-x-4 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => handleEventClick(event.id)}
+                    >
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{event.name}</h4>
                         <div className="flex items-center text-sm text-muted-foreground mt-1">
@@ -196,16 +250,19 @@ export default function EventManagerDashboardPage() {
                           {event._count?.sessions || 0} sessions • {event._count?.registrations || 0} registered
                         </div>
                       </div>
-                      <Badge 
-                        variant={
-                          event.status === 'PUBLISHED' ? 'success' :
-                          event.status === 'ONGOING' ? 'default' :
-                          event.status === 'COMPLETED' ? 'secondary' :
-                          'outline'
-                        }
-                      >
-                        {event.status}
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge 
+                          variant={
+                            event.status === 'PUBLISHED' ? 'default' :
+                            event.status === 'ONGOING' ? 'secondary' :
+                            event.status === 'COMPLETED' ? 'outline' :
+                            'outline'
+                          }
+                        >
+                          {event.status}
+                        </Badge>
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -213,7 +270,14 @@ export default function EventManagerDashboardPage() {
                 <div className="text-center py-6 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
                   <p>No events created yet</p>
-                  <Button className="mt-2" size="sm">Create First Event</Button>
+                  {/* ✅ Fixed Create First Event Button */}
+                  <Button 
+                    className="mt-2" 
+                    size="sm"
+                    onClick={handleCreateEvent}
+                  >
+                    Create First Event
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -240,7 +304,11 @@ export default function EventManagerDashboardPage() {
               ) : (todaysSessions?.data?.sessions?.length ?? 0) > 0 ? (
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {todaysSessions?.data?.sessions?.slice(0, 5).map((session) => (
-                    <div key={session.id} className="p-2 border rounded text-sm">
+                    <div 
+                      key={session.id} 
+                      className="p-2 border rounded text-sm cursor-pointer hover:bg-gray-50"
+                      onClick={() => router.push(`/event-manager/sessions/${session.id}`)}
+                    >
                       <div className="flex items-center justify-between">
                         <h5 className="font-medium truncate">{session.title}</h5>
                         <Badge variant="outline" className="text-xs">
@@ -259,6 +327,15 @@ export default function EventManagerDashboardPage() {
                       </div>
                     </div>
                   ))}
+                  {/* ✅ Added View All Sessions button */}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-2"
+                    onClick={handleViewSessions}
+                  >
+                    View All Sessions
+                  </Button>
                 </div>
               ) : (
                 <div className="text-center py-6 text-muted-foreground">
@@ -284,7 +361,7 @@ export default function EventManagerDashboardPage() {
                     <h5 className="font-medium text-orange-800">Registration Approvals</h5>
                     <p className="text-xs text-orange-600">{pendingCount} pending reviews</p>
                   </div>
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={handleReviewRegistrations}>
                     Review
                   </Button>
                 </div>
@@ -296,7 +373,7 @@ export default function EventManagerDashboardPage() {
                     <h5 className="font-medium text-blue-800">Faculty Invitations</h5>
                     <p className="text-xs text-blue-600">{facultyStats.data.pendingInvitations} pending responses</p>
                   </div>
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" onClick={handleInviteFaculty}>
                     Follow Up
                   </Button>
                 </div>
@@ -373,25 +450,59 @@ export default function EventManagerDashboardPage() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline">
+              {/* ✅ Fixed all Quick Action buttons */}
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleCreateEvent}
+              >
                 <Calendar className="h-4 w-4 mr-2" />
                 Create New Event
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleInviteFaculty}
+              >
                 <Users className="h-4 w-4 mr-2" />
                 Invite Faculty
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleReviewRegistrations}
+              >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Review Registrations
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewReports}
+              >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 View Reports
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleGenerateCertificates}
+              >
                 <FileText className="h-4 w-4 mr-2" />
                 Generate Certificates
+              </Button>
+
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleManageVenues}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Manage Venues
               </Button>
             </CardContent>
           </Card>
