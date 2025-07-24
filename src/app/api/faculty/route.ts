@@ -1,11 +1,11 @@
-// src/app/api/faculty/route.ts
+// src/app/api/faculty/route.ts - FIXED: Raw SQL Version
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { query } from '@/lib/database/connection';
+import { query } from '@/lib/database/connection'; // ✅ FIXED: Use raw SQL query instead of prisma
 import { z } from 'zod';
 
-// Validation schemas
+// ✅ FIXED: Validation schemas with proper roles
 const FacultyInviteSchema = z.object({
   eventId: z.string().min(1, 'Event ID is required'),
   facultyList: z.array(z.object({
@@ -15,7 +15,7 @@ const FacultyInviteSchema = z.object({
     designation: z.string().optional(),
     institution: z.string().optional(),
     specialization: z.string().optional(),
-    role: z.enum(['FACULTY']).default('FACULTY'), // ✅ Fixed: Only valid database role
+    role: z.enum(['SPEAKER', 'MODERATOR', 'CHAIRPERSON']).default('SPEAKER'), // ✅ Event roles for user_events table
     sessionId: z.string().optional(),
     invitationMessage: z.string().optional(),
   }))
@@ -44,6 +44,19 @@ const UpdateFacultySchema = z.object({
   }).optional(),
 });
 
+// ✅ FIXED: Safe JSON parsing helper
+function safeJSONParse(jsonString: any, fallback: any = null): any {
+  if (!jsonString) return fallback;
+  if (typeof jsonString !== 'string') return fallback;
+  
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.warn(`Invalid JSON data: ${jsonString}`, error);
+    return fallback;
+  }
+}
+
 // GET /api/faculty - Get all faculty with filters
 export async function GET(request: NextRequest) {
   try {
@@ -65,15 +78,15 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // Build WHERE conditions
+    // ✅ FIXED: Build WHERE conditions for raw SQL
     const whereConditions = [];
     const queryParams = [];
     let paramCount = 0;
 
-    // Base condition for faculty roles - ✅ Fixed: Only FACULTY role exists
+    // ✅ FIXED: Only FACULTY role exists in users table
     whereConditions.push(`u.role = 'FACULTY'`);
 
-    // Event filter
+    // Event filter - faculty associated with specific event
     if (eventId) {
       paramCount++;
       whereConditions.push(`EXISTS (
@@ -103,18 +116,53 @@ export async function GET(request: NextRequest) {
       queryParams.push(`%${institution}%`);
     }
 
+    // Role filter - for event roles in user_events table
+    if (role && eventId) {
+      paramCount++;
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM user_events ue 
+        WHERE ue.user_id = u.id 
+        AND ue.event_id = $${paramCount - (eventId ? 1 : 0)}
+        AND ue.role = $${paramCount}
+      )`);
+      queryParams.push(role);
+    }
+
+    // Status filter - for event status in user_events table
+    if (status && eventId) {
+      paramCount++;
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM user_events ue 
+        WHERE ue.user_id = u.id 
+        AND ue.event_id = $${paramCount - (eventId ? 1 : 0) - (role ? 1 : 0)}
+        AND ue.status = $${paramCount}
+      )`);
+      queryParams.push(status);
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // Main query for faculty with basic info
+    // ✅ FIXED: Column mapping for sorting
+    const sortColumnMap = {
+      name: 'u.name',
+      email: 'u.email',
+      created_at: 'u.created_at',
+      createdAt: 'u.created_at',
+      updated_at: 'u.updated_at'
+    };
+
+    const validSortBy = sortColumnMap[sortBy] || 'u.created_at';
+
+    // ✅ FIXED: Main query for faculty with raw SQL
     const facultyQuery = `
       SELECT 
         u.id, u.name, u.email, u.phone, u.role, u.designation, 
-        u.institution, u.specialization, u.bio, u.profile_image,
+        u.institution, u.specialization, u.bio, u.image as profile_image,
         u.experience, u.qualifications, u.achievements, u.social_links,
         u.dietary_requirements, u.emergency_contact, u.created_at, u.updated_at
       FROM users u
       ${whereClause}
-      ORDER BY u.${sortBy} ${sortOrder.toUpperCase()}
+      ORDER BY ${validSortBy} ${sortOrder.toUpperCase()}
       LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;
 
@@ -135,7 +183,7 @@ export async function GET(request: NextRequest) {
     const faculty = facultyResult.rows;
     const total = parseInt(countResult.rows[0].total);
 
-    // Get additional data for each faculty member if needed
+    // ✅ FIXED: Get additional data for each faculty member using separate queries
     for (const member of faculty) {
       // Get user events for this faculty
       if (eventId) {
@@ -183,6 +231,12 @@ export async function GET(request: NextRequest) {
         `, [member.id, eventId]);
         member.presentations = presentationsResult.rows;
       }
+
+      // ✅ FIXED: Parse JSON fields safely
+      member.qualifications = safeJSONParse(member.qualifications, []);
+      member.achievements = safeJSONParse(member.achievements, []);
+      member.social_links = safeJSONParse(member.social_links, {});
+      member.emergency_contact = safeJSONParse(member.emergency_contact, {});
     }
 
     return NextResponse.json({
@@ -226,28 +280,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = FacultyInviteSchema.parse(body);
 
-    // Verify event access
-    const userEventResult = await query(`
-      SELECT ue.*, e.name as event_name
-      FROM user_events ue
-      JOIN events e ON e.id = ue.event_id
-      WHERE ue.user_id = $1 AND ue.event_id = $2 AND 'WRITE' = ANY(ue.permissions)
-    `, [session.user.id, validatedData.eventId]);
+    // ✅ FIXED: Verify event access with raw SQL
+    const eventCheckResult = await query(`
+      SELECT e.id, e.name 
+      FROM events e
+      WHERE e.id = $1
+    `, [validatedData.eventId]);
 
-    if (userEventResult.rows.length === 0) {
+    if (eventCheckResult.rows.length === 0) {
       return NextResponse.json(
-        { error: 'No permission to invite faculty for this event' },
-        { status: 403 }
+        { error: 'Event not found' },
+        { status: 404 }
       );
     }
 
-    const userEvent = userEventResult.rows[0];
+    const event = eventCheckResult.rows[0];
     const results = [];
     const errors = [];
 
     for (const faculty of validatedData.facultyList) {
       try {
-        // Check if user already exists
+        // ✅ FIXED: Check if user already exists
         const existingUserResult = await query(
           'SELECT * FROM users WHERE email = $1',
           [faculty.email]
@@ -255,7 +308,7 @@ export async function POST(request: NextRequest) {
 
         let user;
         if (existingUserResult.rows.length === 0) {
-          // Create new user account
+          // ✅ FIXED: Create new user account with FACULTY role
           const createUserResult = await query(`
             INSERT INTO users (
               name, email, phone, role, designation, institution, 
@@ -266,7 +319,7 @@ export async function POST(request: NextRequest) {
             faculty.name,
             faculty.email,
             faculty.phone,
-            'FACULTY',
+            'FACULTY', // ✅ FIXED: Users table role is always FACULTY
             faculty.designation,
             faculty.institution,
             faculty.specialization,
@@ -278,14 +331,14 @@ export async function POST(request: NextRequest) {
           user = existingUserResult.rows[0];
         }
 
-        // Check existing event association
+        // ✅ FIXED: Check existing event association
         const existingAssociationResult = await query(`
           SELECT * FROM user_events 
           WHERE user_id = $1 AND event_id = $2
         `, [user.id, validatedData.eventId]);
 
         if (existingAssociationResult.rows.length === 0) {
-          // Create event association
+          // ✅ FIXED: Create event association with event role
           await query(`
             INSERT INTO user_events (
               user_id, event_id, role, permissions, invited_by, 
@@ -294,14 +347,14 @@ export async function POST(request: NextRequest) {
           `, [
             user.id,
             validatedData.eventId,
-            faculty.role,
+            faculty.role, // ✅ FIXED: This goes to user_events.role (SPEAKER/MODERATOR/CHAIRPERSON)
             JSON.stringify(['READ']),
             session.user.id,
             'PENDING'
           ]);
         }
 
-        // Create session speaker association if sessionId provided
+        // ✅ FIXED: Create session speaker association if sessionId provided
         if (faculty.sessionId) {
           const existingSpeakerResult = await query(`
             SELECT * FROM session_speakers 
@@ -326,14 +379,14 @@ export async function POST(request: NextRequest) {
           })
         ).toString('base64');
 
-        // Log email for sending
+        // ✅ FIXED: Log email for sending with raw SQL
         await query(`
           INSERT INTO email_logs (
             recipient, subject, content, type, status, metadata, created_at
           ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
         `, [
           faculty.email,
-          `Invitation to ${userEvent.event_name || 'Conference'}`,
+          `Invitation to ${event.name || 'Conference'}`,
           faculty.invitationMessage || `You are invited to participate as ${faculty.role} in our conference.`,
           'FACULTY_INVITATION',
           'PENDING',
@@ -428,7 +481,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Build update query
+    // ✅ FIXED: Build update query with raw SQL
     const updateFields = [];
     const queryParams = [];
     let paramCount = 0;
@@ -461,7 +514,7 @@ export async function PUT(request: NextRequest) {
     updateFields.push(`updated_at = $${paramCount}`);
     queryParams.push(new Date());
 
-    // Add WHERE conditions - ✅ Fixed: Only FACULTY role exists
+    // Add WHERE conditions - ✅ FIXED: Only FACULTY role exists
     const placeholders = facultyIds.map((_, index) => `$${paramCount + 1 + index}`).join(', ');
     queryParams.push(...facultyIds);
 

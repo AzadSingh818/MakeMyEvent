@@ -1,5 +1,5 @@
 // src/app/(dashboard)/event-manager/events/[id]/page.tsx
-// ✅ FIXED: Updated import statement to use temporary hooks
+// ✅ FIXED: Correct API data mapping
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -14,6 +14,10 @@ import { EventManagerLayout } from '@/components/dashboard/layout';
 import { useEvent } from '@/hooks/use-events';
 import { useEventSessions, useEventRegistrations, useEventFaculty } from '@/hooks/use-event-details';
 import { useAuth } from '@/hooks/use-auth';
+
+// ✅ NEW: Import Export and Share components
+import { ExportButton } from '@/components/events/ExportButton';
+import { ShareButton } from '@/components/events/ShareButton';
 
 import { 
   ArrowLeft,
@@ -43,6 +47,38 @@ import {
 import { format } from 'date-fns';
 import Link from 'next/link';
 
+// ✅ FIXED: Safe date formatting helper functions
+const formatSafeDate = (dateString: string | null | undefined, formatStr: string = 'PPP'): string => {
+  if (!dateString) return 'TBD';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Invalid Date';
+    return format(date, formatStr);
+  } catch (error) {
+    console.warn('Date formatting error:', error);
+    return 'Invalid Date';
+  }
+};
+
+const formatSafeDateRange = (startDate: string | null | undefined, endDate: string | null | undefined): string => {
+  const start = formatSafeDate(startDate, 'PPP');
+  const end = formatSafeDate(endDate, 'PPP');
+  
+  if (start === 'TBD' && end === 'TBD') return 'Dates TBD';
+  if (start === end) return start;
+  return `${start} - ${end}`;
+};
+
+const formatSafeTimeRange = (startDate: string | null | undefined, endDate: string | null | undefined): string => {
+  const start = formatSafeDate(startDate, 'p');
+  const end = formatSafeDate(endDate, 'p');
+  
+  if (start === 'TBD' && end === 'TBD') return 'Time TBD';
+  if (start === end) return start;
+  return `${start} - ${end}`;
+};
+
 export default function EventDetailsPage() {
   const params = useParams();
   const router = useRouter();
@@ -50,28 +86,31 @@ export default function EventDetailsPage() {
   const eventId = params.id as string;
 
   // Data fetching hooks
-  const { data: eventData, isLoading: eventLoading, error: eventError } = useEvent(eventId);
+  const { data: eventResponse, isLoading: eventLoading, error: eventError } = useEvent(eventId);
   const { data: sessionsData, isLoading: sessionsLoading } = useEventSessions(eventId);
   const { data: registrationsData, isLoading: registrationsLoading } = useEventRegistrations(eventId);
   const { data: facultyData, isLoading: facultyLoading } = useEventFaculty(eventId);
 
-  const event = eventData?.data;
-  const sessions = sessionsData?.data?.sessions || [];
-  const registrations = registrationsData?.data?.registrations || [];
-  const faculty = facultyData?.data?.faculty || [];
+  // ✅ FIXED: Correct data extraction from API response
+  const event = eventResponse?.data?.event;  // ← Fixed: event is nested in data.event
+  const sessions = eventResponse?.data?.sessions || sessionsData?.data?.sessions || [];
+  const registrations = eventResponse?.data?.registrations || registrationsData?.data?.registrations || [];
+  const faculty = eventResponse?.data?.faculty || facultyData?.data?.faculty || [];
+  const stats = eventResponse?.data?.stats || {};
 
-  // Calculate event stats
-  const totalSessions = sessions.length;
-  const totalRegistrations = registrations.length;
+  // ✅ FIXED: Use stats from API or calculate fallback
+  const totalSessions = stats.totalSessions || sessions.length;
+  const totalRegistrations = stats.totalRegistrations || registrations.length;
   const approvedRegistrations = registrations.filter((r: any) => r.status === 'APPROVED').length;
   const pendingRegistrations = registrations.filter((r: any) => r.status === 'PENDING').length;
-  const totalFaculty = faculty.length;
+  const totalFaculty = stats.totalFaculty || faculty.length;
   const confirmedFaculty = faculty.filter((f: any) => f.status === 'CONFIRMED').length;
 
-  // Event status info
-  const isEventPast = event && new Date(event.endDate) < new Date();
-  const isEventActive = event && new Date(event.startDate) <= new Date() && new Date(event.endDate) >= new Date();
-  const isEventUpcoming = event && new Date(event.startDate) > new Date();
+  // ✅ FIXED: Safe event status calculations
+  const isEventPast = event && event.endDate ? new Date(event.endDate) < new Date() : false;
+  const isEventActive = event && event.startDate && event.endDate ? 
+    new Date(event.startDate) <= new Date() && new Date(event.endDate) >= new Date() : false;
+  const isEventUpcoming = event && event.startDate ? new Date(event.startDate) > new Date() : false;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -94,6 +133,17 @@ export default function EventDetailsPage() {
       default: return <AlertCircle className="h-4 w-4" />;
     }
   };
+
+  // ✅ FIXED: Debug logging to check data
+  console.log('🐛 Debug Event Data:', {
+    eventResponse,
+    event,
+    hasEvent: !!event,
+    eventName: event?.name,
+    startDate: event?.startDate,
+    endDate: event?.endDate,
+    location: event?.location
+  });
 
   if (eventLoading) {
     return (
@@ -148,14 +198,21 @@ export default function EventDetailsPage() {
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button variant="outline">
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
+            {/* ✅ UPDATED: Export Button with functionality */}
+            <ExportButton 
+              eventId={eventId}
+              variant="outline"
+              size="md"
+            />
+            
+            {/* ✅ UPDATED: Share Button with functionality */}
+            <ShareButton 
+              eventId={eventId}
+              eventName={event.name}
+              variant="outline"
+              size="md"
+            />
+            
             <Link href={`/event-manager/events/${eventId}/edit`}>
               <Button>
                 <Edit className="h-4 w-4 mr-2" />
@@ -200,15 +257,18 @@ export default function EventDetailsPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>{format(new Date(event.startDate), 'PPP')} - {format(new Date(event.endDate), 'PPP')}</span>
+                      {/* ✅ FIXED: Now using real data from API */}
+                      <span>{formatSafeDateRange(event.startDate, event.endDate)}</span>
                     </div>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>{format(new Date(event.startDate), 'p')} - {format(new Date(event.endDate), 'p')}</span>
+                      {/* ✅ FIXED: Now using real data from API */}
+                      <span>{formatSafeTimeRange(event.startDate, event.endDate)}</span>
                     </div>
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>{event.venue || event.location || 'Venue TBD'}</span>
+                      {/* ✅ FIXED: Now using real location from API */}
+                      <span>{event.location || 'Venue TBD'}</span>
                     </div>
                     <div className="flex items-center">
                       <Users className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -263,6 +323,23 @@ export default function EventDetailsPage() {
                           <span>Tags: {event.tags.join(', ')}</span>
                         </div>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* ✅ NEW: Show Creator Information */}
+                {event.creator && (
+                  <div>
+                    <h4 className="font-medium mb-2">Event Creator</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center">
+                        <UserCheck className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>{event.creator.name}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>{event.creator.email}</span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -361,9 +438,12 @@ export default function EventDetailsPage() {
               ) : sessions.length > 0 ? (
                 <div className="space-y-4">
                   {sessions.slice(0, 3).map((session: any) => {
-                    const sessionDate = new Date(session.startTime);
-                    const isSessionPast = sessionDate < new Date();
-                    const isSessionToday = sessionDate.toDateString() === new Date().toDateString();
+                    // ✅ FIXED: Safe session date handling
+                    const sessionDateStr = session.startTime;
+                    const sessionDate = sessionDateStr ? new Date(sessionDateStr) : null;
+                    const isValidDate = sessionDate && !isNaN(sessionDate.getTime());
+                    const isSessionPast = isValidDate ? sessionDate < new Date() : false;
+                    const isSessionToday = isValidDate ? sessionDate.toDateString() === new Date().toDateString() : false;
                     
                     return (
                       <div key={session.id} className={`p-4 rounded-lg border transition-colors ${
@@ -376,8 +456,9 @@ export default function EventDetailsPage() {
                             <h5 className="font-medium truncate">{session.title}</h5>
                             <div className="flex items-center text-sm text-muted-foreground mt-1">
                               <Clock className="h-3 w-3 mr-1" />
-                              {format(sessionDate, 'MMM dd, HH:mm')}
-                              {session.hall && (
+                              {/* ✅ FIXED: Safe session date formatting */}
+                              {formatSafeDate(sessionDateStr, 'MMM dd, HH:mm')}
+                              {session.hall && session.hall.name && (
                                 <>
                                   <MapPin className="h-3 w-3 ml-2 mr-1" />
                                   {session.hall.name}
@@ -454,7 +535,8 @@ export default function EventDetailsPage() {
                           <h5 className="font-medium truncate">{registration.user.name}</h5>
                           <p className="text-sm text-muted-foreground">{registration.user.email}</p>
                           <p className="text-xs text-muted-foreground">
-                            Registered: {format(new Date(registration.createdAt), 'MMM dd, yyyy')}
+                            {/* ✅ FIXED: Safe registration date formatting */}
+                            Registered: {formatSafeDate(registration.registrationDate, 'MMM dd, yyyy')}
                           </p>
                         </div>
                         <Badge 
@@ -501,14 +583,36 @@ export default function EventDetailsPage() {
                   <span>Edit Event</span>
                 </Button>
               </Link>
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                <Calendar className="h-6 w-6" />
-                <span>Manage Sessions</span>
-              </Button>
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
-                <UserCheck className="h-6 w-6" />
-                <span>Review Registrations</span>
-              </Button>
+              
+              {/* ✅ UPDATED: Export Action with functionality */}
+              <div className="w-full">
+                <ExportButton 
+                  eventId={eventId}
+                  variant="outline"
+                  className="w-full h-auto p-4 flex-col"
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <Download className="h-6 w-6" />
+                    <span>Export</span>
+                  </div>
+                </ExportButton>
+              </div>
+              
+              {/* ✅ UPDATED: Share Action with functionality */}
+              <div className="w-full">
+                <ShareButton 
+                  eventId={eventId}
+                  eventName={event.name}
+                  variant="outline"
+                  className="w-full h-auto p-4 flex-col"
+                >
+                  <div className="flex flex-col items-center space-y-2">
+                    <Share2 className="h-6 w-6" />
+                    <span>Share</span>
+                  </div>
+                </ShareButton>
+              </div>
+              
               <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
                 <BarChart3 className="h-6 w-6" />
                 <span>View Analytics</span>

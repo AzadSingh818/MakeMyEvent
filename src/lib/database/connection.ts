@@ -17,7 +17,6 @@ const pool = new Pool({
   max: 10, // Reduced max connections
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000, // Increased timeout to 10 seconds
-  acquireTimeoutMillis: 10000,    // Time to wait for connection from pool
   statement_timeout: 30000,       // 30 second statement timeout
   query_timeout: 30000,          // 30 second query timeout
 })

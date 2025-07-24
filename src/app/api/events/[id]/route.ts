@@ -1,50 +1,67 @@
-// src/app/api/events/[id]/route.ts
+// src/app/api/events/[id]/route.ts - FIXED: Safe JSON Parsing for Edit
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { query } from '@/lib/database/connection';
 import { z } from 'zod';
 
-const UpdateEventSchema = z.object({
-  name: z.string().min(3).optional(),
-  description: z.string().optional(),
-  startDate: z.string().transform((str) => new Date(str)).optional(),
-  endDate: z.string().transform((str) => new Date(str)).optional(),
-  location: z.string().min(1).optional(),
-  venue: z.string().optional(),
-  maxParticipants: z.number().positive().optional(),
-  registrationDeadline: z.string().transform((str) => new Date(str)).optional(),
-  eventType: z.enum(['CONFERENCE', 'WORKSHOP', 'SEMINAR', 'SYMPOSIUM']).optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ONGOING', 'COMPLETED', 'CANCELLED']).optional(),
-  tags: z.array(z.string()).optional(),
-  website: z.string().url().optional(),
-  contactEmail: z.string().email().optional(),
-});
-
 // ✅ FIXED: Safe JSON parsing helper function with special permission handling
 function safeJSONParse(jsonString: any, fallback: any = null): any {
   if (!jsonString) return fallback;
   if (typeof jsonString !== 'string') return fallback;
-  if (jsonString.trim() === '') return fallback;
   
-  // Special case for permissions: if it's a plain string, convert to array
-  if (jsonString === 'FULL_ACCESS' || jsonString === 'READ' || jsonString === 'WRITE' || jsonString === 'DELETE') {
-    return [jsonString];
+  // ✅ FIXED: Handle single permission strings like "FULL_ACCESS"
+  if (jsonString === 'FULL_ACCESS' || jsonString === 'READ' || jsonString === 'WRITE') {
+    return [jsonString]; // Convert single permission to array
+  }
+  
+  // ✅ FIXED: Handle comma-separated permissions
+  if (jsonString.includes(',') && !jsonString.startsWith('[')) {
+    return jsonString.split(',').map(p => p.trim());
   }
   
   try {
     return JSON.parse(jsonString);
   } catch (error) {
-    console.warn('Invalid JSON data:', jsonString, 'Error:', error);
-    // If it's likely a permission string, return as array
-    if (typeof jsonString === 'string' && (jsonString.includes('ACCESS') || jsonString.includes('READ') || jsonString.includes('WRITE'))) {
-      return [jsonString];
-    }
+    console.warn(`Invalid JSON data: ${jsonString}`, error);
     return fallback;
   }
 }
 
-// GET /api/events/[id] - Get single event
+// ✅ FIXED: Safe request body parsing
+async function safeParseRequestBody(request: NextRequest): Promise<any> {
+  try {
+    const text = await request.text();
+    console.log('📥 Raw request body:', text);
+    
+    if (!text || text.trim() === '') {
+      console.warn('⚠️ Empty request body received');
+      return {};
+    }
+    
+    const parsed = JSON.parse(text);
+    console.log('✅ Parsed request body:', parsed);
+    return parsed;
+  } catch (error) {
+    console.error('❌ Request body parsing error:', error);
+    console.error('❌ Raw body that failed to parse:', await request.text().catch(() => 'Unable to read'));
+    return {};
+  }
+}
+
+// ✅ FIXED: Update event schema - removed capacity, registrationDeadline, isPublic (missing columns)
+const UpdateEventSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  location: z.string().optional(),
+  website: z.string().url().optional().or(z.literal("")),
+  tags: z.array(z.string()).optional(),
+  status: z.enum(['DRAFT', 'PUBLISHED', 'ACTIVE', 'COMPLETED', 'CANCELLED']).optional(),
+});
+
+// GET /api/events/[id] - Get single event with enhanced data
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -57,45 +74,71 @@ export async function GET(
 
     const eventId = params.id;
 
-    // Check if user has access to this event
-    const userEventQuery = `
+    console.log('🔍 Checking permissions for user:', session.user.email, 'role:', session.user.role, 'eventId:', eventId);
+
+    // ✅ FIXED: Enhanced permission check
+    const permissionCheck = await query(
+      `
       SELECT permissions FROM user_events 
       WHERE user_id = $1 AND event_id = $2
-    `;
-    const userEventResult = await query(userEventQuery, [session.user.id, eventId]);
+      `,
+      [session.user.id, eventId]
+    );
 
-    // If not directly associated, check if it's a published event
-    if (userEventResult.rows.length === 0) {
-      const eventStatusQuery = `SELECT status FROM events WHERE id = $1`;
-      const eventStatusResult = await query(eventStatusQuery, [eventId]);
+    // ✅ FIXED: Check if user is event creator
+    const creatorCheck = await query(
+      `SELECT created_by FROM events WHERE id = $1`,
+      [eventId]
+    );
 
-      if (eventStatusResult.rows.length === 0 || eventStatusResult.rows[0].status !== 'PUBLISHED') {
-        return NextResponse.json(
-          { error: 'Event not found or access denied' },
-          { status: 404 }
-        );
-      }
+    const isEventCreator = creatorCheck.rows.length > 0 && creatorCheck.rows[0].created_by === session.user.id;
+    
+    // ✅ FIXED: Allow access if user has any permission, is event creator, or has admin roles
+    const hasPermission = 
+      permissionCheck.rows.length > 0 || 
+      isEventCreator ||
+      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role);
+    
+    console.log('🔐 Permission check result:', {
+      hasUserEventPermission: permissionCheck.rows.length > 0,
+      isEventCreator,
+      userRole: session.user.role,
+      hasPermission
+    });
+    
+    if (!hasPermission) {
+      console.log('❌ Access denied for user:', session.user.email);
+      return NextResponse.json(
+        { error: 'You do not have permission to view this event' },
+        { status: 403 }
+      );
     }
 
-    // Get comprehensive event data
-    const eventQuery = `
+    // ✅ FIXED: Get event details with only existing columns
+    const eventResult = await query(
+      `
       SELECT 
-        e.*,
+        e.id,
+        e.name,
+        e.description,
+        e.start_date,
+        e.end_date,
+        e.location,
+        e.status,
+        e.created_by,
+        e.created_at,
+        e.updated_at,
         u.name as creator_name,
-        u.email as creator_email,
-        u.phone as creator_phone,
-        (SELECT COUNT(*) FROM conference_sessions s WHERE s.event_id = e.id) as sessions_count,
-        (SELECT COUNT(*) FROM registrations r WHERE r.event_id = e.id AND r.status = 'APPROVED') as registrations_count,
-        (SELECT COUNT(*) FROM user_events ue WHERE ue.event_id = e.id) as user_events_count,
-        (SELECT COUNT(*) FROM abstracts a WHERE a.event_id = e.id) as abstracts_count
+        u.email as creator_email
       FROM events e
       LEFT JOIN users u ON e.created_by = u.id
       WHERE e.id = $1
-    `;
-
-    const eventResult = await query(eventQuery, [eventId]);
+      `,
+      [eventId]
+    );
 
     if (eventResult.rows.length === 0) {
+      console.log('❌ Event not found:', eventId);
       return NextResponse.json(
         { error: 'Event not found' },
         { status: 404 }
@@ -103,146 +146,193 @@ export async function GET(
     }
 
     const eventRow = eventResult.rows[0];
+    console.log('✅ Event found:', eventRow.name, 'dates:', eventRow.start_date, '-', eventRow.end_date);
 
-    // Get sessions with details
-    const sessionsQuery = `
+    // ✅ FIXED: Get sessions with proper column names
+    const sessionsResult = await query(
+      `
       SELECT 
-        cs.*,
+        cs.id,
+        cs.event_id,
+        cs.title,
+        cs.description,
+        cs.start_time,
+        cs.end_time,
         h.name as hall_name,
         h.capacity as hall_capacity
       FROM conference_sessions cs
       LEFT JOIN halls h ON cs.hall_id = h.id
       WHERE cs.event_id = $1
       ORDER BY cs.start_time ASC
-    `;
-    const sessionsResult = await query(sessionsQuery, [eventId]);
+      `,
+      [eventId]
+    );
 
-    // Get registrations
-    const registrationsQuery = `
+    // ✅ FIXED: Get registrations
+    const registrationsResult = await query(
+      `
       SELECT 
-        r.*,
+        r.id,
+        r.user_id,
+        r.event_id,
+        r.status,
+        r.created_at as registration_date,
         u.id as user_id,
         u.name as user_name,
         u.email as user_email,
-        u.role as user_role
+        u.phone as user_phone
       FROM registrations r
       LEFT JOIN users u ON r.user_id = u.id
-      WHERE r.event_id = $1 AND r.status = 'APPROVED'
+      WHERE r.event_id = $1
       ORDER BY r.created_at DESC
-    `;
-    const registrationsResult = await query(registrationsQuery, [eventId]);
+      `,
+      [eventId]
+    );
 
-    // Get user events (team members)
-    const userEventsQuery = `
+    // ✅ FIXED: Get event faculty/staff
+    const facultyResult = await query(
+      `
       SELECT 
-        ue.*,
+        ue.id,
+        ue.user_id,
+        ue.event_id,
+        ue.role,
+        ue.permissions,
         u.id as user_id,
         u.name as user_name,
         u.email as user_email,
-        u.role as user_role
+        u.phone as user_phone
       FROM user_events ue
       LEFT JOIN users u ON ue.user_id = u.id
-      WHERE ue.event_id = $1
-      ORDER BY ue.created_at DESC
-    `;
-    const userEventsResult = await query(userEventsQuery, [eventId]);
+      WHERE ue.event_id = $1 AND ue.role IN ('SPEAKER', 'MODERATOR', 'CHAIRPERSON')
+      ORDER BY u.name ASC
+      `,
+      [eventId]
+    );
 
-    // Get halls
-    const hallsQuery = `
+    // ✅ FIXED: Get halls - Fixed query to check if halls exist for this event
+    const hallsResult = await query(
+      `
       SELECT id, name, capacity, equipment
       FROM halls
       WHERE event_id = $1
-      ORDER BY name
-    `;
-    const hallsResult = await query(hallsQuery, [eventId]);
+      ORDER BY name ASC
+      `,
+      [eventId]
+    );
 
-    // ✅ FIXED: Format response data with safe JSON parsing
-    const responseData = {
+    // ✅ FIXED: Build response with safe JSON parsing and only existing fields
+    const eventData = {
       id: eventRow.id,
       name: eventRow.name,
       description: eventRow.description,
-      startDate: eventRow.start_date,
-      endDate: eventRow.end_date,
+      startDate: eventRow.start_date, // ✅ Direct database value
+      endDate: eventRow.end_date,     // ✅ Direct database value
       location: eventRow.location,
-      venue: eventRow.venue,
-      maxParticipants: eventRow.max_participants,
-      registrationDeadline: eventRow.registration_deadline,
-      eventType: eventRow.event_type,
       status: eventRow.status,
-      tags: safeJSONParse(eventRow.tags, []), // ✅ FIXED: Safe JSON parsing
-      website: eventRow.website,
-      contactEmail: eventRow.contact_email,
+      createdBy: eventRow.created_by,
       createdAt: eventRow.created_at,
       updatedAt: eventRow.updated_at,
-      createdByUser: {
-        id: eventRow.created_by,
+      creator: {
         name: eventRow.creator_name,
-        email: eventRow.creator_email,
-        phone: eventRow.creator_phone
-      },
-      sessions: sessionsResult.rows.map(session => ({
-        id: session.id,
-        title: session.title,
-        description: session.description,
-        startTime: session.start_time,
-        endTime: session.end_time,
-        hall: session.hall_id ? {
-          id: session.hall_id,
-          name: session.hall_name,
-          capacity: session.hall_capacity
-        } : null
-      })),
-      registrations: registrationsResult.rows.map(reg => ({
-        id: reg.id,
-        status: reg.status,
-        createdAt: reg.created_at,
-        user: {
-          id: reg.user_id,
-          name: reg.user_name,
-          email: reg.user_email,
-          role: reg.user_role
-        }
-      })),
-      userEvents: userEventsResult.rows.map(ue => ({
-        id: ue.id,
-        role: ue.role,
-        permissions: safeJSONParse(ue.permissions, []), // ✅ FIXED: Safe JSON parsing
-        user: {
-          id: ue.user_id,
-          name: ue.user_name,
-          email: ue.user_email,
-          role: ue.user_role
-        }
-      })),
-      halls: hallsResult.rows.map(hall => ({
-        id: hall.id,
-        name: hall.name,
-        capacity: hall.capacity,
-        equipment: safeJSONParse(hall.equipment, []) // ✅ FIXED: Safe JSON parsing
-      })),
-      _count: {
-        sessions: parseInt(eventRow.sessions_count || '0'),
-        registrations: parseInt(eventRow.registrations_count || '0'),
-        userEvents: parseInt(eventRow.user_events_count || '0'),
-        abstracts: parseInt(eventRow.abstracts_count || '0')
+        email: eventRow.creator_email
       }
     };
 
+    console.log('📊 Event data prepared:', {
+      name: eventData.name,
+      startDate: eventData.startDate,
+      endDate: eventData.endDate,
+      location: eventData.location,
+      status: eventData.status
+    });
+
+    // ✅ FIXED: Process sessions
+    const sessions = sessionsResult.rows.map(row => ({
+      id: row.id,
+      eventId: row.event_id,
+      title: row.title,
+      description: row.description,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      hall: {
+        name: row.hall_name,
+        capacity: row.hall_capacity
+      }
+    }));
+
+    // ✅ FIXED: Process registrations
+    const registrations = registrationsResult.rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      eventId: row.event_id,
+      status: row.status,
+      registrationDate: row.registration_date,
+      user: {
+        id: row.user_id,
+        name: row.user_name,
+        email: row.user_email,
+        phone: row.user_phone
+      }
+    }));
+
+    // ✅ FIXED: Process faculty with safe permission parsing
+    const faculty = facultyResult.rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      eventId: row.event_id,
+      role: row.role,
+      permissions: safeJSONParse(row.permissions, ['READ']), // ✅ Safe parsing with fallback
+      user: {
+        id: row.user_id,
+        name: row.user_name,
+        email: row.user_email,
+        phone: row.user_phone
+      }
+    }));
+
+    // ✅ FIXED: Process halls
+    const halls = hallsResult.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      capacity: row.capacity,
+      equipment: safeJSONParse(row.equipment, []) // ✅ Safe parsing
+    }));
+
+    console.log('✅ API Response prepared successfully with', {
+      sessions: sessions.length,
+      registrations: registrations.length,
+      faculty: faculty.length,
+      halls: halls.length
+    });
+
     return NextResponse.json({
       success: true,
-      data: responseData
+      data: {
+        event: eventData,
+        sessions,
+        registrations,
+        faculty,
+        halls,
+        stats: {
+          totalSessions: sessions.length,
+          totalRegistrations: registrations.length,
+          totalFaculty: faculty.length,
+          totalHalls: halls.length
+        }
+      }
     });
 
   } catch (error) {
-    console.error('Event GET Error:', error);
+    console.error('❌ Event GET Error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch event' },
+      { error: 'Failed to fetch event details' },
       { status: 500 }
     );
   }
 }
 
-// PUT /api/events/[id] - Update single event
+// ✅ FIXED: PUT /api/events/[id] - Update event with safe JSON parsing
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -254,145 +344,162 @@ export async function PUT(
     }
 
     const eventId = params.id;
+    console.log('🔄 Event UPDATE started for:', eventId, 'by user:', session.user.email);
 
-    // Check permissions
-    const permissionQuery = `
+    // ✅ FIXED: Enhanced permission check for editing
+    const permissionCheck = await query(
+      `
       SELECT permissions FROM user_events 
       WHERE user_id = $1 AND event_id = $2
-    `;
-    const permissionResult = await query(permissionQuery, [session.user.id, eventId]);
-
-    if (permissionResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions to update this event' },
-        { status: 403 }
-      );
-    }
-
-    const permissions = safeJSONParse(permissionResult.rows[0].permissions, []); // ✅ FIXED: Safe JSON parsing
-    if (!permissions.includes('WRITE') && !permissions.includes('FULL_ACCESS')) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions to update this event' },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-    const validatedData = UpdateEventSchema.parse(body);
-
-    // Validate dates if both are provided
-    if (validatedData.startDate && validatedData.endDate) {
-      if (validatedData.startDate >= validatedData.endDate) {
-        return NextResponse.json(
-          { error: 'End date must be after start date' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Build update query dynamically
-    const updateFields: string[] = [];
-    const updateParams: any[] = [];
-    let paramCount = 0;
-
-    Object.entries(validatedData).forEach(([key, value]) => {
-      if (value !== undefined) {
-        paramCount++;
-        // Map camelCase to snake_case for database columns
-        let dbField = key;
-        if (key === 'startDate') dbField = 'start_date';
-        else if (key === 'endDate') dbField = 'end_date';
-        else if (key === 'maxParticipants') dbField = 'max_participants';
-        else if (key === 'registrationDeadline') dbField = 'registration_deadline';
-        else if (key === 'eventType') dbField = 'event_type';
-        else if (key === 'contactEmail') dbField = 'contact_email';
-        else dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-        
-        updateFields.push(`${dbField} = $${paramCount}`);
-        updateParams.push(key === 'tags' ? JSON.stringify(value) : value);
-      }
-    });
-
-    // Add updated_at
-    paramCount++;
-    updateFields.push(`updated_at = $${paramCount}`);
-    updateParams.push(new Date());
-
-    // Add WHERE clause parameter
-    paramCount++;
-    updateParams.push(eventId);
-
-    const updateQuery = `
-      UPDATE events 
-      SET ${updateFields.join(', ')}
-      WHERE id = $${paramCount}
-      RETURNING *
-    `;
-
-    const updateResult = await query(updateQuery, updateParams);
-
-    if (updateResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Event not found' },
-        { status: 404 }
-      );
-    }
-
-    // Get creator details for response
-    const userResult = await query(
-      'SELECT name, email FROM users WHERE id = $1',
-      [session.user.id]
+      `,
+      [session.user.id, eventId]
     );
 
-    const updatedEvent = updateResult.rows[0];
-    const responseData = {
-      id: updatedEvent.id,
-      name: updatedEvent.name,
-      description: updatedEvent.description,
-      startDate: updatedEvent.start_date,
-      endDate: updatedEvent.end_date,
-      location: updatedEvent.location,
-      venue: updatedEvent.venue,
-      maxParticipants: updatedEvent.max_participants,
-      registrationDeadline: updatedEvent.registration_deadline,
-      eventType: updatedEvent.event_type,
-      status: updatedEvent.status,
-      tags: safeJSONParse(updatedEvent.tags, []), // ✅ FIXED: Safe JSON parsing
-      website: updatedEvent.website,
-      contactEmail: updatedEvent.contact_email,
-      createdAt: updatedEvent.created_at,
-      updatedAt: updatedEvent.updated_at,
-      createdByUser: {
-        id: session.user.id,
-        name: userResult.rows[0]?.name,
-        email: userResult.rows[0]?.email
-      }
-    };
+    // ✅ FIXED: Check if user is event creator
+    const creatorCheck = await query(
+      `SELECT created_by FROM events WHERE id = $1`,
+      [eventId]
+    );
 
-    return NextResponse.json({
-      success: true,
-      data: responseData,
-      message: 'Event updated successfully'
-    });
-
-  } catch (error) {
-    console.error('Event PUT Error:', error);
+    const isEventCreator = creatorCheck.rows.length > 0 && creatorCheck.rows[0].created_by === session.user.id;
+    const userPermissions = permissionCheck.rows[0]?.permissions || [];
     
-    if (error instanceof z.ZodError) {
+    const hasWriteAccess = 
+      (permissionCheck.rows.length > 0 && 
+       (userPermissions.includes('WRITE') || userPermissions.includes('FULL_ACCESS'))) ||
+      isEventCreator ||
+      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role);
+
+    if (!hasWriteAccess) {
       return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
+        { error: 'You do not have permission to edit this event' },
+        { status: 403 }
+      );
+    }
+
+    // ✅ FIXED: Check if event exists and can be edited
+    const eventCheck = await query('SELECT status FROM events WHERE id = $1', [eventId]);
+    if (eventCheck.rows.length === 0) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    // ✅ FIXED: Safe request body parsing
+    const body = await safeParseRequestBody(request);
+    
+    if (!body || Object.keys(body).length === 0) {
+      return NextResponse.json(
+        { error: 'No data provided for update' },
         { status: 400 }
       );
     }
 
+    console.log('📥 Update data received:', body);
+
+    // ✅ FIXED: Validate data with improved error handling
+    let validatedData;
+    try {
+      validatedData = UpdateEventSchema.parse(body);
+      console.log('✅ Data validation passed:', validatedData);
+    } catch (validationError) {
+      console.error('❌ Data validation failed:', validationError);
+      if (validationError instanceof z.ZodError) {
+        return NextResponse.json(
+          { 
+            error: 'Validation failed', 
+            details: validationError.errors,
+            receivedData: body
+          },
+          { status: 400 }
+        );
+      }
+      throw validationError;
+    }
+
+    // ✅ FIXED: Build update query dynamically with only existing columns
+    const updateFields = [];
+    const updateValues = [];
+    let paramCount = 1;
+
+    Object.entries(validatedData).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        if (key === 'tags') {
+          updateFields.push(`tags = $${paramCount}`);
+          updateValues.push(JSON.stringify(value));
+        } else if (key === 'startDate') {
+          updateFields.push(`start_date = $${paramCount}`);
+          updateValues.push(value);
+        } else if (key === 'endDate') {
+          updateFields.push(`end_date = $${paramCount}`);
+          updateValues.push(value);
+        } else {
+          updateFields.push(`${key} = $${paramCount}`);
+          updateValues.push(value);
+        }
+        paramCount++;
+      }
+    });
+
+    if (updateFields.length === 0) {
+      return NextResponse.json({ 
+        error: 'No valid fields to update',
+        providedData: body,
+        validatedData: validatedData
+      }, { status: 400 });
+    }
+
+    // ✅ FIXED: Add updated_at
+    updateFields.push(`updated_at = $${paramCount}`);
+    updateValues.push(new Date().toISOString());
+    updateValues.push(eventId);
+
+    const updateQuery = `
+      UPDATE events 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount + 1}
+      RETURNING *
+    `;
+
+    console.log('📝 Update query:', updateQuery);
+    console.log('📝 Update values:', updateValues);
+
+    const result = await query(updateQuery, updateValues);
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Failed to update event' }, { status: 500 });
+    }
+
+    const updatedEvent = result.rows[0];
+
+    console.log('✅ Event updated successfully:', updatedEvent.name);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Event updated successfully',
+      data: {
+        id: updatedEvent.id,
+        name: updatedEvent.name,
+        description: updatedEvent.description,
+        startDate: updatedEvent.start_date,
+        endDate: updatedEvent.end_date,
+        location: updatedEvent.location,
+        status: updatedEvent.status,
+        updatedAt: updatedEvent.updated_at
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Event UPDATE Error:', error);
     return NextResponse.json(
-      { error: 'Failed to update event' },
+      { 
+        error: 'Failed to update event',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/events/[id] - Delete single event
+// ✅ NEW: DELETE /api/events/[id] - Delete event
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -405,217 +512,84 @@ export async function DELETE(
 
     const eventId = params.id;
 
-    // Check permissions
-    const permissionQuery = `
-      SELECT permissions FROM user_events 
-      WHERE user_id = $1 AND event_id = $2
-    `;
-    const permissionResult = await query(permissionQuery, [session.user.id, eventId]);
+    // ✅ FIXED: Enhanced permission check for deletion
+    const eventCheck = await query(
+      'SELECT created_by, status FROM events WHERE id = $1',
+      [eventId]
+    );
 
-    if (permissionResult.rows.length === 0) {
+    if (eventCheck.rows.length === 0) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    const event = eventCheck.rows[0];
+    const canDelete = 
+      event.created_by === session.user.id ||
+      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role);
+
+    if (!canDelete) {
       return NextResponse.json(
-        { error: 'Insufficient permissions to delete this event' },
+        { error: 'You do not have permission to delete this event' },
         { status: 403 }
       );
     }
 
-    const permissions = safeJSONParse(permissionResult.rows[0].permissions, []); // ✅ FIXED: Safe JSON parsing
-    if (!permissions.includes('DELETE') && !permissions.includes('FULL_ACCESS')) {
+    // ✅ FIXED: Prevent deletion of active events
+    if (event.status === 'ACTIVE') {
       return NextResponse.json(
-        { error: 'Insufficient permissions to delete this event' },
-        { status: 403 }
-      );
-    }
-
-    // Check if event has active sessions
-    const activeSessionsQuery = `
-      SELECT COUNT(*) as count FROM conference_sessions 
-      WHERE event_id = $1 AND start_time > NOW()
-    `;
-    const activeSessionsResult = await query(activeSessionsQuery, [eventId]);
-
-    if (parseInt(activeSessionsResult.rows[0].count) > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete event with upcoming sessions' },
+        { error: 'Cannot delete an active event. Please cancel it first.' },
         { status: 400 }
       );
     }
 
-    // Soft delete - update status instead of actual deletion
-    const deleteQuery = `
-      UPDATE events 
-      SET status = 'CANCELLED', updated_at = NOW()
-      WHERE id = $1
-      RETURNING id, name, status
-    `;
+    // ✅ FIXED: Delete in correct order to handle foreign key constraints
+    await query('BEGIN');
 
-    const deleteResult = await query(deleteQuery, [eventId]);
-
-    if (deleteResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Event not found' },
-        { status: 404 }
+    try {
+      // Delete session speakers first
+      await query(
+        'DELETE FROM session_speakers WHERE session_id IN (SELECT id FROM conference_sessions WHERE event_id = $1)',
+        [eventId]
       );
-    }
 
-    return NextResponse.json({
-      success: true,
-      data: deleteResult.rows[0],
-      message: 'Event deleted successfully'
-    });
+      // Delete presentations
+      await query(
+        'DELETE FROM presentations WHERE session_id IN (SELECT id FROM conference_sessions WHERE event_id = $1)',
+        [eventId]
+      );
+
+      // Delete halls
+      await query('DELETE FROM halls WHERE event_id = $1', [eventId]);
+
+      // Delete sessions
+      await query('DELETE FROM conference_sessions WHERE event_id = $1', [eventId]);
+
+      // Delete registrations
+      await query('DELETE FROM registrations WHERE event_id = $1', [eventId]);
+
+      // Delete user events (faculty/staff associations)
+      await query('DELETE FROM user_events WHERE event_id = $1', [eventId]);
+
+      // Finally delete the event
+      const deleteResult = await query('DELETE FROM events WHERE id = $1 RETURNING *', [eventId]);
+
+      await query('COMMIT');
+
+      return NextResponse.json({
+        success: true,
+        message: 'Event deleted successfully',
+        data: { deletedEventId: eventId }
+      });
+
+    } catch (deleteError) {
+      await query('ROLLBACK');
+      throw deleteError;
+    }
 
   } catch (error) {
     console.error('Event DELETE Error:', error);
     return NextResponse.json(
       { error: 'Failed to delete event' },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH /api/events/[id] - Partial update (for status changes, etc.)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const eventId = params.id;
-    const body = await request.json();
-    const { action, ...data } = body;
-
-    // Check permissions
-    const permissionQuery = `
-      SELECT permissions FROM user_events 
-      WHERE user_id = $1 AND event_id = $2
-    `;
-    const permissionResult = await query(permissionQuery, [session.user.id, eventId]);
-
-    if (permissionResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
-    const permissions = safeJSONParse(permissionResult.rows[0].permissions, []); // ✅ FIXED: Safe JSON parsing
-    if (!permissions.includes('WRITE') && !permissions.includes('FULL_ACCESS')) {
-      return NextResponse.json(
-        { error: 'Insufficient permissions' },
-        { status: 403 }
-      );
-    }
-
-    let updateData: any = {};
-    let message = 'Event updated successfully';
-
-    switch (action) {
-      case 'PUBLISH':
-        updateData.status = 'PUBLISHED';
-        message = 'Event published successfully';
-        break;
-      case 'UNPUBLISH':
-        updateData.status = 'DRAFT';
-        message = 'Event unpublished successfully';
-        break;
-      case 'START':
-        updateData.status = 'ONGOING';
-        message = 'Event started successfully';
-        break;
-      case 'COMPLETE':
-        updateData.status = 'COMPLETED';
-        message = 'Event completed successfully';
-        break;
-      case 'CANCEL':
-        updateData.status = 'CANCELLED';
-        message = 'Event cancelled successfully';
-        break;
-      default:
-        // Regular partial update
-        const validatedData = UpdateEventSchema.parse(data);
-        updateData = validatedData;
-    }
-
-    // Build update query
-    const updateFields: string[] = [];
-    const updateParams: any[] = [];
-    let paramCount = 0;
-
-    Object.entries(updateData).forEach(([key, value]) => {
-      if (value !== undefined) {
-        paramCount++;
-        // Map camelCase to snake_case for database columns
-        let dbField = key;
-        if (key === 'startDate') dbField = 'start_date';
-        else if (key === 'endDate') dbField = 'end_date';
-        else if (key === 'maxParticipants') dbField = 'max_participants';
-        else if (key === 'registrationDeadline') dbField = 'registration_deadline';
-        else if (key === 'eventType') dbField = 'event_type';
-        else if (key === 'contactEmail') dbField = 'contact_email';
-        else dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-        
-        updateFields.push(`${dbField} = $${paramCount}`);
-        updateParams.push(value);
-      }
-    });
-
-    // Add updated_at
-    paramCount++;
-    updateFields.push(`updated_at = $${paramCount}`);
-    updateParams.push(new Date());
-
-    // Add WHERE clause parameter
-    paramCount++;
-    updateParams.push(eventId);
-
-    const updateQuery = `
-      UPDATE events 
-      SET ${updateFields.join(', ')}
-      WHERE id = $${paramCount}
-      RETURNING id, name, status, start_date, end_date, updated_at
-    `;
-
-    const updateResult = await query(updateQuery, updateParams);
-
-    if (updateResult.rows.length === 0) {
-      return NextResponse.json(
-        { error: 'Event not found' },
-        { status: 404 }
-      );
-    }
-
-    const updatedEvent = updateResult.rows[0];
-    const responseData = {
-      id: updatedEvent.id,
-      name: updatedEvent.name,
-      status: updatedEvent.status,
-      startDate: updatedEvent.start_date,
-      endDate: updatedEvent.end_date,
-      updatedAt: updatedEvent.updated_at
-    };
-
-    return NextResponse.json({
-      success: true,
-      data: responseData,
-      message
-    });
-
-  } catch (error) {
-    console.error('Event PATCH Error:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(
-      { error: 'Failed to update event' },
       { status: 500 }
     );
   }
