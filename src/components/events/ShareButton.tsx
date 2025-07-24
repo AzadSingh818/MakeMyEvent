@@ -1,289 +1,335 @@
 // src/components/events/ShareButton.tsx
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  Share2, 
-  FileText, 
-  Link, 
-  Mail, 
-  MessageSquare,
-  Copy,
-  Loader2,
-  ChevronDown
-} from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Share2, FileText, Link, Mail, MessageCircle, ChevronDown, Copy } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface ShareButtonProps {
   eventId?: string;
   eventName?: string;
+  eventUrl?: string;
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  children?: React.ReactNode;
 }
 
-export function ShareButton({ 
-  eventId, 
+export const ShareButton: React.FC<ShareButtonProps> = ({
+  eventId,
   eventName = 'Event',
+  eventUrl,
   variant = 'outline',
   size = 'md',
-  className = '',
-  children
-}: ShareButtonProps) {
+  className = ''
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  const [shareType, setShareType] = useState<string | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [shareType, setShareType] = useState<string>('');
 
-  // Generate shareable link
-  const generateShareLink = () => {
-    const baseUrl = window.location.origin;
-    if (eventId) {
-      return `${baseUrl}/event-manager/events/${eventId}`;
-    }
-    return `${baseUrl}/event-manager/events`;
-  };
+  // Get current URL if eventUrl not provided
+  const currentUrl = eventUrl || (typeof window !== 'undefined' ? window.location.href : '');
 
-  // Copy link to clipboard
-  const handleCopyLink = async () => {
-    try {
-      setShowDropdown(false);
-      const link = generateShareLink();
-      await navigator.clipboard.writeText(link);
-      alert('Link copied to clipboard!');
-    } catch (error) {
-      console.error('Failed to copy link:', error);
-      alert('Failed to copy link');
-    }
-  };
-
-  // Share PDF
-  const handleSharePDF = async () => {
+  // Generate PDF and share
+  const sharePDF = async () => {
     try {
       setIsSharing(true);
-      setShareType('pdf');
-      setShowDropdown(false);
+      setShareType('PDF');
       
-      console.log('📄 Generating PDF for sharing...');
-
-      let url = '/api/events/export/pdf';
-      if (eventId) {
-        url += `?eventId=${eventId}`;
-      }
-
-      const response = await fetch(url);
-
+      console.log('🔄 Generating PDF for sharing...');
+      
+      // Generate PDF
+      const url = eventId 
+        ? `/api/events/export/pdf?eventId=${eventId}`
+        : '/api/events/export/pdf';
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to generate PDF');
+        throw new Error('Failed to generate PDF');
       }
-
+      
       const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition
-        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
-        : `${eventName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`;
-
-      // Try Web Share API first (mobile/modern browsers)
+      const filename = `${eventName.replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      
+      // Try Web Share API first (mobile native sharing)
       if (navigator.share && navigator.canShare) {
-        const file = new File([blob], filename, { type: 'application/pdf' });
-        
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            title: eventName,
-            text: `Check out this event: ${eventName}`,
+        try {
+          const file = new File([blob], filename, { type: 'application/pdf' });
+          const shareData = {
+            title: `${eventName} - Event Details`,
+            text: `Check out the details for ${eventName}`,
             files: [file]
-          });
-          console.log('✅ PDF shared via Web Share API');
-          alert('PDF shared successfully!');
-          return;
+          };
+          
+          if (navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+            toast.success('PDF shared successfully!');
+            console.log('✅ PDF shared via Web Share API');
+            return;
+          }
+        } catch (webShareError) {
+          console.log('Web Share API failed, falling back to download');
         }
       }
-
-      // Fallback: Download the PDF
-      const downloadUrl = window.URL.createObjectURL(blob);
+      
+      // Fallback: Download PDF
+      const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-
-      alert('PDF downloaded - you can now share it manually');
-
+      URL.revokeObjectURL(downloadUrl);
+      
+      toast.success('PDF downloaded for sharing!');
+      console.log('✅ PDF downloaded for manual sharing');
+      
     } catch (error) {
-      console.error('❌ PDF sharing failed:', error);
-      alert(error instanceof Error ? error.message : 'Failed to share PDF');
+      console.error('❌ PDF sharing error:', error);
+      toast.error('Failed to generate PDF for sharing');
     } finally {
       setIsSharing(false);
-      setShareType(null);
+      setShareType('');
+      setIsOpen(false);
+    }
+  };
+
+  // Copy link to clipboard
+  const copyLink = async () => {
+    try {
+      setIsSharing(true);
+      setShareType('Link');
+      
+      await navigator.clipboard.writeText(currentUrl);
+      toast.success('Link copied to clipboard!');
+      console.log('✅ Link copied to clipboard');
+      
+    } catch (error) {
+      console.error('❌ Copy link error:', error);
+      toast.error('Failed to copy link');
+    } finally {
+      setIsSharing(false);
+      setShareType('');
+      setIsOpen(false);
+    }
+  };
+
+  // Share via Email
+  const shareViaEmail = () => {
+    try {
+      setIsSharing(true);
+      setShareType('Email');
+      
+      const subject = encodeURIComponent(`Event Details: ${eventName}`);
+      const body = encodeURIComponent(
+        `Hi,\n\nI wanted to share the details of this event with you:\n\n` +
+        `Event: ${eventName}\n` +
+        `Link: ${currentUrl}\n\n` +
+        `Best regards`
+      );
+      
+      const mailtoUrl = `mailto:?subject=${subject}&body=${body}`;
+      window.open(mailtoUrl, '_blank');
+      
+      toast.success('Email composer opened!');
+      console.log('✅ Email sharing initiated');
+      
+    } catch (error) {
+      console.error('❌ Email sharing error:', error);
+      toast.error('Failed to open email composer');
+    } finally {
+      setIsSharing(false);
+      setShareType('');
+      setIsOpen(false);
     }
   };
 
   // Share via WhatsApp
-  const handleWhatsAppShare = () => {
-    setShowDropdown(false);
-    const link = generateShareLink();
-    const message = `Check out this conference event: ${eventName}\n\n${link}`;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+  const shareViaWhatsApp = () => {
+    try {
+      setIsSharing(true);
+      setShareType('WhatsApp');
+      
+      const message = encodeURIComponent(
+        `🎯 *${eventName}*\n\n` +
+        `Check out this event details:\n${currentUrl}\n\n` +
+        `Shared via Conference Management System`
+      );
+      
+      const whatsappUrl = `https://wa.me/?text=${message}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast.success('WhatsApp opened for sharing!');
+      console.log('✅ WhatsApp sharing initiated');
+      
+    } catch (error) {
+      console.error('❌ WhatsApp sharing error:', error);
+      toast.error('Failed to open WhatsApp');
+    } finally {
+      setIsSharing(false);
+      setShareType('');
+      setIsOpen(false);
+    }
   };
 
-  // Share via Email
-  const handleEmailShare = () => {
-    setShowDropdown(false);
-    const link = generateShareLink();
-    const subject = encodeURIComponent(`Conference Event: ${eventName}`);
-    const body = encodeURIComponent(`Hi,\n\nI wanted to share details about the conference event "${eventName}".\n\nYou can view the event details here: ${link}\n\nBest regards`);
-    const emailUrl = `mailto:?subject=${subject}&body=${body}`;
-    window.location.href = emailUrl;
-  };
-
-  // If children are provided, render as custom layout
-  if (children) {
-    return (
-      <div className="relative">
-        <Button 
-          variant={variant} 
-          size={size}
-          className={className}
-          disabled={isSharing}
-          onClick={() => setShowDropdown(!showDropdown)}
-        >
-          {children}
-          {!isSharing && <ChevronDown className="h-3 w-3 ml-1" />}
-        </Button>
+  // Native Web Share (if available)
+  const nativeShare = async () => {
+    try {
+      setIsSharing(true);
+      setShareType('Native');
+      
+      if (navigator.share) {
+        await navigator.share({
+          title: eventName,
+          text: `Check out this event: ${eventName}`,
+          url: currentUrl
+        });
         
-        {showDropdown && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-            <button
-              onClick={handleSharePDF}
-              disabled={isSharing}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Share as PDF
-              {isSharing && shareType === 'pdf' && (
-                <Loader2 className="h-3 w-3 ml-auto animate-spin" />
-              )}
-            </button>
-            
-            <hr className="border-gray-100" />
-            
-            <button
-              onClick={handleCopyLink}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy Link
-            </button>
-            
-            <button
-              onClick={handleWhatsAppShare}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
-            >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Share via WhatsApp
-            </button>
-            
-            <button
-              onClick={handleEmailShare}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Send via Email
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
+        toast.success('Shared successfully!');
+        console.log('✅ Native sharing completed');
+      } else {
+        throw new Error('Native sharing not supported');
+      }
+      
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        // User cancelled sharing
+        console.log('User cancelled native sharing');
+      } else {
+        console.error('❌ Native sharing error:', error);
+        toast.error('Native sharing not available');
+      }
+    } finally {
+      setIsSharing(false);
+      setShareType('');
+      setIsOpen(false);
+    }
+  };
 
-  // Default button layout
+  // Handle click outside to close dropdown
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.share-dropdown')) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
   return (
-    <div className="relative">
-      <Button 
-        variant={variant} 
+    <div className={`relative share-dropdown ${className}`}>
+      {/* Main Share Button */}
+      <Button
+        variant={variant}
         size={size}
-        className={className}
+        onClick={() => setIsOpen(!isOpen)}
         disabled={isSharing}
-        onClick={() => setShowDropdown(!showDropdown)}
+        className="flex items-center gap-2"
       >
         {isSharing ? (
           <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Sharing...
+            <LoadingSpinner size="sm" />
+            <span>Sharing {shareType}...</span>
           </>
         ) : (
           <>
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
-            <ChevronDown className="h-3 w-3 ml-1" />
+            <Share2 size={16} />
+            <span>Share</span>
+            <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </>
         )}
       </Button>
-      
-      {showDropdown && (
-        <div className="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-          <div className="px-3 py-2 text-sm font-medium text-gray-500 border-b border-gray-100">
-            Share {eventName}
-          </div>
+
+      {/* Dropdown Menu */}
+      {isOpen && !isSharing && (
+        <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1">
           
+          {/* Native Share (if available) */}
+          {typeof navigator !== 'undefined' && navigator.share && (
+            <button
+              onClick={nativeShare}
+              className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
+            >
+              <Share2 size={16} className="text-blue-600" />
+              <div>
+                <div className="font-medium">Share</div>
+                <div className="text-xs text-gray-500">Use device's share menu</div>
+              </div>
+            </button>
+          )}
+
+          {/* PDF Share */}
           <button
-            onClick={handleSharePDF}
-            disabled={isSharing}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+            onClick={sharePDF}
+            className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
           >
-            <FileText className="h-4 w-4 mr-2" />
-            <div className="flex flex-col">
-              <span>Share as PDF</span>
-              <span className="text-xs text-gray-500">
-                Generate and share PDF document
-              </span>
+            <FileText size={16} className="text-red-600" />
+            <div>
+              <div className="font-medium">Share PDF</div>
+              <div className="text-xs text-gray-500">Generate and share document</div>
             </div>
-            {isSharing && shareType === 'pdf' && (
-              <Loader2 className="h-3 w-3 ml-auto animate-spin" />
-            )}
           </button>
 
-          <hr className="border-gray-100" />
-
+          {/* Copy Link */}
           <button
-            onClick={handleCopyLink}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+            onClick={copyLink}
+            className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
           >
-            <Copy className="h-4 w-4 mr-2" />
-            <span>Copy Link</span>
+            <Copy size={16} className="text-gray-600" />
+            <div>
+              <div className="font-medium">Copy Link</div>
+              <div className="text-xs text-gray-500">Copy event URL to clipboard</div>
+            </div>
           </button>
 
+          {/* Email Share */}
           <button
-            onClick={handleWhatsAppShare}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+            onClick={shareViaEmail}
+            className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
           >
-            <MessageSquare className="h-4 w-4 mr-2" />
-            <span>Share via WhatsApp</span>
+            <Mail size={16} className="text-blue-600" />
+            <div>
+              <div className="font-medium">Share via Email</div>
+              <div className="text-xs text-gray-500">Open email composer</div>
+            </div>
           </button>
 
+          {/* WhatsApp Share */}
           <button
-            onClick={handleEmailShare}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+            onClick={shareViaWhatsApp}
+            className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
           >
-            <Mail className="h-4 w-4 mr-2" />
-            <span>Send via Email</span>
+            <MessageCircle size={16} className="text-green-600" />
+            <div>
+              <div className="font-medium">Share via WhatsApp</div>
+              <div className="text-xs text-gray-500">Send via WhatsApp</div>
+            </div>
           </button>
+
+          {/* Info Footer */}
+          <div className="border-t border-gray-100 mt-1 pt-2 px-4 pb-2">
+            <div className="text-xs text-gray-400">
+              Sharing: {eventName}
+            </div>
+          </div>
         </div>
-      )}
-      
-      {/* Click outside to close */}
-      {showDropdown && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowDropdown(false)}
-        />
       )}
     </div>
   );
-}
-
-export default ShareButton;
+};

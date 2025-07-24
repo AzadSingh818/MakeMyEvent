@@ -3,382 +3,526 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { query } from '@/lib/database/connection';
-import { Document, Page, Text, View, StyleSheet, pdf, Font, Image } from '@react-pdf/renderer';
-import { format } from 'date-fns';
 
-// Register fonts for better typography
-Font.register({
-  family: 'Inter',
-  fonts: [
-    {
-      src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyeMZhrib2Bg-4.woff2',
-      fontWeight: 400,
-    },
-    {
-      src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZhnjvh4jQ.woff2',
-      fontWeight: 600,
-    },
-    {
-      src: 'https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZhnjvh4jQ.woff2',
-      fontWeight: 700,
-    }
-  ]
-});
-
-// PDF Styles
-const styles = StyleSheet.create({
-  page: {
-    flexDirection: 'column',
-    backgroundColor: '#ffffff',
-    padding: 30,
-    fontFamily: 'Inter',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
-    paddingBottom: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: '#e5e7eb',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 700,
-    color: '#1f2937',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 5,
-  },
-  logo: {
-    width: 60,
-    height: 60,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 30,
-    padding: 20,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-  },
-  statBox: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#3b82f6',
-  },
-  statLabel: {
-    fontSize: 10,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-  eventCard: {
-    marginBottom: 20,
-    padding: 20,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  eventHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  eventName: {
-    fontSize: 16,
-    fontWeight: 600,
-    color: '#1f2937',
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    backgroundColor: '#fef3c7',
-    marginLeft: 10,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: '#92400e',
-  },
-  eventDetails: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 15,
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  detailIcon: {
-    width: 12,
-    height: 12,
-    marginRight: 6,
-    color: '#6b7280',
-  },
-  detailText: {
-    fontSize: 11,
-    color: '#4b5563',
-  },
-  description: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginTop: 10,
-    lineHeight: 1.4,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 30,
-    right: 30,
-    textAlign: 'center',
-    color: '#9ca3af',
-    fontSize: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    paddingTop: 10,
-  },
-  pageNumber: {
-    position: 'absolute',
-    fontSize: 10,
-    bottom: 30,
-    right: 30,
-    color: '#6b7280',
-  },
-});
-
-// Safe date formatting
-const formatSafeDate = (dateString: string | null | undefined, formatStr: string = 'PPP'): string => {
-  if (!dateString) return 'TBD';
+// Permission check function
+async function checkExportPermission(userId: string, eventId?: string) {
   try {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return 'Invalid Date';
-    return format(date, formatStr);
-  } catch (error) {
-    return 'Invalid Date';
-  }
-};
-
-// Get status color
-const getStatusColor = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PUBLISHED': return { bg: '#dcfce7', text: '#166534' };
-    case 'DRAFT': return { bg: '#fef3c7', text: '#92400e' };
-    case 'ACTIVE': return { bg: '#dbeafe', text: '#1e40af' };
-    case 'COMPLETED': return { bg: '#f3f4f6', text: '#374151' };
-    case 'CANCELLED': return { bg: '#fee2e2', text: '#dc2626' };
-    default: return { bg: '#f3f4f6', text: '#374151' };
-  }
-};
-
-// PDF Document Component
-const EventsPDFDocument = ({ events, stats, userInfo }: any) => (
-  <Document>
-    <Page size="A4" style={styles.page}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Conference Events Report</Text>
-          <Text style={styles.subtitle}>
-            Generated on {format(new Date(), 'PPP')} by {userInfo.name}
-          </Text>
-        </View>
-      </View>
-
-      {/* Stats Overview */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{stats.totalEvents}</Text>
-          <Text style={styles.statLabel}>Total Events</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{stats.publishedEvents}</Text>
-          <Text style={styles.statLabel}>Published</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{stats.draftEvents}</Text>
-          <Text style={styles.statLabel}>Draft</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>{stats.activeEvents}</Text>
-          <Text style={styles.statLabel}>Active</Text>
-        </View>
-      </View>
-
-      {/* Events List */}
-      {events.map((event: any, index: number) => {
-        const statusColors = getStatusColor(event.status);
-        
-        return (
-          <View key={event.id} style={styles.eventCard} break={index > 0 && index % 3 === 0}>
-            <View style={styles.eventHeader}>
-              <Text style={styles.eventName}>{event.name}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-                <Text style={[styles.statusText, { color: statusColors.text }]}>
-                  {event.status}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.eventDetails}>
-              <View style={styles.detailItem}>
-                <Text style={styles.detailIcon}>📅</Text>
-                <Text style={styles.detailText}>
-                  {formatSafeDate(event.startDate, 'MMM dd, yyyy')} - {formatSafeDate(event.endDate, 'MMM dd, yyyy')}
-                </Text>
-              </View>
-              
-              <View style={styles.detailItem}>
-                <Text style={styles.detailIcon}>🕒</Text>
-                <Text style={styles.detailText}>
-                  {formatSafeDate(event.startDate, 'HH:mm')} - {formatSafeDate(event.endDate, 'HH:mm')}
-                </Text>
-              </View>
-
-              <View style={styles.detailItem}>
-                <Text style={styles.detailIcon}>📍</Text>
-                <Text style={styles.detailText}>{event.location || 'Location TBD'}</Text>
-              </View>
-
-              <View style={styles.detailItem}>
-                <Text style={styles.detailIcon}>👤</Text>
-                <Text style={styles.detailText}>Created by {event.creator?.name || 'Unknown'}</Text>
-              </View>
-            </View>
-
-            {event.description && (
-              <Text style={styles.description}>
-                {event.description.length > 200 
-                  ? `${event.description.substring(0, 200)}...` 
-                  : event.description}
-              </Text>
-            )}
-          </View>
-        );
-      })}
-
-      {/* Footer */}
-      <Text style={styles.footer}>
-        Conference Management System - Generated by {userInfo.name} ({userInfo.email})
-      </Text>
+    console.log('🔍 Checking export permissions for user:', userId, 'eventId:', eventId);
+    
+    // If no specific event, check if user has any event management role
+    if (!eventId) {
+      const userResult = await query(
+        'SELECT role FROM users WHERE id = $1',
+        [userId]
+      );
       
-      <Text style={styles.pageNumber} render={({ pageNumber, totalPages }) => 
-        `${pageNumber} / ${totalPages}`
-      } fixed />
-    </Page>
-  </Document>
-);
-
-// GET /api/events/export/pdf - Generate PDF
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      if (userResult.rows.length === 0) {
+        return { hasPermission: false, reason: 'User not found' };
+      }
+      
+      // Allow ORGANIZER and EVENT_MANAGER to export all events
+      const userRole = userResult.rows[0].role;
+      if (['ORGANIZER', 'EVENT_MANAGER'].includes(userRole)) {
+        return { hasPermission: true, role: userRole };
+      }
+      
+      return { hasPermission: false, reason: 'Insufficient permissions for bulk export' };
     }
+    
+    // For specific event, check user-event relationship
+    const permissionResult = await query(`
+      SELECT 
+        ue.role as event_role,
+        ue.permissions,
+        u.role as user_role,
+        e.created_by
+      FROM user_events ue
+      JOIN users u ON u.id = ue.user_id
+      JOIN events e ON e.id = ue.event_id
+      WHERE ue.user_id = $1 AND ue.event_id = $2
+    `, [userId, eventId]);
+    
+    if (permissionResult.rows.length === 0) {
+      return { hasPermission: false, reason: 'No access to this event' };
+    }
+    
+    const { event_role, user_role, created_by } = permissionResult.rows[0];
+    
+    // Check if user has export permissions
+    const canExport = (
+      user_role === 'ORGANIZER' ||
+      user_role === 'EVENT_MANAGER' ||
+      event_role === 'ORGANIZER' ||
+      event_role === 'EVENT_MANAGER' ||
+      created_by === userId
+    );
+    
+    return { 
+      hasPermission: canExport, 
+      role: user_role,
+      eventRole: event_role,
+      isCreator: created_by === userId
+    };
+    
+  } catch (error) {
+    console.error('❌ Permission check error:', error);
+    return { hasPermission: false, reason: 'Permission check failed' };
+  }
+}
 
-    const { searchParams } = new URL(request.url);
-    const eventId = searchParams.get('eventId'); // Single event or all events
-    const format = searchParams.get('format') || 'pdf';
-
-    console.log('📄 PDF Export started by:', session.user.email, 'for:', eventId || 'all events');
-
-    // Build query based on parameters
-    let whereClause = '';
-    const queryParams = [];
+// Fetch event data for PDF
+async function fetchEventData(eventId?: string) {
+  try {
+    console.log('📊 Fetching event data for PDF generation...');
     
     if (eventId) {
-      whereClause = 'WHERE e.id = $1';
-      queryParams.push(eventId);
-    }
-
-    // Get events data
-    const eventsResult = await query(
-      `
-      SELECT 
-        e.id,
-        e.name,
-        e.description,
-        e.start_date,
-        e.end_date,
-        e.location,
-        e.status,
-        e.created_by,
-        e.created_at,
-        e.updated_at,
-        u.name as creator_name,
-        u.email as creator_email
-      FROM events e
-      LEFT JOIN users u ON e.created_by = u.id
-      ${whereClause}
-      ORDER BY e.created_at DESC
-      `,
-      queryParams
-    );
-
-    const events = eventsResult.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      startDate: row.start_date,
-      endDate: row.end_date,
-      location: row.location,
-      status: row.status,
-      createdAt: row.created_at,
-      creator: {
-        name: row.creator_name,
-        email: row.creator_email
+      // Single event data
+      console.log('🎯 Fetching data for event:', eventId);
+      
+      // Event details
+      const eventResult = await query(`
+        SELECT 
+          e.id,
+          e.name,
+          e.description,
+          e.start_date,
+          e.end_date,
+          e.location,
+          e.status,
+          e.created_at,
+          e.updated_at,
+          (SELECT COUNT(*) FROM registrations WHERE event_id = e.id) as participant_count
+        FROM events e
+        WHERE e.id = $1
+      `, [eventId]);
+      
+      if (eventResult.rows.length === 0) {
+        throw new Error('Event not found');
       }
-    }));
-
-    if (events.length === 0) {
-      return NextResponse.json({ error: 'No events found' }, { status: 404 });
+      
+      const event = eventResult.rows[0];
+      
+      // Sessions
+      const sessionsResult = await query(`
+        SELECT 
+          cs.id,
+          cs.title,
+          cs.description,
+          cs.start_time,
+          cs.end_time,
+          h.name as hall_name
+        FROM conference_sessions cs
+        LEFT JOIN halls h ON h.id = cs.hall_id
+        WHERE cs.event_id = $1
+        ORDER BY cs.start_time
+      `, [eventId]);
+      
+      // Registrations
+      const registrationsResult = await query(`
+        SELECT 
+          r.id,
+          r.status,
+          r.created_at as createdAt,
+          u.name,
+          u.email,
+          u.institution
+        FROM registrations r
+        JOIN users u ON u.id = r.user_id
+        WHERE r.event_id = $1
+        ORDER BY r.created_at DESC
+      `, [eventId]);
+      
+      // Faculty
+      const facultyResult = await query(`
+        SELECT 
+          ue.id,
+          ue.role,
+          u.name,
+          u.email,
+          u.institution
+        FROM user_events ue
+        JOIN users u ON u.id = ue.user_id
+        WHERE ue.event_id = $1 
+        AND ue.role IN ('SPEAKER', 'MODERATOR', 'CHAIRPERSON')
+        ORDER BY u.name
+      `, [eventId]);
+      
+      // Halls
+      const hallsResult = await query(`
+        SELECT id, name, capacity, equipment
+        FROM halls
+        WHERE event_id = $1
+        ORDER BY name
+      `, [eventId]);
+      
+      console.log('✅ Single event data fetched successfully');
+      
+      return {
+        event,
+        sessions: sessionsResult.rows,
+        registrations: registrationsResult.rows,
+        faculty: facultyResult.rows,
+        halls: hallsResult.rows
+      };
+      
+    } else {
+      // All events data
+      console.log('📋 Fetching all events data...');
+      
+      const eventsResult = await query(`
+        SELECT 
+          e.id,
+          e.name,
+          e.description,
+          e.start_date as startDate,
+          e.end_date as endDate,
+          e.location,
+          e.status,
+          e.created_at as createdAt,
+          (SELECT COUNT(*) FROM conference_sessions WHERE event_id = e.id) as sessionCount,
+          (SELECT COUNT(*) FROM registrations WHERE event_id = e.id) as registrationCount
+        FROM events e
+        ORDER BY e.start_date DESC
+      `);
+      
+      console.log('✅ All events data fetched successfully');
+      
+      return {
+        events: eventsResult.rows,
+        sessions: [],
+        registrations: [],
+        faculty: [],
+        halls: []
+      };
     }
+    
+  } catch (error) {
+    console.error('❌ Error fetching event data:', error);
+    throw new Error(`Failed to fetch event data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
-    // Calculate stats
-    const stats = {
-      totalEvents: events.length,
-      publishedEvents: events.filter(e => e.status === 'PUBLISHED').length,
-      draftEvents: events.filter(e => e.status === 'DRAFT').length,
-      activeEvents: events.filter(e => e.status === 'ACTIVE').length,
-      completedEvents: events.filter(e => e.status === 'COMPLETED').length,
+// Simple PDF generation function
+async function generateSimplePDF(data: any, options: any = {}) {
+  try {
+    console.log('📄 Generating simple PDF...');
+    
+    // Import jsPDF dynamically to avoid SSR issues
+    const { jsPDF } = await import('jspdf');
+    const pdf = new jsPDF();
+    
+    // Helper function to format date
+    const formatDate = (date: any) => {
+      if (!date) return 'Not specified';
+      
+      try {
+        // Handle different date formats
+        let dateObj;
+        
+        if (date instanceof Date) {
+          dateObj = date;
+        } else if (typeof date === 'string') {
+          dateObj = new Date(date);
+        } else if (typeof date === 'number') {
+          dateObj = new Date(date);
+        } else {
+          return 'Not specified';
+        }
+        
+        // Check if date is valid
+        if (isNaN(dateObj.getTime())) {
+          return 'Invalid date';
+        }
+        
+        return dateObj.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long', 
+          day: 'numeric'
+        });
+      } catch (error) {
+        console.error('Date formatting error:', error, 'for date:', date);
+        return 'Invalid date';
+      }
     };
-
-    const userInfo = {
-      name: session.user.name || 'Unknown User',
-      email: session.user.email || 'unknown@example.com',
-      role: session.user.role || 'USER'
+    
+    // Helper function to format date and time
+    const formatDateTime = (date: any) => {
+      if (!date) return 'Not specified';
+      
+      try {
+        let dateObj;
+        
+        if (date instanceof Date) {
+          dateObj = date;
+        } else if (typeof date === 'string') {
+          dateObj = new Date(date);
+        } else if (typeof date === 'number') {
+          dateObj = new Date(date);
+        } else {
+          return 'Not specified';
+        }
+        
+        if (isNaN(dateObj.getTime())) {
+          return 'Invalid date';
+        }
+        
+        return dateObj.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (error) {
+        console.error('DateTime formatting error:', error, 'for date:', date);
+        return 'Invalid date';
+      }
     };
+    
+    // Helper function to format status
+    const formatStatus = (status: string) => {
+      if (!status) return 'Unknown';
+      return status.toLowerCase().replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    };
+    
+    // PDF Content
+    let yPosition = 20;
+    const lineHeight = 8;
+    const pageHeight = pdf.internal.pageSize.height;
+    
+    // Title
+    pdf.setFontSize(20);
+    pdf.setTextColor(40, 44, 52);
+    pdf.text('Event Export Report', 20, yPosition);
+    yPosition += lineHeight * 2;
+    
+    // Date
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, yPosition);
+    yPosition += lineHeight * 2;
+    
+    // Event Details
+    if (data.event) {
+      // Debug log to check actual data
+      console.log('🐛 Event data for PDF:', {
+        name: data.event.name,
+        start_date: data.event.start_date,
+        end_date: data.event.end_date,
+        created_at: data.event.created_at,
+        location: data.event.location,
+        status: data.event.status
+      });
+      
+      pdf.setFontSize(16);
+      pdf.setTextColor(40, 44, 52);
+      pdf.text('Event Details', 20, yPosition);
+      yPosition += lineHeight;
+      
+      pdf.setFontSize(11);
+      pdf.setTextColor(60, 60, 60);
+      
+      const eventInfo = [
+        ['Name:', data.event.name || 'Untitled Event'],
+        ['Description:', data.event.description || 'No description'],
+        ['Start Date:', formatDateTime(data.event.start_date)],
+        ['End Date:', formatDateTime(data.event.end_date)],
+        ['Location:', data.event.location || 'TBD'],
+        ['Status:', formatStatus(data.event.status)],
+        ['Created:', formatDate(data.event.created_at)],
+        ['Participants:', (data.event.participant_count || 0).toString()]
+      ];
+      
+      eventInfo.forEach(([label, value]) => {
+        if (yPosition > pageHeight - 30) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.setFont(undefined, 'bold');
+        pdf.text(label, 20, yPosition);
+        pdf.setFont(undefined, 'normal');
+        
+        // Handle long text
+        const maxWidth = 160;
+        const splitText = pdf.splitTextToSize(value, maxWidth);
+        pdf.text(splitText, 60, yPosition);
+        
+        yPosition += lineHeight * Math.max(1, splitText.length);
+      });
+      
+      yPosition += lineHeight;
+    }
+    
+    // Sessions
+    if (data.sessions && data.sessions.length > 0) {
+      pdf.setFontSize(14);
+      pdf.setTextColor(40, 44, 52);
+      pdf.text(`Sessions (${data.sessions.length})`, 20, yPosition);
+      yPosition += lineHeight;
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(60, 60, 60);
+      
+      data.sessions.slice(0, 20).forEach((session: any, index: number) => {
+        if (yPosition > pageHeight - 40) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.text(`${index + 1}. ${session.title || 'Untitled Session'}`, 20, yPosition);
+        yPosition += lineHeight;
+        
+        if (session.start_time) {
+          pdf.text(`   Time: ${formatDateTime(session.start_time)}`, 20, yPosition);
+          yPosition += lineHeight;
+        }
+        
+        if (session.hall_name) {
+          pdf.text(`   Hall: ${session.hall_name}`, 20, yPosition);
+          yPosition += lineHeight;
+        }
+        
+        yPosition += lineHeight * 0.5;
+      });
+      
+      if (data.sessions.length > 20) {
+        pdf.text(`... and ${data.sessions.length - 20} more sessions`, 20, yPosition);
+        yPosition += lineHeight;
+      }
+      
+      yPosition += lineHeight;
+    }
+    
+    // Faculty
+    if (data.faculty && data.faculty.length > 0) {
+      pdf.setFontSize(14);
+      pdf.setTextColor(40, 44, 52);
+      pdf.text(`Faculty (${data.faculty.length})`, 20, yPosition);
+      yPosition += lineHeight;
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(60, 60, 60);
+      
+      data.faculty.slice(0, 15).forEach((faculty: any, index: number) => {
+        if (yPosition > pageHeight - 30) {
+          pdf.addPage();
+          yPosition = 20;
+        }
+        
+        pdf.text(`${index + 1}. ${faculty.name || 'Unknown'} - ${formatStatus(faculty.role)}`, 20, yPosition);
+        yPosition += lineHeight;
+        
+        if (faculty.institution) {
+          pdf.text(`   ${faculty.institution}`, 20, yPosition);
+          yPosition += lineHeight;
+        }
+        
+        yPosition += lineHeight * 0.5;
+      });
+      
+      if (data.faculty.length > 15) {
+        pdf.text(`... and ${data.faculty.length - 15} more faculty members`, 20, yPosition);
+        yPosition += lineHeight;
+      }
+      
+      yPosition += lineHeight;
+    }
+    
+    // Statistics
+    if (data.registrations || data.halls || data.sessions) {
+      pdf.setFontSize(14);
+      pdf.setTextColor(40, 44, 52);
+      pdf.text('Statistics', 20, yPosition);
+      yPosition += lineHeight;
+      
+      pdf.setFontSize(11);
+      pdf.setTextColor(60, 60, 60);
+      
+      const stats = [
+        ['Total Sessions:', (data.sessions?.length || 0).toString()],
+        ['Total Registrations:', (data.registrations?.length || 0).toString()],
+        ['Total Faculty:', (data.faculty?.length || 0).toString()],
+        ['Total Halls:', (data.halls?.length || 0).toString()]
+      ];
+      
+      stats.forEach(([label, value]) => {
+        pdf.text(`${label} ${value}`, 20, yPosition);
+        yPosition += lineHeight;
+      });
+    }
+    
+    // Footer
+    const pageCount = pdf.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(8);
+      pdf.setTextColor(150, 150, 150);
+      pdf.text('Conference Management System', 20, pageHeight - 10);
+      pdf.text(`Page ${i} of ${pageCount}`, pdf.internal.pageSize.width - 40, pageHeight - 10);
+    }
+    
+    console.log('✅ Simple PDF generated successfully');
+    return pdf;
+    
+  } catch (error) {
+    console.error('❌ Simple PDF generation error:', error);
+    throw new Error(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
 
-    console.log('📊 Stats calculated:', stats);
-
-    // Generate PDF
-    const pdfDoc = <EventsPDFDocument events={events} stats={stats} userInfo={userInfo} />;
-    const pdfBuffer = await pdf(pdfDoc).toBuffer();
-
-    console.log('✅ PDF generated successfully, size:', pdfBuffer.length, 'bytes');
-
-    // Generate filename
-    const timestamp = format(new Date(), 'yyyy-MM-dd-HHmm');
+// GET handler - Generate PDF
+export async function GET(request: NextRequest) {
+  try {
+    console.log('🚀 PDF Export API called');
+    
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const eventId = searchParams.get('eventId');
+    const title = searchParams.get('title') || 'Event Export';
+    const subtitle = searchParams.get('subtitle') || 'Conference Management System Report';
+    
+    console.log('📋 Export parameters:', { eventId, title, subtitle });
+    
+    // Check permissions
+    const permissionCheck = await checkExportPermission(session.user.id, eventId || undefined);
+    if (!permissionCheck.hasPermission) {
+      console.log('❌ Export permission denied:', permissionCheck.reason);
+      return NextResponse.json(
+        { error: permissionCheck.reason || 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+    
+    console.log('✅ Export permission granted');
+    
+    // Fetch data
+    const data = await fetchEventData(eventId || undefined);
+    
+    // Generate PDF using simple method
+    const pdf = await generateSimplePDF(data, { title, subtitle });
+    
+    // Convert to buffer
+    const pdfBuffer = Buffer.from(pdf.output('arraybuffer'));
+    
+    console.log('✅ PDF generated successfully');
+    
+    // Set response headers
     const filename = eventId 
-      ? `event-${events[0].name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${timestamp}.pdf`
-      : `conference-events-report-${timestamp}.pdf`;
-
-    // Return PDF as response
+      ? `event-${data.event?.name?.replace(/[^a-zA-Z0-9]/g, '-') || 'export'}-${new Date().toISOString().slice(0, 10)}.pdf`
+      : `events-export-${new Date().toISOString().slice(0, 10)}.pdf`;
+    
     return new NextResponse(pdfBuffer, {
+      status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
@@ -386,14 +530,15 @@ export async function GET(request: NextRequest) {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
-      },
+      }
     });
-
+    
   } catch (error) {
-    console.error('❌ PDF Export Error:', error);
+    console.error('❌ PDF Export API Error:', error);
+    
     return NextResponse.json(
       { 
-        error: 'Failed to generate PDF',
+        error: 'PDF generation failed',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
@@ -401,96 +546,64 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/events/export/pdf - Generate PDF with custom data
+// POST handler - Generate PDF with custom data
 export async function POST(request: NextRequest) {
   try {
+    console.log('🚀 PDF Export API (POST) called');
+    
+    // Check authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
-
+    
+    // Parse request body
     const body = await request.json();
-    const { eventIds, includeStats = true, customTitle } = body;
-
-    console.log('📄 Custom PDF Export started:', { eventIds, includeStats, customTitle });
-
-    // Get specific events
-    const placeholders = eventIds.map((_: any, index: number) => `$${index + 1}`).join(',');
-    const eventsResult = await query(
-      `
-      SELECT 
-        e.id,
-        e.name,
-        e.description,
-        e.start_date,
-        e.end_date,
-        e.location,
-        e.status,
-        e.created_at,
-        u.name as creator_name,
-        u.email as creator_email
-      FROM events e
-      LEFT JOIN users u ON e.created_by = u.id
-      WHERE e.id IN (${placeholders})
-      ORDER BY e.created_at DESC
-      `,
-      eventIds
-    );
-
-    const events = eventsResult.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      startDate: row.start_date,
-      endDate: row.end_date,
-      location: row.location,
-      status: row.status,
-      createdAt: row.created_at,
-      creator: {
-        name: row.creator_name,
-        email: row.creator_email
-      }
-    }));
-
-    if (events.length === 0) {
-      return NextResponse.json({ error: 'No events found' }, { status: 404 });
+    const { eventId, data, options = {} } = body;
+    
+    console.log('📋 POST Export parameters:', { eventId, hasData: !!data, options });
+    
+    // Check permissions
+    const permissionCheck = await checkExportPermission(session.user.id, eventId);
+    if (!permissionCheck.hasPermission) {
+      return NextResponse.json(
+        { error: permissionCheck.reason || 'Insufficient permissions' },
+        { status: 403 }
+      );
     }
-
-    // Calculate stats
-    const stats = {
-      totalEvents: events.length,
-      publishedEvents: events.filter(e => e.status === 'PUBLISHED').length,
-      draftEvents: events.filter(e => e.status === 'DRAFT').length,
-      activeEvents: events.filter(e => e.status === 'ACTIVE').length,
-    };
-
-    const userInfo = {
-      name: session.user.name || 'Unknown User',
-      email: session.user.email || 'unknown@example.com',
-      role: session.user.role || 'USER'
-    };
-
+    
+    // Use provided data or fetch from database
+    const exportData = data || await fetchEventData(eventId);
+    
     // Generate PDF
-    const pdfDoc = <EventsPDFDocument events={events} stats={stats} userInfo={userInfo} />;
-    const pdfBuffer = await pdf(pdfDoc).toBuffer();
-
-    const timestamp = format(new Date(), 'yyyy-MM-dd-HHmm');
-    const filename = customTitle 
-      ? `${customTitle.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${timestamp}.pdf`
-      : `selected-events-${timestamp}.pdf`;
-
+    const pdf = await generateSimplePDF(exportData, options);
+    
+    // Convert to buffer
+    const pdfBuffer = Buffer.from(pdf.output('arraybuffer'));
+    
+    const filename = options.filename || 
+      `event-export-${new Date().toISOString().slice(0, 10)}.pdf`;
+    
     return new NextResponse(pdfBuffer, {
+      status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Length': pdfBuffer.length.toString(),
-      },
+        'Content-Length': pdfBuffer.length.toString()
+      }
     });
-
+    
   } catch (error) {
-    console.error('❌ Custom PDF Export Error:', error);
+    console.error('❌ PDF Export POST Error:', error);
+    
     return NextResponse.json(
-      { error: 'Failed to generate custom PDF' },
+      { 
+        error: 'PDF generation failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

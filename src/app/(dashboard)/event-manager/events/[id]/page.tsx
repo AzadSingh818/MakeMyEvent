@@ -571,55 +571,45 @@ export default function EventDetailsPage() {
         </div>
 
         {/* Quick Actions */}
-        <Card>
-          <CardHeader>
+        {/* <Card> */}
+          {/* <CardHeader>
             <CardTitle>Event Management Actions</CardTitle>
-          </CardHeader>
+          </CardHeader> */}
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Link href={`/event-manager/events/${eventId}/edit`}>
+              {/* <Link href={`/event-manager/events/${eventId}/edit`}>
                 <Button className="w-full h-auto p-4 flex flex-col items-center space-y-2">
                   <Edit className="h-6 w-6" />
                   <span>Edit Event</span>
                 </Button>
-              </Link>
+              </Link> */}
               
               {/* ✅ UPDATED: Export Action with functionality */}
-              <div className="w-full">
+              {/* <div className="w-full">
                 <ExportButton 
                   eventId={eventId}
                   variant="outline"
                   className="w-full h-auto p-4 flex-col"
-                >
-                  <div className="flex flex-col items-center space-y-2">
-                    <Download className="h-6 w-6" />
-                    <span>Export</span>
-                  </div>
-                </ExportButton>
-              </div>
+                />
+              </div> */}
               
               {/* ✅ UPDATED: Share Action with functionality */}
-              <div className="w-full">
+              {/* <div className="w-full">
                 <ShareButton 
                   eventId={eventId}
                   eventName={event.name}
                   variant="outline"
                   className="w-full h-auto p-4 flex-col"
-                >
-                  <div className="flex flex-col items-center space-y-2">
-                    <Share2 className="h-6 w-6" />
-                    <span>Share</span>
-                  </div>
-                </ShareButton>
-              </div>
+                />
+              </div> */}
               
-              <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
+              {/* <Button variant="outline" className="h-auto p-4 flex flex-col items-center space-y-2">
                 <BarChart3 className="h-6 w-6" />
                 <span>View Analytics</span>
-              </Button>
+              </Button> */}
             </div>
           </CardContent>
-        </Card>
+        {/* </Card> */}
       </div>
     </EventManagerLayout>
   );

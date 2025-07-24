@@ -1,257 +1,204 @@
 // src/components/events/ExportButton.tsx
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { 
-  Download, 
-  FileText, 
-  FileSpreadsheet, 
-  Loader2,
-  ChevronDown
-} from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Download, FileText, Table, ChevronDown } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 interface ExportButtonProps {
   eventId?: string;
+  eventName?: string;
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
-  children?: React.ReactNode;
 }
 
-export function ExportButton({ 
-  eventId, 
+export const ExportButton: React.FC<ExportButtonProps> = ({
+  eventId,
+  eventName = 'Event',
   variant = 'outline',
   size = 'md',
-  className = '',
-  children
-}: ExportButtonProps) {
+  className = ''
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [exportType, setExportType] = useState<'pdf' | 'excel' | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [exportType, setExportType] = useState<string>('');
 
-  // Handle PDF Export
-  const handlePDFExport = async () => {
+  // Export PDF function
+  const exportPDF = async () => {
     try {
       setIsExporting(true);
-      setExportType('pdf');
-      setShowDropdown(false);
+      setExportType('PDF');
       
-      console.log('📄 Starting PDF export...');
-
-      let url = '/api/events/export/pdf';
-      if (eventId) {
-        url += `?eventId=${eventId}`;
-      }
-
-      const response = await fetch(url);
-
+      console.log('🔄 Starting PDF export...');
+      
+      const url = eventId 
+        ? `/api/events/export/pdf?eventId=${eventId}`
+        : '/api/events/export/pdf';
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Export failed: ${response.status}`);
       }
-
-      // Get the PDF blob
-      const blob = await response.blob();
       
-      // Extract filename from Content-Disposition header
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition
-        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
-        : `events-export-${new Date().toISOString().split('T')[0]}.pdf`;
-
-      // Create download link
-      const downloadUrl = window.URL.createObjectURL(blob);
+      // Create download
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = filename;
-      
-      // Trigger download
+      link.download = `${eventName.replace(/[^a-zA-Z0-9]/g, '-')}-export-${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
       
-      // Cleanup
-      window.URL.revokeObjectURL(downloadUrl);
-
-      console.log('✅ PDF export completed:', filename);
-      alert(`PDF exported successfully: ${filename}`);
-
+      toast.success('PDF exported successfully!');
+      console.log('✅ PDF export completed');
+      
     } catch (error) {
-      console.error('❌ PDF export failed:', error);
-      alert(error instanceof Error ? error.message : 'Failed to export PDF');
+      console.error('❌ PDF export error:', error);
+      toast.error(error instanceof Error ? error.message : 'PDF export failed');
     } finally {
       setIsExporting(false);
-      setExportType(null);
+      setExportType('');
+      setIsOpen(false);
     }
   };
 
-  // Handle Excel Export
-  const handleExcelExport = async () => {
+  // Export Excel function
+  const exportExcel = async () => {
     try {
       setIsExporting(true);
-      setExportType('excel');
-      setShowDropdown(false);
+      setExportType('Excel');
       
-      console.log('📊 Starting Excel export...');
-
-      let url = '/api/events/export/excel';
-      if (eventId) {
-        url += `?eventId=${eventId}`;
-      }
-
-      const response = await fetch(url);
-
+      console.log('🔄 Starting Excel export...');
+      
+      const url = eventId 
+        ? `/api/events/export/excel?eventId=${eventId}`
+        : '/api/events/export/excel';
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Excel export failed: ${response.status}`);
+        throw new Error(errorData.error || `Export failed: ${response.status}`);
       }
-
+      
+      // Create download
       const blob = await response.blob();
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filename = contentDisposition
-        ? contentDisposition.split('filename=')[1]?.replace(/"/g, '')
-        : `events-export-${new Date().toISOString().split('T')[0]}.xlsx`;
-
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = filename;
+      link.download = `${eventName.replace(/[^a-zA-Z0-9]/g, '-')}-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-
-      console.log('✅ Excel export completed:', filename);
-      alert(`Excel exported successfully: ${filename}`);
-
+      URL.revokeObjectURL(downloadUrl);
+      
+      toast.success('Excel exported successfully!');
+      console.log('✅ Excel export completed');
+      
     } catch (error) {
-      console.error('❌ Excel export failed:', error);
-      alert(error instanceof Error ? error.message : 'Failed to export Excel');
+      console.error('❌ Excel export error:', error);
+      toast.error(error instanceof Error ? error.message : 'Excel export failed');
     } finally {
       setIsExporting(false);
-      setExportType(null);
+      setExportType('');
+      setIsOpen(false);
     }
   };
 
-  // If children are provided, render as custom layout
-  if (children) {
-    return (
-      <div className="relative">
-        <Button 
-          variant={variant} 
-          size={size}
-          className={className}
-          disabled={isExporting}
-          onClick={() => setShowDropdown(!showDropdown)}
-        >
-          {children}
-          {!isExporting && <ChevronDown className="h-3 w-3 ml-1" />}
-        </Button>
-        
-        {showDropdown && (
-          <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
-            <button
-              onClick={handlePDFExport}
-              disabled={isExporting}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Export as PDF
-              {isExporting && exportType === 'pdf' && (
-                <Loader2 className="h-3 w-3 ml-auto animate-spin" />
-              )}
-            </button>
-            <button
-              onClick={handleExcelExport}
-              disabled={isExporting}
-              className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
-            >
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Export as Excel
-              {isExporting && exportType === 'excel' && (
-                <Loader2 className="h-3 w-3 ml-auto animate-spin" />
-              )}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  }
+  // Handle click outside to close dropdown
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.export-dropdown')) {
+        setIsOpen(false);
+      }
+    };
 
-  // Default button layout
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
   return (
-    <div className="relative">
-      <Button 
-        variant={variant} 
+    <div className={`relative export-dropdown ${className}`}>
+      {/* Main Export Button */}
+      <Button
+        variant={variant}
         size={size}
-        className={className}
+        onClick={() => setIsOpen(!isOpen)}
         disabled={isExporting}
-        onClick={() => setShowDropdown(!showDropdown)}
+        className="flex items-center gap-2"
       >
         {isExporting ? (
           <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Exporting...
+            <LoadingSpinner size="sm" />
+            <span>Exporting {exportType}...</span>
           </>
         ) : (
           <>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-            <ChevronDown className="h-3 w-3 ml-1" />
+            <Download size={16} />
+            <span>Export</span>
+            <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
           </>
         )}
       </Button>
-      
-      {showDropdown && (
-        <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+
+      {/* Dropdown Menu */}
+      {isOpen && !isExporting && (
+        <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1">
+          {/* PDF Export Option */}
           <button
-            onClick={handlePDFExport}
-            disabled={isExporting}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+            onClick={exportPDF}
+            className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
           >
-            <FileText className="h-4 w-4 mr-2" />
-            <div className="flex flex-col">
-              <span>Export as PDF</span>
-              <span className="text-xs text-gray-500">
-                Formatted document
-              </span>
+            <FileText size={16} className="text-red-600" />
+            <div>
+              <div className="font-medium">Export as PDF</div>
+              <div className="text-xs text-gray-500">Professional document format</div>
             </div>
-            {isExporting && exportType === 'pdf' && (
-              <Loader2 className="h-3 w-3 ml-auto animate-spin" />
-            )}
           </button>
-          
-          <hr className="border-gray-100" />
-          
+
+          {/* Excel Export Option */}
           <button
-            onClick={handleExcelExport}
-            disabled={isExporting}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center"
+            onClick={exportExcel}
+            className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
           >
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            <div className="flex flex-col">
-              <span>Export as Excel</span>
-              <span className="text-xs text-gray-500">
-                Spreadsheet data
-              </span>
+            <Table size={16} className="text-green-600" />
+            <div>
+              <div className="font-medium">Export as Excel</div>
+              <div className="text-xs text-gray-500">Spreadsheet with multiple sheets</div>
             </div>
-            {isExporting && exportType === 'excel' && (
-              <Loader2 className="h-3 w-3 ml-auto animate-spin" />
-            )}
           </button>
+
+          {/* Info Footer */}
+          <div className="border-t border-gray-100 mt-1 pt-2 px-4 pb-2">
+            <div className="text-xs text-gray-400">
+              {eventId ? 'Current event data' : 'All events data'}
+            </div>
+          </div>
         </div>
-      )}
-      
-      {/* Click outside to close */}
-      {showDropdown && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowDropdown(false)}
-        />
       )}
     </div>
   );
-}
-
-export default ExportButton;
+};
