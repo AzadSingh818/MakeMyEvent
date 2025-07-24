@@ -26,6 +26,25 @@ const CreateSessionSchema = z.object({
 
 const UpdateSessionSchema = CreateSessionSchema.partial().omit({ eventId: true });
 
+// ✅ FIXED: Column name mapping for sorting
+const SORT_COLUMN_MAP = {
+  'startTime': 'start_time',
+  'endTime': 'end_time',
+  'starttime': 'start_time',
+  'endtime': 'end_time',
+  'sessionType': 'session_type',
+  'maxParticipants': 'max_participants',
+  'isBreak': 'is_break',
+  'createdAt': 'created_at',
+  'updatedAt': 'updated_at',
+  'created_at': 'created_at',
+  'updated_at': 'updated_at',
+  'start_time': 'start_time',
+  'end_time': 'end_time',
+  'title': 'title',
+  'id': 'id'
+};
+
 // GET /api/sessions - Get all sessions with filters
 export async function GET(request: NextRequest) {
   try {
@@ -43,8 +62,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const sessionType = searchParams.get('sessionType');
     const speakerId = searchParams.get('speakerId');
-    const sortBy = searchParams.get('sortBy') || 'start_time'; // ✅ Fixed: Correct column name
+    const sortByParam = searchParams.get('sortBy') || 'start_time';
     const sortOrder = searchParams.get('sortOrder') || 'asc';
+
+    // ✅ FIXED: Map sort column to correct database column name
+    const sortBy = SORT_COLUMN_MAP[sortByParam] || 'start_time';
 
     const skip = (page - 1) * limit;
 
@@ -96,11 +118,11 @@ export async function GET(request: NextRequest) {
       endOfDay.setHours(23, 59, 59, 999);
 
       paramCount++;
-      whereClause += ` AND cs.start_time >= $${paramCount}`; // ✅ Fixed: Correct column name
+      whereClause += ` AND cs.start_time >= $${paramCount}`;
       queryParams.push(startOfDay);
       
       paramCount++;
-      whereClause += ` AND cs.start_time <= $${paramCount}`; // ✅ Fixed: Correct column name
+      whereClause += ` AND cs.start_time <= $${paramCount}`;
       queryParams.push(endOfDay);
     }
 
@@ -131,10 +153,23 @@ export async function GET(request: NextRequest) {
       queryParams.push(`%${search}%`);
     }
 
-    // ✅ Fixed: Main query with correct column names
+    // ✅ FIXED: Main query with explicit column selection and correct column names
     const sessionsQuery = `
       SELECT 
-        cs.*,
+        cs.id,
+        cs.event_id,
+        cs.title,
+        cs.description,
+        cs.start_time,
+        cs.end_time,
+        cs.hall_id,
+        cs.session_type,
+        cs.max_participants,
+        cs.requirements,
+        cs.tags,
+        cs.is_break,
+        cs.created_at,
+        cs.updated_at,
         e.name as event_name, 
         e.start_date as event_start_date, 
         e.end_date as event_end_date,
@@ -215,7 +250,7 @@ export async function GET(request: NextRequest) {
       attendanceRecords = attendanceResult.rows;
     }
 
-    // Format response data
+    // ✅ FIXED: Format response data with safe JSON parsing
     const sessions = sessionsResult.rows.map(row => {
       const sessionSpeakers = speakers.filter(s => s.session_id === row.id).map(s => ({
         user: {
@@ -244,24 +279,42 @@ export async function GET(request: NextRequest) {
         method: a.method
       }));
 
+      // Safe JSON parsing for requirements and tags
+      let requirements = [];
+      let tags = [];
+      
+      try {
+        requirements = row.requirements ? JSON.parse(row.requirements) : [];
+      } catch (error) {
+        console.warn(`Invalid JSON in requirements for session ${row.id}:`, row.requirements);
+        requirements = [];
+      }
+
+      try {
+        tags = row.tags ? JSON.parse(row.tags) : [];
+      } catch (error) {
+        console.warn(`Invalid JSON in tags for session ${row.id}:`, row.tags);
+        tags = [];
+      }
+
       return {
         id: row.id,
         title: row.title,
         description: row.description,
-        startTime: row.start_time, // ✅ Fixed: Correct column name
-        endTime: row.end_time,     // ✅ Fixed: Correct column name
+        startTime: row.start_time,     // ✅ Fixed: Correct column name
+        endTime: row.end_time,         // ✅ Fixed: Correct column name
         sessionType: row.session_type,
         maxParticipants: row.max_participants,
-        requirements: row.requirements ? JSON.parse(row.requirements) : [],
-        tags: row.tags ? JSON.parse(row.tags) : [],
+        requirements: requirements,    // ✅ Fixed: Safe JSON parsing
+        tags: tags,                   // ✅ Fixed: Safe JSON parsing
         isBreak: row.is_break,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
         event: {
           id: row.event_id,
           name: row.event_name,
-          startDate: row.event_start_date, // ✅ Fixed: Correct column name
-          endDate: row.event_end_date      // ✅ Fixed: Correct column name
+          startDate: row.event_start_date,
+          endDate: row.event_end_date
         },
         hall: row.hall_id ? {
           id: row.hall_id,
@@ -368,8 +421,8 @@ export async function POST(request: NextRequest) {
           conflicts: conflictResult.rows.map(row => ({
             id: row.id,
             title: row.title,
-            startTime: row.start_time, // ✅ Fixed: Correct column name
-            endTime: row.end_time      // ✅ Fixed: Correct column name
+            startTime: row.start_time,
+            endTime: row.end_time
           }))
         }, { status: 409 });
       }
@@ -385,9 +438,10 @@ export async function POST(request: NextRequest) {
     const insertSessionQuery = `
       INSERT INTO conference_sessions (
         id, event_id, title, description, start_time, end_time, hall_id,
+        session_type, max_participants, requirements, tags, is_break,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
       ) RETURNING *
     `;
 
@@ -398,7 +452,12 @@ export async function POST(request: NextRequest) {
       sessionData.description || null,
       sessionData.startTime,
       sessionData.endTime,
-      sessionData.hallId || null
+      sessionData.hallId || null,
+      sessionData.sessionType,
+      sessionData.maxParticipants || null,
+      sessionData.requirements ? JSON.stringify(sessionData.requirements) : null,
+      sessionData.tags ? JSON.stringify(sessionData.tags) : null,
+      sessionData.isBreak
     ]);
 
     const newSession = sessionResult.rows[0];
@@ -419,9 +478,23 @@ export async function POST(request: NextRequest) {
     // ✅ Fixed: Get complete session data with correct column names
     const completeSessionQuery = `
       SELECT 
-        cs.*,
+        cs.id,
+        cs.title,
+        cs.description,
+        cs.start_time,
+        cs.end_time,
+        cs.session_type,
+        cs.max_participants,
+        cs.requirements,
+        cs.tags,
+        cs.is_break,
+        cs.created_at,
+        cs.updated_at,
+        cs.event_id,
+        cs.hall_id,
         e.name as event_name,
-        h.name as hall_name, h.capacity as hall_capacity
+        h.name as hall_name, 
+        h.capacity as hall_capacity
       FROM conference_sessions cs
       LEFT JOIN events e ON cs.event_id = e.id
       LEFT JOIN halls h ON cs.hall_id = h.id
@@ -447,8 +520,13 @@ export async function POST(request: NextRequest) {
       id: completeSession.id,
       title: completeSession.title,
       description: completeSession.description,
-      startTime: completeSession.start_time, // ✅ Fixed: Correct column name
-      endTime: completeSession.end_time,     // ✅ Fixed: Correct column name
+      startTime: completeSession.start_time,
+      endTime: completeSession.end_time,
+      sessionType: completeSession.session_type,
+      maxParticipants: completeSession.max_participants,
+      requirements: completeSession.requirements ? JSON.parse(completeSession.requirements) : [],
+      tags: completeSession.tags ? JSON.parse(completeSession.tags) : [],
+      isBreak: completeSession.is_break,
       createdAt: completeSession.created_at,
       updatedAt: completeSession.updated_at,
       event: {

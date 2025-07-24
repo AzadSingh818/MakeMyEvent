@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { query } from '@/lib/database/connection'; // ✅ Fixed: Using PostgreSQL instead of Prisma
+import { query } from '@/lib/database/connection';
 import { z } from 'zod';
 
 const UpdateEventSchema = z.object({
@@ -20,6 +20,29 @@ const UpdateEventSchema = z.object({
   website: z.string().url().optional(),
   contactEmail: z.string().email().optional(),
 });
+
+// ✅ FIXED: Safe JSON parsing helper function with special permission handling
+function safeJSONParse(jsonString: any, fallback: any = null): any {
+  if (!jsonString) return fallback;
+  if (typeof jsonString !== 'string') return fallback;
+  if (jsonString.trim() === '') return fallback;
+  
+  // Special case for permissions: if it's a plain string, convert to array
+  if (jsonString === 'FULL_ACCESS' || jsonString === 'READ' || jsonString === 'WRITE' || jsonString === 'DELETE') {
+    return [jsonString];
+  }
+  
+  try {
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.warn('Invalid JSON data:', jsonString, 'Error:', error);
+    // If it's likely a permission string, return as array
+    if (typeof jsonString === 'string' && (jsonString.includes('ACCESS') || jsonString.includes('READ') || jsonString.includes('WRITE'))) {
+      return [jsonString];
+    }
+    return fallback;
+  }
+}
 
 // GET /api/events/[id] - Get single event
 export async function GET(
@@ -133,7 +156,7 @@ export async function GET(
     `;
     const hallsResult = await query(hallsQuery, [eventId]);
 
-    // Format response data
+    // ✅ FIXED: Format response data with safe JSON parsing
     const responseData = {
       id: eventRow.id,
       name: eventRow.name,
@@ -146,7 +169,7 @@ export async function GET(
       registrationDeadline: eventRow.registration_deadline,
       eventType: eventRow.event_type,
       status: eventRow.status,
-      tags: eventRow.tags ? JSON.parse(eventRow.tags) : [],
+      tags: safeJSONParse(eventRow.tags, []), // ✅ FIXED: Safe JSON parsing
       website: eventRow.website,
       contactEmail: eventRow.contact_email,
       createdAt: eventRow.created_at,
@@ -183,7 +206,7 @@ export async function GET(
       userEvents: userEventsResult.rows.map(ue => ({
         id: ue.id,
         role: ue.role,
-        permissions: ue.permissions ? JSON.parse(ue.permissions) : [],
+        permissions: safeJSONParse(ue.permissions, []), // ✅ FIXED: Safe JSON parsing
         user: {
           id: ue.user_id,
           name: ue.user_name,
@@ -195,7 +218,7 @@ export async function GET(
         id: hall.id,
         name: hall.name,
         capacity: hall.capacity,
-        equipment: hall.equipment ? JSON.parse(hall.equipment) : []
+        equipment: safeJSONParse(hall.equipment, []) // ✅ FIXED: Safe JSON parsing
       })),
       _count: {
         sessions: parseInt(eventRow.sessions_count || '0'),
@@ -246,8 +269,8 @@ export async function PUT(
       );
     }
 
-    const permissions = JSON.parse(permissionResult.rows[0].permissions || '[]');
-    if (!permissions.includes('WRITE')) {
+    const permissions = safeJSONParse(permissionResult.rows[0].permissions, []); // ✅ FIXED: Safe JSON parsing
+    if (!permissions.includes('WRITE') && !permissions.includes('FULL_ACCESS')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to update this event' },
         { status: 403 }
@@ -275,7 +298,16 @@ export async function PUT(
     Object.entries(validatedData).forEach(([key, value]) => {
       if (value !== undefined) {
         paramCount++;
-        const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        // Map camelCase to snake_case for database columns
+        let dbField = key;
+        if (key === 'startDate') dbField = 'start_date';
+        else if (key === 'endDate') dbField = 'end_date';
+        else if (key === 'maxParticipants') dbField = 'max_participants';
+        else if (key === 'registrationDeadline') dbField = 'registration_deadline';
+        else if (key === 'eventType') dbField = 'event_type';
+        else if (key === 'contactEmail') dbField = 'contact_email';
+        else dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        
         updateFields.push(`${dbField} = $${paramCount}`);
         updateParams.push(key === 'tags' ? JSON.stringify(value) : value);
       }
@@ -325,7 +357,7 @@ export async function PUT(
       registrationDeadline: updatedEvent.registration_deadline,
       eventType: updatedEvent.event_type,
       status: updatedEvent.status,
-      tags: updatedEvent.tags ? JSON.parse(updatedEvent.tags) : [],
+      tags: safeJSONParse(updatedEvent.tags, []), // ✅ FIXED: Safe JSON parsing
       website: updatedEvent.website,
       contactEmail: updatedEvent.contact_email,
       createdAt: updatedEvent.created_at,
@@ -387,8 +419,8 @@ export async function DELETE(
       );
     }
 
-    const permissions = JSON.parse(permissionResult.rows[0].permissions || '[]');
-    if (!permissions.includes('DELETE')) {
+    const permissions = safeJSONParse(permissionResult.rows[0].permissions, []); // ✅ FIXED: Safe JSON parsing
+    if (!permissions.includes('DELETE') && !permissions.includes('FULL_ACCESS')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to delete this event' },
         { status: 403 }
@@ -470,8 +502,8 @@ export async function PATCH(
       );
     }
 
-    const permissions = JSON.parse(permissionResult.rows[0].permissions || '[]');
-    if (!permissions.includes('WRITE')) {
+    const permissions = safeJSONParse(permissionResult.rows[0].permissions, []); // ✅ FIXED: Safe JSON parsing
+    if (!permissions.includes('WRITE') && !permissions.includes('FULL_ACCESS')) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -516,7 +548,16 @@ export async function PATCH(
     Object.entries(updateData).forEach(([key, value]) => {
       if (value !== undefined) {
         paramCount++;
-        const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        // Map camelCase to snake_case for database columns
+        let dbField = key;
+        if (key === 'startDate') dbField = 'start_date';
+        else if (key === 'endDate') dbField = 'end_date';
+        else if (key === 'maxParticipants') dbField = 'max_participants';
+        else if (key === 'registrationDeadline') dbField = 'registration_deadline';
+        else if (key === 'eventType') dbField = 'event_type';
+        else if (key === 'contactEmail') dbField = 'contact_email';
+        else dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        
         updateFields.push(`${dbField} = $${paramCount}`);
         updateParams.push(value);
       }

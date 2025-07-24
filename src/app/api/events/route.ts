@@ -24,6 +24,25 @@ const CreateEventSchema = z.object({
 
 const UpdateEventSchema = CreateEventSchema.partial();
 
+// ✅ FIXED: Column name mapping for sorting
+const SORT_COLUMN_MAP = {
+  'startDate': 'start_date',
+  'endDate': 'end_date',
+  'startdate': 'start_date',
+  'enddate': 'end_date',
+  'maxParticipants': 'max_participants',
+  'registrationDeadline': 'registration_deadline',
+  'eventType': 'event_type',
+  'contactEmail': 'contact_email',
+  'createdAt': 'created_at',
+  'updatedAt': 'updated_at',
+  'created_at': 'created_at',
+  'updated_at': 'updated_at',
+  'name': 'name',
+  'status': 'status',
+  'location': 'location'
+};
+
 // GET /api/events - Get all events with filters
 export async function GET(request: NextRequest) {
   try {
@@ -37,8 +56,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
-    const sortBy = searchParams.get('sortBy') || 'created_at';
+    const sortByParam = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
+
+    // ✅ FIXED: Map sort column to correct database column name
+    const sortBy = SORT_COLUMN_MAP[sortByParam] || 'created_at';
 
     const skip = (page - 1) * limit;
 
@@ -76,10 +98,26 @@ export async function GET(request: NextRequest) {
       queryParams.push(`%${search}%`);
     }
 
-    // ✅ Fixed: Get events with user details and counts using correct parameter placeholders
+    // ✅ FIXED: Get events with user details and counts using correct column names
     const eventsQuery = `
       SELECT 
-        e.*,
+        e.id,
+        e.name,
+        e.description,
+        e.start_date,
+        e.end_date,
+        e.location,
+        e.venue,
+        e.max_participants,
+        e.registration_deadline,
+        e.event_type,
+        e.status,
+        e.tags,
+        e.website,
+        e.contact_email,
+        e.created_by,
+        e.created_at,
+        e.updated_at,
         u.name as creator_name,
         u.email as creator_email,
         (SELECT COUNT(*) FROM conference_sessions s WHERE s.event_id = e.id) as sessions_count,
@@ -106,35 +144,48 @@ export async function GET(request: NextRequest) {
       query(countQuery, queryParams.slice(0, -2))
     ]);
 
-    // ✅ Fixed: Map response data with correct column names
-    const events = eventsResult.rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      description: row.description,
-      startDate: row.start_date,     // ✅ Fixed: Correct database column name
-      endDate: row.end_date,         // ✅ Fixed: Correct database column name
-      location: row.location,
-      venue: row.venue,
-      maxParticipants: row.max_participants,
-      registrationDeadline: row.registration_deadline,
-      eventType: row.event_type,
-      status: row.status,
-      tags: row.tags ? JSON.parse(row.tags) : [],
-      website: row.website,
-      contactEmail: row.contact_email,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      createdByUser: {
-        id: row.created_by,
-        name: row.creator_name,
-        email: row.creator_email
-      },
-      _count: {
-        sessions: parseInt(row.sessions_count || '0'),
-        registrations: parseInt(row.registrations_count || '0'),
-        userEvents: parseInt(row.user_events_count || '0')
+    // ✅ FIXED: Safe JSON parsing with null/empty handling
+    const events = eventsResult.rows.map(row => {
+      // Safe JSON parsing for tags
+      let tags = [];
+      try {
+        if (row.tags && row.tags.trim() !== '') {
+          tags = JSON.parse(row.tags);
+        }
+      } catch (error) {
+        console.warn(`Invalid JSON in tags for event ${row.id}:`, row.tags);
+        tags = [];
       }
-    }));
+
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description,
+        startDate: row.start_date,     // ✅ Fixed: Correct database column name
+        endDate: row.end_date,         // ✅ Fixed: Correct database column name
+        location: row.location,
+        venue: row.venue,
+        maxParticipants: row.max_participants,
+        registrationDeadline: row.registration_deadline,
+        eventType: row.event_type,
+        status: row.status,
+        tags: tags, // ✅ Fixed: Safe JSON parsing
+        website: row.website,
+        contactEmail: row.contact_email,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        createdByUser: {
+          id: row.created_by,
+          name: row.creator_name,
+          email: row.creator_email
+        },
+        _count: {
+          sessions: parseInt(row.sessions_count || '0'),
+          registrations: parseInt(row.registrations_count || '0'),
+          userEvents: parseInt(row.user_events_count || '0')
+        }
+      };
+    });
 
     const total = parseInt(countResult.rows[0].total);
 
@@ -231,7 +282,7 @@ export async function POST(request: NextRequest) {
       session.user.id,
       eventId,
       'ORGANIZER',
-      JSON.stringify(['READ', 'WRITE', 'DELETE', 'MANAGE'])
+      'FULL_ACCESS'
     ]);
 
     // Get creator details for response
@@ -240,7 +291,16 @@ export async function POST(request: NextRequest) {
       [session.user.id]
     );
 
-    // ✅ Fixed: Response data with correct column names
+    // ✅ Fixed: Response data with correct column names and safe JSON parsing
+    let tags = [];
+    try {
+      if (newEvent.tags && newEvent.tags.trim() !== '') {
+        tags = JSON.parse(newEvent.tags);
+      }
+    } catch (error) {
+      tags = [];
+    }
+
     const responseData = {
       id: newEvent.id,
       name: newEvent.name,
@@ -253,7 +313,7 @@ export async function POST(request: NextRequest) {
       registrationDeadline: newEvent.registration_deadline,
       eventType: newEvent.event_type,
       status: newEvent.status,
-      tags: newEvent.tags ? JSON.parse(newEvent.tags) : [],
+      tags: tags, // ✅ Fixed: Safe JSON parsing
       website: newEvent.website,
       contactEmail: newEvent.contact_email,
       createdAt: newEvent.created_at,

@@ -77,6 +77,99 @@ interface SingleEventResponse {
   data: Event;
 }
 
+// ✅ NEW: Additional types for missing hooks
+interface Session {
+  id: string;
+  title: string;
+  description?: string;
+  startTime: Date;
+  endTime: Date;
+  sessionType: string;
+  hall?: {
+    id: string;
+    name: string;
+  };
+  speakers?: Array<{
+    user: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    role: string;
+  }>;
+  _count?: {
+    speakers: number;
+    presentations: number;
+    attendanceRecords: number;
+  };
+}
+
+interface Registration {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  createdAt: Date;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    institution?: string;
+  };
+  registrationData?: any;
+}
+
+interface Faculty {
+  id: string;
+  name: string;
+  email: string;
+  institution?: string;
+  designation?: string;
+  specialization?: string;
+  status?: 'INVITED' | 'CONFIRMED' | 'DECLINED';
+  profileImage?: string;
+  _count?: {
+    sessions: number;
+  };
+}
+
+interface SessionsResponse {
+  success: boolean;
+  data: {
+    sessions: Session[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+}
+
+interface RegistrationsResponse {
+  success: boolean;
+  data: {
+    registrations: Registration[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+}
+
+interface FacultyResponse {
+  success: boolean;
+  data: {
+    faculty: Faculty[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+}
+
 // API functions
 const eventsApi = {
   // Get all events with filters
@@ -112,6 +205,78 @@ const eventsApi = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to fetch event');
+    }
+
+    return response.json();
+  },
+
+  // ✅ NEW: Get event sessions
+  getEventSessions: async (eventId: string, filters: EventFilters = {}): Promise<SessionsResponse> => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('eventId', eventId);
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, value.toString());
+      }
+    });
+
+    const response = await fetch(`/api/sessions?${searchParams.toString()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch event sessions');
+    }
+
+    return response.json();
+  },
+
+  // ✅ NEW: Get event registrations
+  getEventRegistrations: async (eventId: string, filters: EventFilters = {}): Promise<RegistrationsResponse> => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('eventId', eventId);
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, value.toString());
+      }
+    });
+
+    const response = await fetch(`/api/registrations?${searchParams.toString()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch event registrations');
+    }
+
+    return response.json();
+  },
+
+  // ✅ NEW: Get event faculty
+  getEventFaculty: async (eventId: string, filters: EventFilters = {}): Promise<FacultyResponse> => {
+    const searchParams = new URLSearchParams();
+    searchParams.append('eventId', eventId);
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, value.toString());
+      }
+    });
+
+    const response = await fetch(`/api/faculty?${searchParams.toString()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch event faculty');
     }
 
     return response.json();
@@ -239,6 +404,48 @@ export function useEvent(eventId: string) {
     enabled: !!session?.user && !!eventId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// ✅ NEW: Get event sessions hook
+export function useEventSessions(eventId: string, filters: EventFilters = {}) {
+  const { data: session } = useSession();
+  
+  return useQuery({
+    queryKey: ['event-sessions', eventId, filters],
+    queryFn: () => eventsApi.getEventSessions(eventId, filters),
+    enabled: !!session?.user && !!eventId,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+  });
+}
+
+// ✅ NEW: Get event registrations hook
+export function useEventRegistrations(eventId: string, filters: EventFilters = {}) {
+  const { data: session } = useSession();
+  
+  return useQuery({
+    queryKey: ['event-registrations', eventId, filters],
+    queryFn: () => eventsApi.getEventRegistrations(eventId, filters),
+    enabled: !!session?.user && !!eventId,
+    staleTime: 2 * 60 * 1000, // 2 minutes (more frequent for registrations)
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+  });
+}
+
+// ✅ NEW: Get event faculty hook
+export function useEventFaculty(eventId: string, filters: EventFilters = {}) {
+  const { data: session } = useSession();
+  
+  return useQuery({
+    queryKey: ['event-faculty', eventId, filters],
+    queryFn: () => eventsApi.getEventFaculty(eventId, filters),
+    enabled: !!session?.user && !!eventId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
   });
 }
 

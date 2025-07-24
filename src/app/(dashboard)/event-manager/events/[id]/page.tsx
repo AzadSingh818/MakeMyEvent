@@ -1,4 +1,5 @@
 // src/app/(dashboard)/event-manager/events/[id]/page.tsx
+// ✅ FIXED: Updated import statement to use temporary hooks
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -9,7 +10,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading';
 import { EventManagerLayout } from '@/components/dashboard/layout';
 
-import { useEvent, useEventSessions, useEventRegistrations, useEventFaculty } from '@/hooks/use-events';
+// ✅ FIXED: Split imports to avoid missing exports
+import { useEvent } from '@/hooks/use-events';
+import { useEventSessions, useEventRegistrations, useEventFaculty } from '@/hooks/use-event-details';
 import { useAuth } from '@/hooks/use-auth';
 
 import { 
@@ -52,7 +55,7 @@ export default function EventDetailsPage() {
   const { data: registrationsData, isLoading: registrationsLoading } = useEventRegistrations(eventId);
   const { data: facultyData, isLoading: facultyLoading } = useEventFaculty(eventId);
 
-  const event = eventData?.data?.event;
+  const event = eventData?.data;
   const sessions = sessionsData?.data?.sessions || [];
   const registrations = registrationsData?.data?.registrations || [];
   const faculty = facultyData?.data?.faculty || [];
@@ -60,10 +63,10 @@ export default function EventDetailsPage() {
   // Calculate event stats
   const totalSessions = sessions.length;
   const totalRegistrations = registrations.length;
-  const approvedRegistrations = registrations.filter(r => r.status === 'APPROVED').length;
-  const pendingRegistrations = registrations.filter(r => r.status === 'PENDING').length;
+  const approvedRegistrations = registrations.filter((r: any) => r.status === 'APPROVED').length;
+  const pendingRegistrations = registrations.filter((r: any) => r.status === 'PENDING').length;
   const totalFaculty = faculty.length;
-  const confirmedFaculty = faculty.filter(f => f.status === 'CONFIRMED').length;
+  const confirmedFaculty = faculty.filter((f: any) => f.status === 'CONFIRMED').length;
 
   // Event status info
   const isEventPast = event && new Date(event.endDate) < new Date();
@@ -205,11 +208,11 @@ export default function EventDetailsPage() {
                     </div>
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>{event.venue || 'Venue TBD'}</span>
+                      <span>{event.venue || event.location || 'Venue TBD'}</span>
                     </div>
                     <div className="flex items-center">
                       <Users className="h-4 w-4 mr-2 text-muted-foreground" />
-                      <span>Expected: {event.expectedAttendees || 'Not specified'} attendees</span>
+                      <span>Expected: {event.maxParticipants || 'Not specified'} attendees</span>
                     </div>
                   </div>
                 </div>
@@ -234,12 +237,6 @@ export default function EventDetailsPage() {
                         <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
                         <span>{event.contactEmail}</span>
                       </div>
-                      {event.contactPhone && (
-                        <div className="flex items-center">
-                          <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span>{event.contactPhone}</span>
-                        </div>
-                      )}
                       {event.website && (
                         <div className="flex items-center">
                           <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -252,20 +249,18 @@ export default function EventDetailsPage() {
                   </div>
                 )}
 
-                {(event.category || event.type) && (
+                {event.eventType && (
                   <div>
                     <h4 className="font-medium mb-2">Event Details</h4>
                     <div className="space-y-2 text-sm">
-                      {event.category && (
+                      <div className="flex items-center">
+                        <Target className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <span>Type: {event.eventType}</span>
+                      </div>
+                      {event.tags && event.tags.length > 0 && (
                         <div className="flex items-center">
                           <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span>Category: {event.category}</span>
-                        </div>
-                      )}
-                      {event.type && (
-                        <div className="flex items-center">
-                          <Target className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span>Type: {event.type}</span>
+                          <span>Tags: {event.tags.join(', ')}</span>
                         </div>
                       )}
                     </div>
@@ -330,8 +325,8 @@ export default function EventDetailsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {event.expectedAttendees ? 
-                  `${Math.round((approvedRegistrations / event.expectedAttendees) * 100)}%` : 
+                {event.maxParticipants ? 
+                  `${Math.round((approvedRegistrations / event.maxParticipants) * 100)}%` : 
                   'N/A'
                 }
               </div>
@@ -342,8 +337,8 @@ export default function EventDetailsPage() {
           </Card>
         </div>
 
+        {/* Recent Sessions */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Recent Sessions */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -389,9 +384,9 @@ export default function EventDetailsPage() {
                                 </>
                               )}
                             </div>
-                            {session.speaker && (
+                            {session.speakers && session.speakers.length > 0 && (
                               <p className="text-sm text-muted-foreground mt-1">
-                                Speaker: {session.speaker.name}
+                                Speaker: {session.speakers[0].user.name}
                               </p>
                             )}
                           </div>
