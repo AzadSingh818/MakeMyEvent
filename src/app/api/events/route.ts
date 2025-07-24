@@ -50,18 +50,18 @@ export async function GET(request: NextRequest) {
     // Role-based filtering
     if (session.user.role === 'ORGANIZER') {
       paramCount++;
-      whereClause += ` AND e.created_by = ${paramCount}`;
+      whereClause += ` AND e.created_by = $${paramCount}`;
       queryParams.push(session.user.id);
     } else if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
       paramCount++;
-      whereClause += ` AND e.status = ${paramCount}`;
+      whereClause += ` AND e.status = $${paramCount}`;
       queryParams.push('PUBLISHED');
     }
 
     // Status filter
     if (status) {
       paramCount++;
-      whereClause += ` AND e.status = ${paramCount}`;
+      whereClause += ` AND e.status = $${paramCount}`;
       queryParams.push(status);
     }
 
@@ -69,14 +69,14 @@ export async function GET(request: NextRequest) {
     if (search) {
       paramCount++;
       whereClause += ` AND (
-        e.name ILIKE ${paramCount} OR 
-        e.description ILIKE ${paramCount} OR 
-        e.location ILIKE ${paramCount}
+        e.name ILIKE $${paramCount} OR 
+        e.description ILIKE $${paramCount} OR 
+        e.location ILIKE $${paramCount}
       )`;
       queryParams.push(`%${search}%`);
     }
 
-    // ✅ Fixed: Get events with user details and counts using correct column names
+    // ✅ Fixed: Get events with user details and counts using correct parameter placeholders
     const eventsQuery = `
       SELECT 
         e.*,
@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN users u ON e.created_by = u.id
       ${whereClause}
       ORDER BY e.${sortBy} ${sortOrder.toUpperCase()}
-      LIMIT ${paramCount + 1} OFFSET ${paramCount + 2}
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
     `;
 
     queryParams.push(limit, skip);
@@ -314,7 +314,7 @@ export async function PUT(request: NextRequest) {
     const validatedUpdates = UpdateEventSchema.parse(updates);
 
     // Check permissions for each event
-    const placeholders = eventIds.map((_, i) => `${i + 2}`).join(',');
+    const placeholders = eventIds.map((_, i) => `$${i + 2}`).join(',');
     const permissionQuery = `
       SELECT event_id FROM user_events 
       WHERE user_id = $1 AND event_id IN (${placeholders})
@@ -348,7 +348,7 @@ export async function PUT(request: NextRequest) {
         else if (key === 'contactEmail') dbField = 'contact_email';
         else dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
         
-        updateFields.push(`${dbField} = ${paramCount}`);
+        updateFields.push(`${dbField} = $${paramCount}`);
         
         // Handle special data types
         if (key === 'tags' && Array.isArray(value)) {
@@ -369,11 +369,11 @@ export async function PUT(request: NextRequest) {
 
     // Add updated_at
     paramCount++;
-    updateFields.push(`updated_at = ${paramCount}`);
+    updateFields.push(`updated_at = $${paramCount}`);
     updateParams.push(new Date());
 
     // Add WHERE clause parameters
-    const whereInPlaceholders = allowedEventIds.map((_, i) => `${paramCount + 1 + i}`).join(',');
+    const whereInPlaceholders = allowedEventIds.map((_, i) => `$${paramCount + 1 + i}`).join(',');
     updateParams.push(...allowedEventIds);
 
     const updateQuery = `
@@ -426,7 +426,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check permissions for each event
-    const placeholders = eventIds.map((_, i) => `${i + 2}`).join(',');
+    const placeholders = eventIds.map((_, i) => `$${i + 2}`).join(',');
     const permissionQuery = `
       SELECT event_id FROM user_events 
       WHERE user_id = $1 AND event_id IN (${placeholders})
@@ -446,7 +446,7 @@ export async function DELETE(request: NextRequest) {
     const deleteQuery = `
       UPDATE events 
       SET status = 'CANCELLED', updated_at = NOW()
-      WHERE id IN (${allowedEventIds.map((_, i) => `${i + 1}`).join(',')})
+      WHERE id IN (${allowedEventIds.map((_, i) => `$${i + 1}`).join(',')})
     `;
 
     const result = await query(deleteQuery, allowedEventIds);

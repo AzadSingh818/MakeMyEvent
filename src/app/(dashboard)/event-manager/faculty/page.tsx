@@ -116,9 +116,25 @@ export default function EventManagerFacultyPage() {
     return Array.from(new Set(allInstitutions));
   }, [faculty]);
 
+  // ✅ FIXED: Handle navigation to invite page
+  const handleInviteFaculty = () => {
+    router.push('/event-manager/faculty/invite');
+  };
+
+  // ✅ FIXED: Handle navigation to add faculty page
+  const handleAddFaculty = () => {
+    router.push('/event-manager/faculty/add');
+  };
+
   // Handle bulk actions
   const handleBulkInvite = () => {
-    router.push('/event-manager/faculty/invite');
+    if (selectedFaculty.length > 0) {
+      // Navigate to invite page with pre-selected faculty
+      const selectedParams = selectedFaculty.join(',');
+      router.push(`/event-manager/faculty/invite?selected=${selectedParams}`);
+    } else {
+      router.push('/event-manager/faculty/invite');
+    }
   };
 
   const handleBulkStatusUpdate = (status: string) => {
@@ -145,6 +161,11 @@ export default function EventManagerFacultyPage() {
         ? prev.filter(id => id !== facultyId)
         : [...prev, facultyId]
     );
+  };
+
+  // ✅ FIXED: Handle individual faculty invitation
+  const handleIndividualInvite = (facultyId: string) => {
+    router.push(`/event-manager/faculty/invite?selected=${facultyId}`);
   };
 
   // Get status color
@@ -188,7 +209,7 @@ export default function EventManagerFacultyPage() {
     <EventManagerLayout>
       <div className="space-y-6">
         
-        {/* Header */}
+        {/* Header - ✅ FIXED: Added onClick handlers */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Faculty Management</h1>
@@ -197,11 +218,14 @@ export default function EventManagerFacultyPage() {
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" onClick={() => router.push('/event-manager/faculty/invite')}>
+            <Button variant="outline" onClick={handleInviteFaculty}>
               <UserPlus className="h-4 w-4 mr-2" />
               Invite Faculty
             </Button>
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600">
+            <Button 
+              className="bg-gradient-to-r from-blue-600 to-purple-600"
+              onClick={handleAddFaculty}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Faculty
             </Button>
@@ -344,7 +368,7 @@ export default function EventManagerFacultyPage() {
               />
             </div>
 
-            {/* Bulk Actions */}
+            {/* Bulk Actions - ✅ FIXED: Updated bulk invite handler */}
             {selectedFaculty.length > 0 && (
               <div className="flex items-center justify-between mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <span className="text-sm font-medium text-blue-800">
@@ -495,7 +519,7 @@ export default function EventManagerFacultyPage() {
                           )}
                         </div>
 
-                        {/* Actions */}
+                        {/* Actions - ✅ FIXED: Added individual invite handler */}
                         <div className="col-span-1 md:col-span-2">
                           <div className="flex items-center space-x-1">
                             <Button size="sm" variant="outline" onClick={() => router.push(`/event-manager/faculty/${member.id}`)}>
@@ -504,7 +528,7 @@ export default function EventManagerFacultyPage() {
                             <Button size="sm" variant="outline" onClick={() => router.push(`/event-manager/faculty/${member.id}/edit`)}>
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button size="sm" variant="outline">
+                            <Button size="sm" variant="outline" onClick={() => handleIndividualInvite(member.id)}>
                               <Mail className="h-3 w-3" />
                             </Button>
                           </div>
@@ -562,7 +586,7 @@ export default function EventManagerFacultyPage() {
                   }
                 </p>
                 <div className="flex justify-center space-x-2">
-                  <Button onClick={() => router.push('/event-manager/faculty/invite')}>
+                  <Button onClick={handleInviteFaculty}>
                     <UserPlus className="h-4 w-4 mr-2" />
                     Invite Faculty
                   </Button>

@@ -504,3 +504,135 @@ INSERT INTO users (email, name, role, password) VALUES
 
 -- Success message
 SELECT 'Database schema created successfully!' as message;
+
+-- ============================
+-- STEP-BY-STEP DATABASE SETUP FOR NEON
+-- Run each section separately to avoid errors
+-- ============================
+
+-- Section 1: Add missing columns to existing tables
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS designation VARCHAR(255),
+ADD COLUMN IF NOT EXISTS specialization VARCHAR(255),
+ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ACTIVE';
+
+ALTER TABLE events
+ADD COLUMN IF NOT EXISTS venue VARCHAR(255),
+ADD COLUMN IF NOT EXISTS max_participants INTEGER,
+ADD COLUMN IF NOT EXISTS registration_deadline TIMESTAMP,
+ADD COLUMN IF NOT EXISTS event_type VARCHAR(50) DEFAULT 'CONFERENCE',
+ADD COLUMN IF NOT EXISTS tags JSONB,
+ADD COLUMN IF NOT EXISTS website VARCHAR(500),
+ADD COLUMN IF NOT EXISTS contact_email VARCHAR(255),
+ADD COLUMN IF NOT EXISTS created_by VARCHAR(255);
+
+-- Section 2: Create ENUMs (run separately)
+CREATE TYPE invitation_status AS ENUM (
+    'SENT',
+    'DELIVERED', 
+    'OPENED',
+    'RESPONDED',
+    'ACCEPTED',
+    'DECLINED',
+    'CANCELLED',
+    'FAILED',
+    'EXPIRED'
+);
+
+CREATE TYPE response_status AS ENUM (
+    'ACCEPTED',
+    'DECLINED',
+    'PENDING',
+    'TENTATIVE'
+);
+
+-- Section 3: Create faculty_invitations table
+CREATE TABLE faculty_invitations (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    faculty_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    event_id VARCHAR(255) NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    invited_by VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_id VARCHAR(255) REFERENCES conference_sessions(id) ON DELETE SET NULL,
+    invitation_subject VARCHAR(500) NOT NULL,
+    invitation_message TEXT NOT NULL,
+    role speaker_role DEFAULT 'SPEAKER',
+    status invitation_status DEFAULT 'SENT',
+    response_status response_status DEFAULT 'PENDING',
+    email_message_id VARCHAR(255),
+    opened_at TIMESTAMP,
+    responded_at TIMESTAMP,
+    response_message TEXT,
+    response_data JSONB,
+    reminder_enabled BOOLEAN DEFAULT true,
+    reminder_days INTEGER DEFAULT 3,
+    reminder_sent_at TIMESTAMP,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(faculty_id, event_id, session_id)
+);
+
+-- Section 4: Create invitation_responses table
+CREATE TABLE invitation_responses (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    invitation_id VARCHAR(255) NOT NULL REFERENCES faculty_invitations(id) ON DELETE CASCADE,
+    faculty_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    response response_status NOT NULL,
+    message TEXT,
+    availability_notes TEXT,
+    preferred_sessions JSONB,
+    declined_sessions JSONB,
+    bio TEXT,
+    presentation_title VARCHAR(500),
+    presentation_abstract TEXT,
+    technical_requirements TEXT,
+    dietary_restrictions TEXT,
+    accommodation_needed BOOLEAN DEFAULT false,
+    travel_assistance_needed BOOLEAN DEFAULT false,
+    preferred_contact_method VARCHAR(50) DEFAULT 'email',
+    emergency_contact JSONB,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(invitation_id, faculty_id)
+);
+
+-- Section 5: Create activity_logs table
+CREATE TABLE activity_logs (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    event_id VARCHAR(255) REFERENCES events(id) ON DELETE CASCADE,
+    invitation_id VARCHAR(255) REFERENCES faculty_invitations(id) ON DELETE SET NULL,
+    action VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    metadata JSONB,
+    ip_address INET,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Section 6: Create indexes
+CREATE INDEX idx_faculty_invitations_faculty ON faculty_invitations(faculty_id);
+CREATE INDEX idx_faculty_invitations_event ON faculty_invitations(event_id);
+CREATE INDEX idx_faculty_invitations_status ON faculty_invitations(status);
+CREATE INDEX idx_faculty_invitations_response_status ON faculty_invitations(response_status);
+
+CREATE INDEX idx_invitation_responses_invitation ON invitation_responses(invitation_id);
+CREATE INDEX idx_invitation_responses_faculty ON invitation_responses(faculty_id);
+
+CREATE INDEX idx_activity_logs_user ON activity_logs(user_id);
+CREATE INDEX idx_activity_logs_event ON activity_logs(event_id);
+
+-- Section 7: Create triggers
+CREATE TRIGGER update_faculty_invitations_updated_at 
+    BEFORE UPDATE ON faculty_invitations 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_invitation_responses_updated_at 
+    BEFORE UPDATE ON invitation_responses 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Section 8: Verification
+SELECT 'Faculty invitation system setup completed!' as message;

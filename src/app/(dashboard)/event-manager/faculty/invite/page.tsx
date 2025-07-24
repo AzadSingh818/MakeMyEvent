@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner } from '@/components/ui/loading';
 import { EventManagerLayout } from '@/components/dashboard/layout';
-import { Separator } from '@/components/ui/separator';
+//import { Separator } from '@/components/ui/separator';
 
 import { useSendInvitations } from '@/hooks/use-faculty';
 import { useEvents } from '@/hooks/use-events';
@@ -53,6 +53,7 @@ import {
   Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { Separator } from '@radix-ui/react-select';
 
 // Validation schema
 const InvitationSchema = z.object({
