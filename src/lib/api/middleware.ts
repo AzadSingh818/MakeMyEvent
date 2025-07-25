@@ -1,4 +1,4 @@
-// src/lib/api/middleware.ts
+// src/lib/api/middleware.ts - COMPLETE FILE WITH EVENT EXPORT FIX
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
@@ -130,11 +130,12 @@ export function requireRole(allowedRoles: string[]) {
   };
 }
 
-// Event access middleware
+// ✅ UPDATED: Event access middleware with EVENT_MANAGER role bypass
 export async function requireEventAccess(
   userId: string,
   eventId: string,
-  requiredPermissions: string[] = ['READ']
+  requiredPermissions: string[] = ['READ'],
+  userRole?: string  // ✅ ADD: User role parameter
 ): Promise<{
   success: boolean;
   userEvent?: any;
@@ -148,6 +149,14 @@ export async function requireEventAccess(
         error: 'Event ID is required',
         status: 400
       };
+    }
+
+    console.log(`🔍 Checking event access for user: ${userId}, event: ${eventId}, role: ${userRole}`);
+
+    // ✅ ADD: EVENT_MANAGER and ORGANIZER role bypass
+    if (userRole && ['EVENT_MANAGER', 'ORGANIZER'].includes(userRole)) {
+      console.log(`🔐 Admin access granted for ${userRole} role`);
+      return { success: true };
     }
 
     // ✅ Fixed: Raw SQL query for user event access
@@ -178,14 +187,17 @@ export async function requireEventAccess(
 
       // Event creator always has access
       if (event.created_by === userId) {
+        console.log('✅ Event creator access granted');
         return { success: true };
       }
 
       // Public access for published events (read-only)
       if (event.status === 'PUBLISHED' && requiredPermissions.every(p => p === 'READ')) {
+        console.log('✅ Public event read access granted');
         return { success: true };
       }
 
+      console.log('❌ No access found:', { userId, eventId, createdBy: event.created_by, userRole });
       return {
         success: false,
         error: 'Access denied to this event',
@@ -209,6 +221,7 @@ export async function requireEventAccess(
       };
     }
 
+    console.log('✅ User event access granted via user_events table');
     return {
       success: true,
       userEvent: {
@@ -270,7 +283,7 @@ export function validateSchema<T>(schema: z.ZodSchema<T>) {
   };
 }
 
-// Combined middleware function
+// ✅ UPDATED: Combined middleware function with user role passing
 export async function withMiddleware(
   request: NextRequest,
   config: MiddlewareConfig = {}
@@ -323,7 +336,7 @@ export async function withMiddleware(
     }
   }
 
-  // Event access
+  // ✅ UPDATED: Event access with user role
   if (needsEventAccess && user) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get('eventId') || 
@@ -333,7 +346,8 @@ export async function withMiddleware(
       const eventAccessResult = await requireEventAccess(
         user.id,
         eventId,
-        requirePermissions
+        requirePermissions,
+        user.role  // ✅ ADD: Pass user role
       );
 
       if (!eventAccessResult.success) {
