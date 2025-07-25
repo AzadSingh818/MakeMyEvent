@@ -1,7 +1,7 @@
-// src/app/(dashboard)/event-manager/faculty/page.tsx
+// src/app/(dashboard)/event-manager/faculty/page.tsx - ADD EXPORT FUNCTIONALITY
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react'; // ✅ ADD useEffect
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,8 @@ import {
   useFacultyStats, 
   useSendInvitations, 
   useBulkUpdateFaculty,
-  useUpdateFaculty 
+  useUpdateFaculty,
+  useExportFaculty // ✅ ADD this import
 } from '@/hooks/use-faculty';
 import { useEvents } from '@/hooks/use-events';
 import { useAuth } from '@/hooks/use-auth';
@@ -58,7 +59,8 @@ import {
   Zap,
   TrendingUp,
   UserCheck,
-  AlertTriangle
+  AlertTriangle,
+  FileSpreadsheet // ✅ ADD this import
 } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -76,6 +78,10 @@ export default function EventManagerFacultyPage() {
   const [selectedFaculty, setSelectedFaculty] = useState<string[]>([]);
   const [page, setPage] = useState(1);
 
+  // ✅ ADD Export state
+  const [isExporting, setIsExporting] = useState(false);
+  const [showExportOptions, setShowExportOptions] = useState(false);
+
   // Data fetching
   const { data: events } = useEvents({ limit: 50 });
   const { data: facultyData, isLoading: facultyLoading } = useFaculty({
@@ -92,6 +98,9 @@ export default function EventManagerFacultyPage() {
   // Mutations
   const sendInvitations = useSendInvitations();
   const bulkUpdate = useBulkUpdateFaculty();
+  
+  // ✅ ADD Export mutation
+  const exportFaculty = useExportFaculty();
 
   // Computed values
   const faculty = facultyData?.data?.faculty || [];
@@ -115,6 +124,47 @@ export default function EventManagerFacultyPage() {
     const allInstitutions = faculty.map(f => f.institution).filter(Boolean);
     return Array.from(new Set(allInstitutions));
   }, [faculty]);
+
+  // ✅ ADD Export handlers
+  const handleExport = async (format: 'csv' | 'excel') => {
+    try {
+      setIsExporting(true);
+      setShowExportOptions(false);
+      
+      // Build export filters from current page state
+      const exportFilters = {
+        eventId: selectedEvent || undefined,
+        search: searchTerm || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        role: roleFilter !== 'all' ? roleFilter : undefined,
+        institution: institutionFilter || undefined,
+        format
+      };
+
+      console.log('🔄 Exporting faculty with filters:', exportFilters);
+
+      await exportFaculty.mutateAsync(exportFilters);
+      
+    } catch (error) {
+      console.error('❌ Export failed:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ✅ ADD Click outside handler for export dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showExportOptions) {
+        setShowExportOptions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showExportOptions]);
 
   // ✅ FIXED: Handle navigation to invite page
   const handleInviteFaculty = () => {
@@ -405,10 +455,46 @@ export default function EventManagerFacultyPage() {
                   <UserCheck className="h-3 w-3 mr-1" />
                   {selectedFaculty.length === filteredFaculty.length ? 'Deselect All' : 'Select All'}
                 </Button>
-                <Button variant="outline" size="sm">
-                  <Download className="h-3 w-3 mr-1" />
-                  Export
-                </Button>
+                
+                {/* ✅ REPLACE the old Export button with this new Export dropdown */}
+                <div className="relative">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowExportOptions(!showExportOptions)}
+                    disabled={isExporting}
+                  >
+                    {isExporting ? (
+                      <LoadingSpinner size="sm" />
+                    ) : (
+                      <Download className="h-3 w-3 mr-1" />
+                    )}
+                    Export
+                  </Button>
+                  
+                  {showExportOptions && (
+                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[120px]">
+                      <div className="py-1">
+                        <button
+                          onClick={() => handleExport('csv')}
+                          disabled={isExporting}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                        >
+                          <FileText className="h-3 w-3 mr-2" />
+                          CSV File
+                        </button>
+                        <button
+                          onClick={() => handleExport('excel')}
+                          disabled={isExporting}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center"
+                        >
+                          <FileSpreadsheet className="h-3 w-3 mr-2" />
+                          Excel File
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </CardHeader>

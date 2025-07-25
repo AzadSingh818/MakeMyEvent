@@ -1,5 +1,4 @@
 // src/lib/utils/export.ts
-import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 
 // Types
@@ -91,7 +90,7 @@ export const generateFilename = (baseName: string, extension: string, includeTim
   return `${parts.join('-')}.${extension}`;
 };
 
-// Excel Export Functions
+// ✅ ENHANCED - Excel Export Functions with better faculty support
 export const exportToExcel = async (data: ExportData, options: ExportOptions = {}) => {
   try {
     const workbook = XLSX.utils.book_new();
@@ -130,19 +129,99 @@ export const exportToExcel = async (data: ExportData, options: ExportOptions = {
       XLSX.utils.book_append_sheet(workbook, sessionSheet, 'Sessions');
     }
     
-    // Faculty Sheet
+    // ✅ ENHANCED - Faculty Sheet with comprehensive data
     if (data.faculty && data.faculty.length > 0) {
-      const facultyHeaders = ['Name', 'Email', 'Role', 'Institution', 'Status'];
-      const facultyRows = data.faculty.map(faculty => [
-        faculty.name || 'Unknown',
-        faculty.email || 'No email',
-        formatStatus(faculty.role),
-        faculty.institution || 'Not specified',
-        formatStatus(faculty.status || 'pending')
-      ]);
+      // Determine headers based on available data
+      const sampleFaculty = data.faculty[0];
+      const hasEventData = 'Event Name' in sampleFaculty;
+      
+      const facultyHeaders = [
+        'Name', 
+        'Email', 
+        'Phone', 
+        'Designation', 
+        'Institution', 
+        'Specialization',
+        'Experience (Years)',
+        'Sessions Count',
+        'Latest Session',
+        'Dietary Requirements',
+        'Joined Date'
+      ];
+
+      // Add event-specific headers if available
+      if (hasEventData) {
+        facultyHeaders.push(
+          'Event Name',
+          'Event Role',
+          'Event Status',
+          'Invited Date',
+          'Event Start',
+          'Event End'
+        );
+      }
+
+      const facultyRows = data.faculty.map(faculty => {
+        const baseRow = [
+          faculty['Name'] || faculty.name || 'Unknown',
+          faculty['Email'] || faculty.email || 'No email',
+          faculty['Phone'] || faculty.phone || '',
+          faculty['Designation'] || faculty.designation || '',
+          faculty['Institution'] || faculty.institution || '',
+          faculty['Specialization'] || faculty.specialization || '',
+          faculty['Experience (Years)'] || faculty.experience || '',
+          faculty['Sessions Count'] || 0,
+          faculty['Latest Session'] || '',
+          faculty['Dietary Requirements'] || faculty.dietaryRequirements || '',
+          faculty['Joined Date'] || formatDate(faculty.createdAt) || ''
+        ];
+
+        // Add event-specific data if available
+        if (hasEventData) {
+          baseRow.push(
+            faculty['Event Name'] || '',
+            faculty['Event Role'] || '',
+            faculty['Event Status'] || '',
+            faculty['Invited Date'] || '',
+            faculty['Event Start'] || '',
+            faculty['Event End'] || ''
+          );
+        }
+
+        return baseRow;
+      });
       
       const facultyData = [facultyHeaders, ...facultyRows];
       const facultySheet = XLSX.utils.aoa_to_sheet(facultyData);
+      
+      // Set column widths for better readability
+      const columnWidths = [
+        { wch: 20 }, // Name
+        { wch: 25 }, // Email
+        { wch: 15 }, // Phone
+        { wch: 20 }, // Designation
+        { wch: 25 }, // Institution
+        { wch: 20 }, // Specialization
+        { wch: 12 }, // Experience
+        { wch: 12 }, // Sessions Count
+        { wch: 30 }, // Latest Session
+        { wch: 20 }, // Dietary Requirements
+        { wch: 15 }, // Joined Date
+      ];
+
+      if (hasEventData) {
+        columnWidths.push(
+          { wch: 25 }, // Event Name
+          { wch: 15 }, // Event Role
+          { wch: 15 }, // Event Status
+          { wch: 15 }, // Invited Date
+          { wch: 15 }, // Event Start
+          { wch: 15 }  // Event End
+        );
+      }
+
+      facultySheet['!cols'] = columnWidths;
+      
       XLSX.utils.book_append_sheet(workbook, facultySheet, 'Faculty');
     }
     
@@ -177,13 +256,22 @@ export const exportToExcel = async (data: ExportData, options: ExportOptions = {
     }
     
     // Generate and download file
-    const filename = options.filename || generateFilename('event-export', 'xlsx', options.includeTimestamp);
+    const filename = options.filename || generateFilename('export', 'xlsx', options.includeTimestamp);
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { 
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
     });
     
-    saveAs(blob, filename);
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    
     return { success: true, filename };
     
   } catch (error) {
@@ -192,7 +280,7 @@ export const exportToExcel = async (data: ExportData, options: ExportOptions = {
   }
 };
 
-// CSV Export Functions
+// ✅ ENHANCED - CSV Export Functions
 export const exportToCSV = (data: any[], filename: string, headers?: string[]) => {
   try {
     if (!data || data.length === 0) {
@@ -220,7 +308,16 @@ export const exportToCSV = (data: any[], filename: string, headers?: string[]) =
     // Create and download blob
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const csvFilename = filename.endsWith('.csv') ? filename : `${filename}.csv`;
-    saveAs(blob, csvFilename);
+    
+    // Create download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = csvFilename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
     
     return { success: true, filename: csvFilename };
     
@@ -249,9 +346,18 @@ export const exportToPDF = async (eventId?: string, options: ExportOptions = {})
     }
     
     const blob = await response.blob();
-    const filename = options.filename || generateFilename('event-export', 'pdf', options.includeTimestamp);
+    const filename = options.filename || generateFilename('export', 'pdf', options.includeTimestamp);
     
-    saveAs(blob, filename);
+    // Create download link
+    const url2 = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url2;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url2);
+    
     return { success: true, filename };
     
   } catch (error) {

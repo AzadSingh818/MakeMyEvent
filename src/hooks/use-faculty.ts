@@ -100,8 +100,10 @@ interface FacultyFilters {
   search?: string;
   role?: string;
   institution?: string;
+  status?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+  format?: 'csv' | 'excel';
 }
 
 interface UpdateFacultyData {
@@ -305,6 +307,37 @@ const facultyApi = {
 
     return res.json();
   },
+
+  // ✅ EXPORT FUNCTIONALITY - Export faculty data
+  exportFaculty: async (filters: FacultyFilters & { format?: 'csv' | 'excel' } = {}) => {
+    const searchParams = new URLSearchParams();
+    
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        searchParams.append(key, value.toString());
+      }
+    });
+
+    const response = await fetch(`/api/faculty/export?${searchParams.toString()}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to export faculty data');
+    }
+
+    const format = filters.format || 'csv';
+
+    if (format === 'excel') {
+      // Return JSON data for client-side Excel processing
+      return response.json();
+    } else {
+      // Return blob for CSV download
+      return response.blob();
+    }
+  },
 };
 
 // React Query Hooks
@@ -473,6 +506,57 @@ export function useFacultyStats(eventId?: string) {
   });
 }
 
+// ✅ EXPORT FUNCTIONALITY - Export faculty mutation
+export function useExportFaculty() {
+  return useMutation({
+    mutationFn: facultyApi.exportFaculty,
+    onSuccess: async (data, variables) => {
+      const format = variables?.format || 'csv';
+      
+      if (format === 'excel') {
+        // Handle Excel export using client-side library
+        try {
+          const { exportToExcel } = await import('@/lib/utils/export');
+          
+          await exportToExcel({
+            faculty: data.data
+          }, {
+            filename: data.filename,
+            includeTimestamp: false
+          });
+          
+          toast.success(`Excel file exported successfully! (${data.count} records)`);
+        } catch (error) {
+          console.error('Excel export error:', error);
+          toast.error('Failed to generate Excel file');
+        }
+      } else {
+        // Handle CSV download
+        const blob = data as Blob;
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        
+        // Extract filename from response headers or use default
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+        const filename = `faculty-export-${timestamp}.csv`;
+        
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('CSV file downloaded successfully!');
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Export error:', error);
+      toast.error(error.message || 'Failed to export faculty data');
+    },
+  });
+}
+
 // Helper hooks for specific data
 export function useFacultyByInstitution(institution: string, eventId?: string) {
   return useFaculty({ 
@@ -497,3 +581,6 @@ export function useFacultySearch(searchTerm: string, eventId?: string) {
     limit: 20 
   });
 }
+
+// Export the new hook for usage
+export { useExportFaculty as useFacultyExport };

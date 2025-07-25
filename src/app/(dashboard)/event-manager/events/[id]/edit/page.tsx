@@ -1,4 +1,4 @@
-// src/app/(dashboard)/event-manager/events/[id]/edit/page.tsx
+// src/app/(dashboard)/event-manager/events/[id]/edit/page.tsx - FIXED
 'use client';
 
 import React from 'react';
@@ -16,8 +16,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading';
 import { EventManagerLayout } from '@/components/dashboard/layout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'react-hot-toast';
 
-import { useEvent, useUpdateEvent, useDeleteEvent } from '@/hooks/use-events';
 import { useAuth } from '@/hooks/use-auth';
 
 import { 
@@ -44,25 +44,16 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { useState } from 'react';
 
-// Event update validation schema
+// ✅ FIXED: Updated schema to match API exactly
 const eventUpdateSchema = z.object({
   name: z.string().min(3, 'Event name must be at least 3 characters'),
   description: z.string().optional(),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
-  venue: z.string().optional(),
-  expectedAttendees: z.number().min(1, 'Expected attendees must be at least 1').optional(),
-  contactEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
-  contactPhone: z.string().optional(),
+  location: z.string().optional(),
   website: z.string().url('Invalid website URL').optional().or(z.literal('')),
-  category: z.string().optional(),
-  type: z.string().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ACTIVE', 'COMPLETED', 'CANCELLED']),
-  registrationDeadline: z.string().optional(),
-  maxAttendees: z.number().min(1).optional(),
-  isPublic: z.boolean().default(true),
-  requiresApproval: z.boolean().default(true),
-  tags: z.string().optional()
+  tags: z.array(z.string()).optional()
 }).refine(data => {
   if (data.startDate && data.endDate) {
     return new Date(data.startDate) < new Date(data.endDate);
@@ -71,14 +62,6 @@ const eventUpdateSchema = z.object({
 }, {
   message: "End date must be after start date",
   path: ["endDate"]
-}).refine(data => {
-  if (data.registrationDeadline && data.startDate) {
-    return new Date(data.registrationDeadline) <= new Date(data.startDate);
-  }
-  return true;
-}, {
-  message: "Registration deadline must be before event start date",
-  path: ["registrationDeadline"]
 });
 
 type EventUpdateFormData = z.infer<typeof eventUpdateSchema>;
@@ -91,15 +74,11 @@ export default function EventEditPage() {
 
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [eventData, setEventData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string>('');
 
-  // Data fetching hooks
-  const { data: eventData, isLoading: eventLoading, error: eventError } = useEvent(eventId);
-  const updateEvent = useUpdateEvent();
-  const deleteEvent = useDeleteEvent();
-
-  const event = eventData?.data?.event;
-
-  // Form setup
+  // ✅ FIXED: Form setup with proper default values
   const {
     register,
     handleSubmit,
@@ -114,74 +93,91 @@ export default function EventEditPage() {
       description: '',
       startDate: '',
       endDate: '',
-      venue: '',
-      expectedAttendees: undefined,
-      contactEmail: '',
-      contactPhone: '',
+      location: '',
       website: '',
-      category: '',
-      type: '',
       status: 'DRAFT',
-      registrationDeadline: '',
-      maxAttendees: undefined,
-      isPublic: true,
-      requiresApproval: true,
-      tags: ''
+      tags: []
     }
   });
 
-  // Set form values when event data loads
+  // ✅ FIXED: Direct API call to fetch event data
   React.useEffect(() => {
-    if (event) {
-      const formData: EventUpdateFormData = {
-        name: event.name || '',
-        description: event.description || '',
-        startDate: event.startDate ? format(new Date(event.startDate), "yyyy-MM-dd'T'HH:mm") : '',
-        endDate: event.endDate ? format(new Date(event.endDate), "yyyy-MM-dd'T'HH:mm") : '',
-        venue: event.venue || '',
-        expectedAttendees: event.expectedAttendees || undefined,
-        contactEmail: event.contactEmail || '',
-        contactPhone: event.contactPhone || '',
-        website: event.website || '',
-        category: event.category || '',
-        type: event.type || '',
-        status: event.status || 'DRAFT',
-        registrationDeadline: event.registrationDeadline ? format(new Date(event.registrationDeadline), "yyyy-MM-dd'T'HH:mm") : '',
-        maxAttendees: event.maxAttendees || undefined,
-        isPublic: event.isPublic ?? true,
-        requiresApproval: event.requiresApproval ?? true,
-        tags: event.tags?.join(', ') || ''
-      };
-      reset(formData);
-    }
-  }, [event, reset]);
+    const fetchEventData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/events/${eventId}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
 
+        if (!response.ok) {
+          throw new Error('Failed to fetch event data');
+        }
+
+        const result = await response.json();
+        const event = result.data?.event;
+
+        if (event) {
+          setEventData(event);
+          
+          // ✅ FIXED: Set form values with proper formatting
+          const formData: EventUpdateFormData = {
+            name: event.name || '',
+            description: event.description || '',
+            startDate: event.startDate ? format(new Date(event.startDate), "yyyy-MM-dd'T'HH:mm") : '',
+            endDate: event.endDate ? format(new Date(event.endDate), "yyyy-MM-dd'T'HH:mm") : '',
+            location: event.location || '',
+            website: event.website || '',
+            status: event.status || 'DRAFT',
+            tags: Array.isArray(event.tags) ? event.tags : []
+          };
+          
+          reset(formData);
+          console.log('✅ Event data loaded and form populated:', formData);
+        }
+      } catch (err) {
+        console.error('❌ Failed to fetch event:', err);
+        setError('Failed to load event data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (eventId) {
+      fetchEventData();
+    }
+  }, [eventId, reset]);
+
+  // ✅ FIXED: Direct API call for form submission
   const onSubmit = async (data: EventUpdateFormData) => {
     try {
-      const updateData = {
-        ...data,
-        expectedAttendees: data.expectedAttendees || null,
-        maxAttendees: data.maxAttendees || null,
-        contactEmail: data.contactEmail || null,
-        contactPhone: data.contactPhone || null,
-        website: data.website || null,
-        category: data.category || null,
-        type: data.type || null,
-        registrationDeadline: data.registrationDeadline || null,
-        tags: data.tags ? data.tags.split(',').map(tag => tag.trim()).filter(Boolean) : []
-      };
-
-      await updateEvent.mutateAsync({
-        eventId,
-        eventData: updateData
+      console.log('📤 Submitting form data:', data);
+      
+      // ✅ FIXED: Send data directly without wrapping
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
 
+      if (!response.ok) {
+        const errorResult = await response.json();
+        throw new Error(errorResult.error || 'Failed to update event');
+      }
+
+      const result = await response.json();
+      console.log('✅ Event updated successfully:', result);
+      
+      toast.success('Event updated successfully!');
       router.push(`/event-manager/events/${eventId}`);
+      
     } catch (error) {
-      console.error('Failed to update event:', error);
+      console.error('❌ Failed to update event:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update event');
     }
   };
 
+  // ✅ FIXED: Delete handler
   const handleDelete = async () => {
     if (!showDeleteConfirm) {
       setShowDeleteConfirm(true);
@@ -190,12 +186,43 @@ export default function EventEditPage() {
 
     try {
       setIsDeleting(true);
-      await deleteEvent.mutateAsync(eventId);
+      
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        const errorResult = await response.json();
+        throw new Error(errorResult.error || 'Failed to delete event');
+      }
+
+      toast.success('Event deleted successfully!');
       router.push('/event-manager/events');
+      
     } catch (error) {
-      console.error('Failed to delete event:', error);
+      console.error('❌ Failed to delete event:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete event');
       setIsDeleting(false);
     }
+  };
+
+  // ✅ FIXED: Add tag handler
+  const [tagInput, setTagInput] = useState('');
+  
+  const addTag = () => {
+    if (tagInput.trim()) {
+      const currentTags = watch('tags') || [];
+      if (!currentTags.includes(tagInput.trim())) {
+        setValue('tags', [...currentTags, tagInput.trim()]);
+        setTagInput('');
+      }
+    }
+  };
+
+  const removeTag = (index: number) => {
+    const currentTags = watch('tags') || [];
+    setValue('tags', currentTags.filter((_, i) => i !== index));
   };
 
   const getStatusColor = (status: string) => {
@@ -209,7 +236,7 @@ export default function EventEditPage() {
     }
   };
 
-  if (eventLoading) {
+  if (isLoading) {
     return (
       <EventManagerLayout>
         <div className="space-y-6">
@@ -220,7 +247,7 @@ export default function EventEditPage() {
     );
   }
 
-  if (eventError || !event) {
+  if (error || !eventData) {
     return (
       <EventManagerLayout>
         <div className="space-y-6">
@@ -233,7 +260,7 @@ export default function EventEditPage() {
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Event not found or you don't have permission to edit it.
+              {error || 'Event not found or you don\'t have permission to edit it.'}
             </AlertDescription>
           </Alert>
         </div>
@@ -254,9 +281,9 @@ export default function EventEditPage() {
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Edit Event</h1>
               <div className="flex items-center space-x-2 mt-1">
-                <p className="text-muted-foreground">Editing: {event.name}</p>
-                <Badge className={`${getStatusColor(event.status)} border text-xs`}>
-                  {event.status}
+                <p className="text-muted-foreground">Editing: {eventData.name}</p>
+                <Badge className={`${getStatusColor(eventData.status)} border text-xs`}>
+                  {eventData.status}
                 </Badge>
               </div>
             </div>
@@ -319,7 +346,7 @@ export default function EventEditPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="status">Event Status</Label>
-                <Select onValueChange={(value) => setValue('status', value as any)}>
+                <Select value={watch('status')} onValueChange={(value) => setValue('status', value as any)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
@@ -344,33 +371,36 @@ export default function EventEditPage() {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
-                <Input
-                  id="category"
-                  {...register('category')}
-                  placeholder="e.g., Conference, Workshop"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="type">Event Type</Label>
-                <Input
-                  id="type"
-                  {...register('type')}
-                  placeholder="e.g., Educational, Corporate"
-                />
-              </div>
-            </div>
-
+            {/* ✅ FIXED: Tags section */}
             <div className="space-y-2">
-              <Label htmlFor="tags">Tags (comma-separated)</Label>
-              <Input
-                id="tags"
-                {...register('tags')}
-                placeholder="e.g., technology, innovation, networking"
-              />
+              <Label>Tags</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  placeholder="Add tag"
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                />
+                <Button type="button" variant="outline" onClick={addTag}>
+                  Add
+                </Button>
+              </div>
+              {watch('tags') && watch('tags').length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {watch('tags').map((tag, index) => (
+                    <Badge key={index} variant="secondary" className="gap-1">
+                      {tag}
+                      <button
+                        type="button"
+                        className="ml-1 text-xs hover:text-red-500"
+                        onClick={() => removeTag(index)}
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -409,97 +439,25 @@ export default function EventEditPage() {
                 )}
               </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="registrationDeadline">Registration Deadline</Label>
-              <Input
-                id="registrationDeadline"
-                type="datetime-local"
-                {...register('registrationDeadline')}
-              />
-              {errors.registrationDeadline && (
-                <p className="text-sm text-red-600">{errors.registrationDeadline.message}</p>
-              )}
-            </div>
           </CardContent>
         </Card>
 
-        {/* Location & Capacity */}
+        {/* Location */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <MapPin className="h-5 w-5 mr-2" />
-              Location & Capacity
+              Location
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="venue">Venue</Label>
+              <Label htmlFor="location">Event Location</Label>
               <Input
-                id="venue"
-                {...register('venue')}
-                placeholder="Enter venue name and address"
+                id="location"
+                {...register('location')}
+                placeholder="Enter event location"
               />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="expectedAttendees">Expected Attendees</Label>
-                <Input
-                  id="expectedAttendees"
-                  type="number"
-                  {...register('expectedAttendees', { valueAsNumber: true })}
-                  placeholder="0"
-                />
-                {errors.expectedAttendees && (
-                  <p className="text-sm text-red-600">{errors.expectedAttendees.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="maxAttendees">Maximum Attendees</Label>
-                <Input
-                  id="maxAttendees"
-                  type="number"
-                  {...register('maxAttendees', { valueAsNumber: true })}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Contact Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Mail className="h-5 w-5 mr-2" />
-              Contact Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="contactEmail">Contact Email</Label>
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  {...register('contactEmail')}
-                  placeholder="contact@example.com"
-                />
-                {errors.contactEmail && (
-                  <p className="text-sm text-red-600">{errors.contactEmail.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="contactPhone">Contact Phone</Label>
-                <Input
-                  id="contactPhone"
-                  {...register('contactPhone')}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
             </div>
 
             <div className="space-y-2">
@@ -513,37 +471,6 @@ export default function EventEditPage() {
               {errors.website && (
                 <p className="text-sm text-red-600">{errors.website.message}</p>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Registration Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Settings className="h-5 w-5 mr-2" />
-              Registration Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isPublic"
-                {...register('isPublic')}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <Label htmlFor="isPublic">Public Event (visible to all users)</Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="requiresApproval"
-                {...register('requiresApproval')}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <Label htmlFor="requiresApproval">Require approval for registrations</Label>
             </div>
           </CardContent>
         </Card>
@@ -605,25 +532,6 @@ export default function EventEditPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Fixed Save Button */}
-        {/* <div className="fixed bottom-6 right-6 z-50">
-          <Button
-            type="submit"
-            disabled={isSubmitting || !isDirty}
-            className="shadow-lg"
-            size="lg"
-          >
-            {isSubmitting ? (
-              <LoadingSpinner size="sm" />
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        </div> */}
       </form>
     </EventManagerLayout>
   );
