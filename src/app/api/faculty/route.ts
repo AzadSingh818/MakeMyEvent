@@ -1,8 +1,9 @@
-// src/app/api/faculty/route.ts - FIXED: Raw SQL Version
+// src/app/api/faculty/route.ts - COMPLETE VERSION WITH EMAIL SENDING
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
-import { query } from '@/lib/database/connection'; // ✅ FIXED: Use raw SQL query instead of prisma
+import { query } from '@/lib/database/connection';
+import { emailSender } from '@/lib/email/sender'; // ✅ EMAIL SENDER IMPORT
 import { z } from 'zod';
 
 // ✅ FIXED: Validation schemas with proper roles
@@ -44,6 +45,16 @@ const UpdateFacultySchema = z.object({
   }).optional(),
 });
 
+// ✅ FIXED: Helper function for role-based permissions
+function getPermissionByRole(role: string): string {
+  switch(role) {
+    case 'CHAIRPERSON': return 'MANAGE_FACULTY';
+    case 'MODERATOR': return 'EDIT_SESSIONS';
+    case 'SPEAKER': return 'VIEW_ONLY';
+    default: return 'VIEW_ONLY';
+  }
+}
+
 // ✅ FIXED: Safe JSON parsing helper
 function safeJSONParse(jsonString: any, fallback: any = null): any {
   if (!jsonString) return fallback;
@@ -55,6 +66,123 @@ function safeJSONParse(jsonString: any, fallback: any = null): any {
     console.warn(`Invalid JSON data: ${jsonString}`, error);
     return fallback;
   }
+}
+
+// ✅ EMAIL TEMPLATE FUNCTION
+function generateInvitationEmailHTML(data: {
+  facultyName: string;
+  eventName: string;
+  role: string;
+  invitationMessage?: string;
+  invitationToken: string;
+  eventDate?: string;
+  organizerName: string;
+}): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+            .content { padding: 30px; background: #f9f9f9; border-radius: 0 0 8px 8px; }
+            .button { 
+                background: #4F46E5; 
+                color: white; 
+                padding: 12px 24px; 
+                text-decoration: none; 
+                border-radius: 6px; 
+                display: inline-block; 
+                margin: 20px 0;
+                font-weight: bold;
+            }
+            .event-details { 
+                background: white; 
+                padding: 20px; 
+                border-radius: 6px; 
+                margin: 20px 0;
+                border-left: 4px solid #4F46E5;
+            }
+            .footer { 
+                padding: 20px; 
+                text-align: center; 
+                color: #666; 
+                font-size: 14px; 
+                border-top: 1px solid #eee;
+                margin-top: 20px;
+            }
+            .token { 
+                background: #f0f0f0; 
+                padding: 10px; 
+                border-radius: 4px; 
+                font-family: monospace; 
+                font-size: 12px;
+                word-break: break-all;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🎓 Conference Invitation</h1>
+                <p>You're invited to participate in our prestigious conference</p>
+            </div>
+            <div class="content">
+                <h2>Dear ${data.facultyName},</h2>
+                
+                <p>We are delighted to invite you to participate as <strong>${data.role}</strong> in <strong>${data.eventName}</strong>.</p>
+                
+                ${data.invitationMessage ? `
+                <div style="background: #e8f4fd; padding: 15px; border-radius: 6px; margin: 20px 0; border-left: 4px solid #2196F3;">
+                    <p><em>"${data.invitationMessage}"</em></p>
+                </div>
+                ` : ''}
+                
+                <div class="event-details">
+                    <h3>📋 Event Details</h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li><strong>📅 Event:</strong> ${data.eventName}</li>
+                        <li><strong>👤 Your Role:</strong> ${data.role}</li>
+                        ${data.eventDate ? `<li><strong>📆 Date:</strong> ${data.eventDate}</li>` : ''}
+                        <li><strong>👨‍💼 Organizer:</strong> ${data.organizerName}</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center;">
+                    <a href="http://localhost:3000/faculty/accept-invitation?token=${data.invitationToken}" class="button">
+                        ✅ Accept Invitation
+                    </a>
+                </div>
+                
+                <p>By accepting this invitation, you will gain access to:</p>
+                <ul>
+                    <li>Conference dashboard and resources</li>
+                    <li>Session management tools</li>
+                    <li>Communication with organizers</li>
+                    <li>Travel and accommodation coordination</li>
+                </ul>
+                
+                <p>If you have any questions or need assistance, please don't hesitate to contact ${data.organizerName}.</p>
+                
+                <p>We look forward to your participation!</p>
+                
+                <p><strong>Best regards,</strong><br>
+                Conference Management Team</p>
+            </div>
+            <div class="footer">
+                <p>⚠️ This is an automated email. Please do not reply to this email.</p>
+                <p><strong>Invitation Token:</strong></p>
+                <div class="token">${data.invitationToken}</div>
+                <p style="font-size: 12px; margin-top: 15px;">
+                    This invitation link will expire in 7 days. Please accept your invitation promptly.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+  `;
 }
 
 // GET /api/faculty - Get all faculty with filters
@@ -261,7 +389,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/faculty - Send faculty invitations
+// POST /api/faculty - Send faculty invitations WITH ACTUAL EMAIL SENDING
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -280,9 +408,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = FacultyInviteSchema.parse(body);
 
-    // ✅ FIXED: Verify event access with raw SQL
+    // ✅ FIXED: Verify event access with raw SQL - get more details
     const eventCheckResult = await query(`
-      SELECT e.id, e.name 
+      SELECT e.id, e.name, e.start_date, e.end_date, e.description
       FROM events e
       WHERE e.id = $1
     `, [validatedData.eventId]);
@@ -297,6 +425,21 @@ export async function POST(request: NextRequest) {
     const event = eventCheckResult.rows[0];
     const results = [];
     const errors = [];
+    let emailsSent = 0;
+    let emailsFailed = 0;
+
+    // ✅ TEST EMAIL CONNECTION FIRST
+    let emailServiceAvailable = false;
+    try {
+      emailServiceAvailable = await emailSender.testConnection();
+      if (emailServiceAvailable) {
+        console.log('✅ Email service is available and configured');
+      } else {
+        console.warn('⚠️ Email service connection test failed');
+      }
+    } catch (emailTestError) {
+      console.warn('⚠️ Email service not configured:', emailTestError);
+    }
 
     for (const faculty of validatedData.facultyList) {
       try {
@@ -338,7 +481,7 @@ export async function POST(request: NextRequest) {
         `, [user.id, validatedData.eventId]);
 
         if (existingAssociationResult.rows.length === 0) {
-          // ✅ FIXED: Create event association with event role
+          // ✅ FIXED: Create event association with proper enum permission
           await query(`
             INSERT INTO user_events (
               user_id, event_id, role, permissions, invited_by, 
@@ -348,7 +491,7 @@ export async function POST(request: NextRequest) {
             user.id,
             validatedData.eventId,
             faculty.role, // ✅ FIXED: This goes to user_events.role (SPEAKER/MODERATOR/CHAIRPERSON)
-            JSON.stringify(['READ']),
+            getPermissionByRole(faculty.role), // ✅ FIXED: Use single enum value instead of JSON array
             session.user.id,
             'PENDING'
           ]);
@@ -379,41 +522,140 @@ export async function POST(request: NextRequest) {
           })
         ).toString('base64');
 
-        // ✅ FIXED: Log email for sending with raw SQL
+        // ✅ PREPARE EMAIL CONTENT
+        const emailSubject = `🎓 Invitation to ${event.name || 'Conference'}`;
+        const emailHTML = generateInvitationEmailHTML({
+          facultyName: faculty.name,
+          eventName: event.name || 'Conference',
+          role: faculty.role,
+          invitationMessage: faculty.invitationMessage,
+          invitationToken,
+          eventDate: event.start_date ? new Date(event.start_date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }) : undefined,
+          organizerName: session.user.name || 'Conference Organizer'
+        });
+
+        const emailText = `
+Dear ${faculty.name},
+
+You have been invited to participate as ${faculty.role} in ${event.name || 'Conference'}.
+
+${faculty.invitationMessage ? `Personal Message: "${faculty.invitationMessage}"` : ''}
+
+Event Details:
+- Event: ${event.name || 'Conference'}
+- Role: ${faculty.role}
+${event.start_date ? `- Date: ${new Date(event.start_date).toLocaleDateString()}` : ''}
+- Organizer: ${session.user.name || 'Conference Organizer'}
+
+To accept your invitation, please visit: 
+http://localhost:3000/faculty/accept-invitation?token=${invitationToken}
+
+By accepting this invitation, you will gain access to:
+- Conference dashboard and resources
+- Session management tools  
+- Communication with organizers
+- Travel and accommodation coordination
+
+If you have any questions, please contact ${session.user.name || 'the conference organizer'}.
+
+Best regards,
+Conference Management Team
+
+---
+Invitation Token: ${invitationToken}
+This invitation will expire in 7 days.
+        `.trim();
+
+        // ✅ SEND ACTUAL EMAIL
+        let emailStatus = 'PENDING';
+        let emailError = null;
+        let messageId = null;
+
+        if (emailServiceAvailable) {
+          try {
+            console.log(`📧 Attempting to send email to ${faculty.email}...`);
+            
+            const emailResult = await emailSender.sendEmail({
+              to: faculty.email,
+              subject: emailSubject,
+              html: emailHTML,
+              text: emailText,
+              replyTo: session.user.email || undefined,
+              priority: 'normal',
+              headers: {
+                'X-Conference-Event': event.name || 'Conference',
+                'X-Faculty-Role': faculty.role,
+                'X-Invitation-Token': invitationToken
+              }
+            });
+
+            if (emailResult.success) {
+              emailStatus = 'SENT';
+              messageId = emailResult.messageId;
+              emailsSent++;
+              console.log(`✅ Email sent successfully to ${faculty.email} (MessageID: ${emailResult.messageId})`);
+            } else {
+              emailStatus = 'FAILED';
+              emailError = emailResult.error;
+              emailsFailed++;
+              console.error(`❌ Email failed to ${faculty.email}:`, emailResult.error);
+            }
+          } catch (emailSendError) {
+            emailStatus = 'FAILED';
+            emailError = emailSendError instanceof Error ? emailSendError.message : 'Email sending failed';
+            emailsFailed++;
+            console.error(`❌ Email sending exception for ${faculty.email}:`, emailSendError);
+          }
+        } else {
+          // Email service not configured, but still log as pending
+          emailStatus = 'PENDING';
+          emailError = 'Email service not configured';
+          console.warn(`⚠️ Email service not available for ${faculty.email} - logged as PENDING`);
+        }
+
+        // ✅ LOG EMAIL WITH ACTUAL STATUS
         await query(`
           INSERT INTO email_logs (
-            recipient, subject, content, type, status, metadata, created_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            recipient, subject, content, status, user_id
+          ) VALUES ($1, $2, $3, $4, $5)
         `, [
           faculty.email,
-          `Invitation to ${event.name || 'Conference'}`,
-          faculty.invitationMessage || `You are invited to participate as ${faculty.role} in our conference.`,
-          'FACULTY_INVITATION',
-          'PENDING',
-          JSON.stringify({
-            eventId: validatedData.eventId,
-            facultyRole: faculty.role,
-            invitationToken
-          })
+          emailSubject,
+          emailText,
+          emailStatus, // ✅ Actual status: SENT/FAILED/PENDING
+          user.id
         ]);
 
         results.push({
           email: faculty.email,
           name: faculty.name,
-          status: 'invited',
+          status: emailStatus === 'SENT' ? 'invited' : (emailStatus === 'FAILED' ? 'failed' : 'pending'),
           userId: user.id,
-          invitationToken
+          invitationToken,
+          emailSent: emailStatus === 'SENT',
+          emailStatus: emailStatus,
+          emailError: emailError,
+          messageId: messageId
         });
 
       } catch (facultyError) {
-        console.error(`Error inviting ${faculty.email}:`, facultyError);
+        console.error(`❌ Error processing invitation for ${faculty.email}:`, facultyError);
         errors.push({
           email: faculty.email,
-          error: 'Failed to send invitation'
+          error: facultyError instanceof Error ? facultyError.message : 'Failed to send invitation'
         });
       }
     }
 
+    // ✅ DETAILED RESPONSE WITH EMAIL STATUS
+    const totalProcessed = results.length;
+    const totalErrors = errors.length;
+    
     return NextResponse.json({
       success: true,
       data: {
@@ -421,11 +663,16 @@ export async function POST(request: NextRequest) {
         errors: errors,
         summary: {
           total: validatedData.facultyList.length,
-          successful: results.length,
-          failed: errors.length
+          successful: totalProcessed,
+          failed: totalErrors,
+          emailsSent: emailsSent,
+          emailsFailed: emailsFailed,
+          emailServiceAvailable: emailServiceAvailable
         }
       },
-      message: `${results.length} faculty invitations sent successfully`
+      message: emailServiceAvailable 
+        ? `${totalProcessed} faculty invitations processed. ${emailsSent} emails sent successfully, ${emailsFailed} failed.`
+        : `${totalProcessed} faculty invitations logged. Email service not configured - emails are pending.`
     }, { status: 201 });
 
   } catch (error) {

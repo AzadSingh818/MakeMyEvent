@@ -70,7 +70,7 @@ export const UserService = {
           userData.email?.toLowerCase(),
           userData.name,
           userData.image,
-          userData.role || UserRole.DELEGATE,
+          userData.role || UserRole.EVENT_MANAGER,
           userData.emailVerified || new Date()
         ]
       )
@@ -166,7 +166,7 @@ export const authOptions: NextAuthOptions = {
           name: profile.name,
           email: profile.email,
           image: profile.picture,
-          role: UserRole.DELEGATE // Default role for Google signups
+          role: UserRole.EVENT_MANAGER // Default role for Google signups
         }
       }
     })
