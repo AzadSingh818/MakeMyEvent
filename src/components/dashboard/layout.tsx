@@ -60,6 +60,34 @@ export function DashboardLayout({
           { label: 'Presentations', value: '2', color: 'bg-green-500' },
           { label: 'Next Session', value: '2h 30m', color: 'bg-orange-500' }
         ]
+      case 'DELEGATE':
+        return [
+          { label: 'Registered Events', value: '2', color: 'bg-blue-500' },
+          { label: 'Sessions Attended', value: '7', color: 'bg-green-500' },
+          { label: 'Certificates', value: '1', color: 'bg-purple-500' },
+          { label: 'Next Event', value: '1 day', color: 'bg-orange-500' }
+        ]
+      case 'SPONSOR':
+        return [
+          { label: 'Active Sponsorships', value: '2', color: 'bg-blue-500' },
+          { label: 'Total Investment', value: '$5,000', color: 'bg-green-500' },
+          { label: 'Events Sponsored', value: '3', color: 'bg-purple-500' },
+          { label: 'ROI', value: '15%', color: 'bg-orange-500' }
+        ]
+      case 'VOLUNTEER':
+        return [
+          { label: 'Active Tasks', value: '3', color: 'bg-blue-500' },
+          { label: 'Hours Completed', value: '24', color: 'bg-green-500' },
+          { label: 'Upcoming Shifts', value: '2', color: 'bg-purple-500' },
+          { label: 'Rating', value: '4.8', color: 'bg-orange-500' }
+        ]
+      case 'VENDOR':
+        return [
+          { label: 'Active Bookings', value: '5', color: 'bg-blue-500' },
+          { label: 'Total Revenue', value: '$12,500', color: 'bg-green-500' },
+          { label: 'Pending Deliveries', value: '3', color: 'bg-purple-500' },
+          { label: 'Services Listed', value: '8', color: 'bg-orange-500' }
+        ]
       default:
         return []
     }
@@ -144,6 +172,38 @@ export function HallCoordinatorLayout({ children, ...props }: Omit<DashboardLayo
 export function EventManagerLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="EVENT_MANAGER" showHeaderStats={true} {...props}>
+      {children}
+    </DashboardLayout>
+  )
+}
+
+export function DelegateLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
+  return (
+    <DashboardLayout userRole="DELEGATE" showHeaderStats={true} {...props}>
+      {children}
+    </DashboardLayout>
+  )
+}
+
+export function SponsorLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
+  return (
+    <DashboardLayout userRole="SPONSOR" showHeaderStats={true} {...props}>
+      {children}
+    </DashboardLayout>
+  )
+}
+
+export function VolunteerLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
+  return (
+    <DashboardLayout userRole="VOLUNTEER" showHeaderStats={true} {...props}>
+      {children}
+    </DashboardLayout>
+  )
+}
+
+export function VendorLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
+  return (
+    <DashboardLayout userRole="VENDOR" showHeaderStats={true} {...props}>
       {children}
     </DashboardLayout>
   )

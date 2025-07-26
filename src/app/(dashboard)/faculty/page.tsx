@@ -165,10 +165,10 @@ export default function FacultyDashboardPage() {
             )}
           </div>
           <div className="flex items-center space-x-2">
-            <Button onClick={handleViewProfile} variant="outline">
+            {/* <Button onClick={handleViewProfile} variant="outline">
               <User className="h-4 w-4 mr-2" />
               My Profile
-            </Button>
+            </Button> */}
             <Button onClick={handleUploadDocuments} className="bg-gradient-to-r from-purple-600 to-blue-600">
               <Upload className="h-4 w-4 mr-2" />
               Upload Documents
@@ -388,14 +388,14 @@ export default function FacultyDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
+              {/* <Button 
                 className="w-full justify-start" 
                 variant="outline"
                 onClick={handleViewProfile}
               >
                 <User className="h-4 w-4 mr-2" />
                 Update Profile
-              </Button>
+              </Button> */}
               
               <Button 
                 className="w-full justify-start" 

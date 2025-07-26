@@ -28,12 +28,14 @@ export {
 } from './header'
 
 // Layout Components
+// Layout Components
 export { 
   DashboardLayout,
   OrganizerLayout,
   FacultyLayout,
   HallCoordinatorLayout,
   EventManagerLayout,
+  DelegateLayout,  // ← Ye line add karo
   DashboardPage,
   DashboardSection
 } from './layout'
