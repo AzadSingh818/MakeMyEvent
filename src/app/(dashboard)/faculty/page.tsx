@@ -54,10 +54,12 @@ import {
   Send,
   BookOpen,
   Briefcase,
-  UserCheck
+  UserCheck,
+  X,
+  Check
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 import {
   TravelInfoModal,
@@ -72,6 +74,14 @@ export default function FacultyDashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  // 🆕 Presentation upload states
+  const [presentationFiles, setPresentationFiles] = useState<File[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSuccess, setUploadSuccess] = useState<string[]>([]);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const presentationInputRef = useRef<HTMLInputElement>(null);
 
   // Faculty-specific data fetching
   const { data: profile, isLoading: profileLoading } = useMyFacultyProfile();
@@ -98,6 +108,117 @@ export default function FacultyDashboardPage() {
       uploadCV.mutate({ facultyId: user.id, file: selectedFile });
       setSelectedFile(null);
     }
+  };
+
+  // 🆕 Handle presentation file selection
+  const handlePresentationFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    const validFiles: File[] = [];
+    const errors: string[] = [];
+
+    files.forEach(file => {
+      // File type validation
+      const allowedTypes = [
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+
+      if (!allowedTypes.includes(file.type)) {
+        errors.push(`${file.name}: Invalid file type. Only PPT, PPTX, PDF, DOC, DOCX allowed.`);
+        return;
+      }
+
+      // File size validation (50MB limit)
+      if (file.size > 50 * 1024 * 1024) {
+        errors.push(`${file.name}: File too large. Maximum size is 50MB.`);
+        return;
+      }
+
+      validFiles.push(file);
+    });
+
+    if (errors.length > 0) {
+      setUploadErrors(errors);
+    } else {
+      setUploadErrors([]);
+    }
+
+    setPresentationFiles(validFiles);
+  };
+
+  // 🆕 Handle presentation upload
+  const handlePresentationUpload = async () => {
+    if (presentationFiles.length === 0 || !user?.id) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadSuccess([]);
+    setUploadErrors([]);
+
+    try {
+      const uploadPromises = presentationFiles.map(async (file, index) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('facultyId', user.id);
+        formData.append('title', file.name.split('.')[0]); // Use filename as title
+        formData.append('sessionId', ''); // Optional: associate with session
+
+        const response = await fetch('/api/faculty/presentations/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        // Update progress
+        setUploadProgress(((index + 1) / presentationFiles.length) * 100);
+
+        if (response.ok) {
+          const result = await response.json();
+          return { success: true, fileName: file.name, data: result };
+        } else {
+          const error = await response.json();
+          return { success: false, fileName: file.name, error: error.message };
+        }
+      });
+
+      const results = await Promise.all(uploadPromises);
+      
+      const successFiles = results.filter(r => r.success).map(r => r.fileName);
+      const errorFiles = results.filter(r => !r.success).map(r => `${r.fileName}: ${r.error}`);
+
+      setUploadSuccess(successFiles);
+      setUploadErrors(errorFiles);
+
+      if (successFiles.length > 0) {
+        // Clear selected files on success
+        setPresentationFiles([]);
+        if (presentationInputRef.current) {
+          presentationInputRef.current.value = '';
+        }
+        
+        // Refresh profile data to show updated presentations
+        // You might want to call a refetch function here
+      }
+
+    } catch (error) {
+      setUploadErrors(['Upload failed. Please try again.']);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // 🆕 Remove selected file
+  const removeSelectedFile = (index: number) => {
+    setPresentationFiles(files => files.filter((_, i) => i !== index));
+  };
+
+  // 🆕 Clear all messages
+  const clearMessages = () => {
+    setUploadSuccess([]);
+    setUploadErrors([]);
   };
 
   // Calculate faculty-specific statistics
@@ -198,6 +319,42 @@ export default function FacultyDashboardPage() {
               </Button>
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* 🆕 Upload Success/Error Messages */}
+        {(uploadSuccess.length > 0 || uploadErrors.length > 0) && (
+          <div className="space-y-2">
+            {uploadSuccess.length > 0 && (
+              <Alert className="border-green-200 bg-green-50">
+                <Check className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      Successfully uploaded: {uploadSuccess.join(', ')}
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={clearMessages}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+            {uploadErrors.length > 0 && (
+              <Alert className="border-red-200 bg-red-50">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      Upload errors: {uploadErrors.join(', ')}
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={clearMessages}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
         )}
 
         {/* Faculty Stats Grid */}
@@ -382,66 +539,132 @@ export default function FacultyDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {/* 🆕 Updated Upload Presentations Section */}
+              <div className="space-y-3">
+                <input
+                  ref={presentationInputRef}
+                  type="file"
+                  accept=".ppt,.pptx,.pdf,.doc,.docx"
+                  multiple
+                  onChange={handlePresentationFileSelect}
+                  className="hidden"
+                  id="presentation-upload"
+                />
+                <label htmlFor="presentation-upload">
+                  <Button 
+                    className="w-full justify-start" 
+                    variant="outline"
+                    asChild
+                  >
+                    <span>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Presentations
+                    </span>
+                  </Button>
+                </label>
+
+                {/* Selected files display */}
+                {presentationFiles.length > 0 && (
+                  <div className="space-y-2 p-3 border rounded-lg bg-blue-50">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-medium text-blue-800">Selected Files ({presentationFiles.length})</h5>
+                      <Button size="sm" variant="outline" onClick={() => setPresentationFiles([])}>
+                        Clear All
+                      </Button>
+                    </div>
+                    <div className="space-y-1">
+                      {presentationFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm bg-white p-2 rounded">
+                          <span className="truncate">{file.name}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500">
+                              {(file.size / 1024 / 1024).toFixed(1)}MB
+                            </span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => removeSelectedFile(index)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button 
+                      size="sm" 
+                      onClick={handlePresentationUpload}
+                      disabled={isUploading}
+                      className="w-full"
+                    >
+                      {isUploading ? (
+                        <>
+                          <LoadingSpinner className="h-3 w-3 mr-2" />
+                          Uploading... {Math.round(uploadProgress)}%
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-3 w-3 mr-2" />
+                          Upload Files
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* CV Upload block - unchanged */}
+              {profile?.data?.cv ? (
+                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div>
+                    <h5 className="font-medium text-green-800">CV Uploaded</h5>
+                    <p className="text-xs text-green-600">Your CV is on file</p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    View
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2 p-3 border rounded-lg bg-red-50 border-red-200">
+                  <div>
+                    <h5 className="font-medium text-red-800">CV Required</h5>
+                    <p className="text-xs text-red-600">Please upload your updated CV</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    className="hidden"
+                    id="cv-upload"
+                  />
+                  <label htmlFor="cv-upload">
+                    <Button size="sm" variant="outline" asChild>
+                      <span>
+                        <Upload className="h-3 w-3 mr-1" />
+                        Upload
+                      </span>
+                    </Button>
+                  </label>
+                  {selectedFile && (
+                    <Button 
+                      size="sm" 
+                      onClick={handleCVUpload}
+                      disabled={uploadCV.isLoading}
+                    >
+                      <Send className="h-3 w-3 mr-1" />
+                      Submit
+                    </Button>
+                  )}
+                </div>
+              )}
+              
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Presentations
-              </Button>
-              {/* 👇 CV Upload block starts here */}
-  {profile?.data?.cv ? (
-    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-      <div>
-        <h5 className="font-medium text-green-800">CV Uploaded</h5>
-        <p className="text-xs text-green-600">Your CV is on file</p>
-      </div>
-      <Button 
-        size="sm" 
-        variant="outline"
-      >
-        <Download className="h-3 w-3 mr-1" />
-        View
-      </Button>
-    </div>
-  ) : (
-    <div className="space-y-2 p-3 border rounded-lg bg-red-50 border-red-200">
-      <div>
-        <h5 className="font-medium text-red-800">CV Required</h5>
-        <p className="text-xs text-red-600">Please upload your updated CV</p>
-      </div>
-      <input
-        type="file"
-        accept=".pdf,.doc,.docx"
-        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-        className="hidden"
-        id="cv-upload"
-      />
-      <label htmlFor="cv-upload">
-        <Button size="sm" variant="outline" asChild>
-          <span>
-            <Upload className="h-3 w-3 mr-1" />
-            Upload
-          </span>
-        </Button>
-      </label>
-      {selectedFile && (
-        <Button 
-          size="sm" 
-          onClick={handleCVUpload}
-          disabled={uploadCV.isLoading}
-        >
-          <Send className="h-3 w-3 mr-1" />
-          Submit
-        </Button>
-      )}
-    </div>
-  )}
-  {/* 👆 CV Upload block ends here */}
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                
               >
                 <Plane className="h-4 w-4 mr-2" />
                 Travel Information

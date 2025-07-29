@@ -189,10 +189,10 @@ export async function GET(
         session: { title: row.session_title }
       }));
 
-      // Get certificates
+      // ✅ FIXED: Get certificates - Changed recipient_id to user_id
       let certificatesQuery = `
         SELECT id, type, file_path, generated_at
-        FROM certificates WHERE recipient_id = $1
+        FROM certificates WHERE user_id = $1
       `;
       const certificatesParams = [facultyId];
 
