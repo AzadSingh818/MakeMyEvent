@@ -164,24 +164,24 @@ export default function OrganizerDashboardPage() {
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Button
+            {/* <Button
               onClick={handleCreateEvent}
               className="bg-gradient-to-r from-blue-600 to-purple-600"
             >
               <Plus className="h-4 w-4 mr-2" />
               Create Event
-            </Button>
-            <Button variant="outline" onClick={handleCommunication}>
+            </Button> */}
+            {/* <Button variant="outline" onClick={handleCommunication}>
               <MessageSquare className="h-4 w-4 mr-2" />
               Communications
-            </Button>
-            <Button
+            </Button> */}
+            {/* <Button
               variant="outline"
               onClick={() => router.push("/organizer/settings")}
             >
               <Settings className="h-4 w-4 mr-2" />
               Settings
-            </Button>
+            </Button> */}
           </div>
         </div>
 
@@ -333,14 +333,14 @@ export default function OrganizerDashboardPage() {
                   Event Portfolio
                 </CardTitle>
                 <div className="flex space-x-2">
-                  <Button
+                  {/* <Button
                     variant="outline"
                     size="sm"
                     onClick={handleCreateEvent}
                   >
                     <Plus className="h-3 w-3 mr-1" />
                     New Event
-                  </Button>
+                  </Button> */}
                   <Button
                     variant="outline"
                     size="sm"
@@ -419,12 +419,11 @@ export default function OrganizerDashboardPage() {
                   <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
                   <h3 className="font-medium mb-2">No events created yet</h3>
                   <p className="text-sm mb-4">
-                    Start by creating your first conference event
                   </p>
-                  <Button onClick={handleCreateEvent}>
+                  {/* <Button onClick={handleCreateEvent}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Your First Event
-                  </Button>
+                  </Button> */}
                 </div>
               )}
             </CardContent>
@@ -439,23 +438,23 @@ export default function OrganizerDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button
+              {/* <Button
                 className="w-full justify-start"
                 variant="outline"
                 onClick={handleCreateEvent}
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create New Event
-              </Button>
+              </Button> */}
 
-              <Button
+              {/* <Button
                 className="w-full justify-start"
                 variant="outline"
                 onClick={handleManageFaculty}
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Invite Faculty
-              </Button>
+              </Button> */}
 
               <Button
                 className="w-full justify-start"

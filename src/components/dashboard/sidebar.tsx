@@ -72,8 +72,8 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
         icon: Calendar,
         children: [
           { label: 'All Events', href: '/organizer/events', icon: Calendar },
-          { label: 'Create Event', href: '/organizer/events/create', icon: CalendarPlus },
-          { label: 'Event Settings', href: '/organizer/events/settings', icon: Settings }
+          // { label: 'Create Event', href: '/organizer/events/create', icon: CalendarPlus },
+          // { label: 'Event Settings', href: '/organizer/events/settings', icon: Settings }
         ]
       },
       {
@@ -83,8 +83,8 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
         badge: '12',
         children: [
           { label: 'All Faculty', href: '/organizer/faculty', icon: Users },
-          { label: 'Add Faculty', href: '/organizer/faculty/add', icon: UserPlus },
-          { label: 'Invitations', href: '/organizer/faculty/invitations', icon: Bell },
+          // { label: 'Add Faculty', href: '/organizer/faculty/add', icon: UserPlus },
+          // { label: 'Invitations', href: '/organizer/faculty/invitations', icon: Bell },
           { label: 'Documents', href: '/organizer/faculty/documents', icon: FileText }
         ]
       },
@@ -94,23 +94,23 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
         icon: Monitor,
         children: [
           { label: 'All Sessions', href: '/organizer/sessions', icon: Monitor },
-          { label: 'Schedule Builder', href: '/organizer/sessions/schedule', icon: Calendar },
-          { label: 'Presentations', href: '/organizer/sessions/presentations', icon: Upload }
+           { label: 'Schedule Builder', href: '/organizer/sessions/schedule', icon: Calendar },
+          // { label: 'Presentations', href: '/organizer/sessions/presentations', icon: Upload }
         ]
       },
-      {
-        label: 'Registrations',
-        href: '/organizer/registrations',
-        icon: UserCheck,
-        badge: '45'
-      },
+      // {
+      //   label: 'Registrations',
+      //   href: '/organizer/registrations',
+      //   icon: UserCheck,
+      //   badge: '45'
+      // },
       {
         label: 'Attendance',
         href: '/organizer/attendance',
         icon: QrCode,
         children: [
           { label: 'Overview', href: '/organizer/attendance', icon: BarChart3 },
-          { label: 'QR Scanner', href: '/organizer/attendance/scanner', icon: QrCode },
+          //{ label: 'QR Scanner', href: '/organizer/attendance/scanner', icon: QrCode },
           { label: 'Reports', href: '/organizer/attendance/reports', icon: Download }
         ]
       },
