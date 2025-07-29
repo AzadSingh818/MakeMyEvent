@@ -130,17 +130,19 @@ export default function EventManagerDashboardPage() {
               Monitor and manage your conference operations
             </p>
           </div>
+
           <div className="flex items-center space-x-2">
             {/* ✅ Fixed header buttons */}
-            <Button onClick={handleInviteFaculty}>
+            {/* <Button onClick={handleInviteFaculty}>
               <UserPlus className="h-4 w-4 mr-2" />
               Invite Faculty
-            </Button>
-            <Button variant="outline" onClick={() => router.push('/event-manager/settings')}>
+            </Button> */}
+            {/* <Button variant="outline" onClick={() => router.push('/event-manager/settings')}>
               <Settings className="h-4 w-4 mr-2" />
               Settings
-            </Button>
+            </Button> */}
           </div>
+          
         </div>
 
         {/* Quick Stats */}
