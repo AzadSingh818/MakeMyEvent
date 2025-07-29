@@ -282,7 +282,67 @@ export default function EventManagerDashboardPage() {
               )}
             </CardContent>
           </Card>
+        <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* ✅ Fixed all Quick Action buttons */}
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleCreateEvent}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Create New Event
+              </Button>
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleInviteFaculty}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Invite Faculty
+              </Button>
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleReviewRegistrations}
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Review Registrations
+              </Button>
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleViewReports}
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                View Reports
+              </Button>
+              
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleGenerateCertificates}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Certificates
+              </Button>
 
+              <Button 
+                className="w-full justify-start" 
+                variant="outline"
+                onClick={handleManageVenues}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Manage Venues
+              </Button>
+            </CardContent>
+          </Card>
           {/* Today's Sessions */}
           <Card>
             <CardHeader>
@@ -441,69 +501,6 @@ export default function EventManagerDashboardPage() {
                   <div className="text-xs text-muted-foreground">Active Faculty</div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* ✅ Fixed all Quick Action buttons */}
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleCreateEvent}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Create New Event
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleInviteFaculty}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Invite Faculty
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleReviewRegistrations}
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                Review Registrations
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleViewReports}
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                View Reports
-              </Button>
-              
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleGenerateCertificates}
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Generate Certificates
-              </Button>
-
-              <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleManageVenues}
-              >
-                <MapPin className="h-4 w-4 mr-2" />
-                Manage Venues
-              </Button>
             </CardContent>
           </Card>
         </div>
