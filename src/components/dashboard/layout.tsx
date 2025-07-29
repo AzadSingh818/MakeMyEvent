@@ -18,7 +18,7 @@ interface DashboardLayoutProps {
     color?: string
   }>
   className?: string
-}
+} 
 
 export function DashboardLayout({
   children,

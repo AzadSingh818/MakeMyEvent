@@ -423,7 +423,7 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
         label: 'Payments',
         href: '/vendor/payments',
         icon: BarChart3
-      },
+      }, 
       {
         label: 'Support',
         href: '/vendor/support',
@@ -601,81 +601,6 @@ export function NavigationSidebar({
           </div>
         ))}
       </nav>
-
-      {/* User Profile Section */}
-      <div className="border-t border-gray-200 dark:border-gray-800 p-4">
-        {!isCollapsed ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {userName.split(' ').map(n => n[0]).join('')}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                  {userName}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  {userRole.toLowerCase().replace('_', ' ')}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="flex-1 justify-start hover:bg-gray-100 dark:hover:bg-gray-800"
-                onClick={handleSettings}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="flex-1 justify-start hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                {isLoggingOut ? 'Logging out...' : 'Logout'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Button variant="ghost" size="sm" className="w-full p-2">
-              <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-medium">
-                  {userName.split(' ').map(n => n[0]).join('')}
-                </span>
-              </div>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800"
-              onClick={handleSettings}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="w-full p-2 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </div>
     </div>
   )
 }

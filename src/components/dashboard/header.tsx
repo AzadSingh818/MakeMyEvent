@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui'
+import { signOut } from 'next-auth/react'
+import { usePathname, useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui'
 import {
   Bell,
@@ -19,7 +22,7 @@ import {
   Globe
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
-
+ 
 interface NotificationItem {
   id: string
   title: string
@@ -46,6 +49,8 @@ export function DashboardHeader({
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const { theme, setTheme } = useTheme()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const router = useRouter()
 
   // Mock notifications
   const notifications: NotificationItem[] = [
@@ -86,6 +91,24 @@ export function DashboardHeader({
     }
   }
 
+  const handleLogout = async () => {
+      try {
+        setIsLoggingOut(true)
+        console.log('👋 User logging out...')
+        
+        await signOut({ 
+          callbackUrl: '/',
+          redirect: true  
+        })
+        
+        console.log('✅ Logout successful')
+      } catch (error) {
+        console.error('❌ Logout error:', error)
+        setIsLoggingOut(false)
+        router.push('/')
+      }
+    }
+
   return (
     <header className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-4 lg:px-6 py-4 ${className}`}>
       <div className="flex items-center justify-between">
@@ -119,10 +142,10 @@ export function DashboardHeader({
           
           {/* Quick Actions */}
           <div className="hidden lg:flex items-center gap-2">
-            <Button variant="ghost" size="sm">
+            {/* <Button variant="ghost" size="sm">
               <Calendar className="h-4 w-4 mr-2" />
               Schedule
-            </Button>
+            </Button> */}
             <Button variant="ghost" size="sm">
               <MessageSquare className="h-4 w-4 mr-2" />
               Messages
@@ -252,7 +275,9 @@ export function DashboardHeader({
                 </div>
                 
                 <div className="p-2 border-t border-gray-200 dark:border-gray-700">
-                  <Button variant="ghost" className="w-full justify-start text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950">
+                  <Button variant="ghost" className="w-full justify-start text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}>
                     <LogOut className="h-4 w-4 mr-3" />
                     Sign Out
                   </Button>

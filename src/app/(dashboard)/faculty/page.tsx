@@ -17,7 +17,7 @@ import { useAuth, useDashboardStats, useNotifications } from '@/hooks/use-auth';
 
 import { 
   Calendar, 
-  Clock, 
+  Clock,  
   Users, 
   CheckCircle, 
   AlertTriangle, 
@@ -59,6 +59,15 @@ import {
 import { format } from 'date-fns';
 import { useState } from 'react';
 
+import {
+  TravelInfoModal,
+  UploadPresentationModal,
+  AccommodationModal,
+  CertificateModal,
+  FeedbackModal,
+  ContactModal
+} from '@/src/app/modals/FacultyModals';
+
 export default function FacultyDashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -78,11 +87,7 @@ export default function FacultyDashboardPage() {
 
   // Navigation functions
   const handleViewProfile = () => router.push('/faculty/profile');
-  const handleManageSessions = () => router.push('/faculty/sessions');
   const handlePresentations = () => router.push('/faculty/presentations');
-  const handleUploadDocuments = () => router.push('/faculty/presentations/upload');
-  const handleTravelDetails = () => router.push('/faculty/travel');
-  const handleAccommodation = () => router.push('/faculty/travel/accommodation');
   const handleSchedule = () => router.push('/faculty/schedule');
   const handleCertificates = () => router.push('/faculty/certificates');
   const handleSessionClick = (sessionId: string) => router.push(`/faculty/sessions/${sessionId}`);
@@ -120,6 +125,9 @@ export default function FacultyDashboardPage() {
   const completedFields = profileFields.filter(field => field).length;
   const profileCompletionRate = Math.round((completedFields / profileFields.length) * 100);
 
+  const userName = profile?.data?.user?.name || user?.name || 'Faculty'
+  const userEmail = profile?.data?.user?.email || user?.email || 'faculty@example.com'
+
   // Get upcoming sessions for faculty
   const myUpcomingSessions = upcomingSessions?.data?.sessions?.filter(session => 
     session.speakers?.some(speaker => speaker.userId === user?.id)
@@ -147,13 +155,13 @@ export default function FacultyDashboardPage() {
   }
 
   return (
-    <FacultyLayout>
+    <FacultyLayout userName={userName} userEmail={userEmail}>
       <div className="space-y-6">
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Welcome, {profile?.data?.user?.name || user?.name}
+              Welcome, {userName}
             </h1>
             <p className="text-muted-foreground">
               Your academic conference participation hub
@@ -163,16 +171,6 @@ export default function FacultyDashboardPage() {
                 {profile.data.institution}
               </p>
             )}
-          </div>
-          <div className="flex items-center space-x-2">
-            {/* <Button onClick={handleViewProfile} variant="outline">
-              <User className="h-4 w-4 mr-2" />
-              My Profile
-            </Button> */}
-            <Button onClick={handleUploadDocuments} className="bg-gradient-to-r from-purple-600 to-blue-600">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Documents
-            </Button>
           </div>
         </div>
 
@@ -205,7 +203,7 @@ export default function FacultyDashboardPage() {
         {/* Faculty Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* My Sessions */}
-          <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={handleManageSessions}>
+          <Card className="cursor-pointer hover:shadow-md transition-shadow" >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">My Sessions</CardTitle>
               <Presentation className="h-4 w-4 text-muted-foreground" />
@@ -304,10 +302,6 @@ export default function FacultyDashboardPage() {
                     <Calendar className="h-3 w-3 mr-1" />
                     Full Schedule
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleManageSessions}>
-                    Manage Sessions
-                    <ArrowRight className="h-3 w-3 ml-1" />
-                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -388,28 +382,66 @@ export default function FacultyDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* <Button 
-                className="w-full justify-start" 
-                variant="outline"
-                onClick={handleViewProfile}
-              >
-                <User className="h-4 w-4 mr-2" />
-                Update Profile
-              </Button> */}
-              
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={handleUploadDocuments}
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Presentations
               </Button>
-              
+              {/* 👇 CV Upload block starts here */}
+  {profile?.data?.cv ? (
+    <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+      <div>
+        <h5 className="font-medium text-green-800">CV Uploaded</h5>
+        <p className="text-xs text-green-600">Your CV is on file</p>
+      </div>
+      <Button 
+        size="sm" 
+        variant="outline"
+      >
+        <Download className="h-3 w-3 mr-1" />
+        View
+      </Button>
+    </div>
+  ) : (
+    <div className="space-y-2 p-3 border rounded-lg bg-red-50 border-red-200">
+      <div>
+        <h5 className="font-medium text-red-800">CV Required</h5>
+        <p className="text-xs text-red-600">Please upload your updated CV</p>
+      </div>
+      <input
+        type="file"
+        accept=".pdf,.doc,.docx"
+        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+        className="hidden"
+        id="cv-upload"
+      />
+      <label htmlFor="cv-upload">
+        <Button size="sm" variant="outline" asChild>
+          <span>
+            <Upload className="h-3 w-3 mr-1" />
+            Upload
+          </span>
+        </Button>
+      </label>
+      {selectedFile && (
+        <Button 
+          size="sm" 
+          onClick={handleCVUpload}
+          disabled={uploadCV.isLoading}
+        >
+          <Send className="h-3 w-3 mr-1" />
+          Submit
+        </Button>
+      )}
+    </div>
+  )}
+  {/* 👆 CV Upload block ends here */}
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={handleTravelDetails}
+                
               >
                 <Plane className="h-4 w-4 mr-2" />
                 Travel Information
@@ -418,7 +450,6 @@ export default function FacultyDashboardPage() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={handleAccommodation}
               >
                 <Hotel className="h-4 w-4 mr-2" />
                 Accommodation Details
@@ -436,7 +467,6 @@ export default function FacultyDashboardPage() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={() => router.push('/faculty/feedback')}
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Submit Feedback
@@ -445,270 +475,10 @@ export default function FacultyDashboardPage() {
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
-                onClick={() => router.push('/faculty/contact')}
               >
                 <Phone className="h-4 w-4 mr-2" />
                 Contact Support
               </Button>
-            </CardContent>
-          </Card>
-
-          {/* Today's Agenda */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Today's Agenda
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {todaysLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                      <div className="h-2 bg-gray-200 rounded w-2/3"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : myTodaysSessions.length > 0 ? (
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {myTodaysSessions.map((session) => {
-                    const myRole = session.speakers?.find(s => s.userId === user?.id)?.role;
-                    return (
-                      <div 
-                        key={session.id} 
-                        className="p-3 border rounded text-sm cursor-pointer hover:bg-gray-50"
-                        onClick={() => handleSessionClick(session.id)}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <h5 className="font-medium truncate">{session.title}</h5>
-                          <Badge variant="outline" className="text-xs">
-                            {myRole}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {format(new Date(session.startTime), 'HH:mm')} - {format(new Date(session.endTime), 'HH:mm')}
-                          <MapPin className="h-3 w-3 ml-2 mr-1" />
-                          {session.hall?.name || 'Venue TBA'}
-                        </div>
-                        <div className="flex items-center text-xs text-muted-foreground mt-1">
-                          <Users className="h-3 w-3 mr-1" />
-                          {session.speakers?.length || 0} speakers
-                          {session.expectedAttendees && (
-                            <>
-                              <Target className="h-3 w-3 ml-2 mr-1" />
-                              ~{session.expectedAttendees} attendees
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Coffee className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No sessions today</p>
-                  <p className="text-xs">Enjoy your free time!</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Travel & Accommodation Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plane className="h-5 w-5" />
-                Travel & Stay
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {profile?.data?.travelDetails ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div>
-                      <h5 className="font-medium text-green-800">Travel Confirmed</h5>
-                      <p className="text-xs text-green-600">
-                        {profile.data.travelDetails.mode} • {format(new Date(profile.data.travelDetails.arrivalDate), 'MMM dd')}
-                      </p>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={handleTravelDetails}
-                    >
-                      <Eye className="h-3 w-3 mr-1" />
-                      View
-                    </Button>
-                  </div>
-
-                  {profile?.data?.accommodationDetails && (
-                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div>
-                        <h5 className="font-medium text-blue-800">Accommodation Ready</h5>
-                        <p className="text-xs text-blue-600">
-                          {profile.data.accommodationDetails.hotelName}
-                        </p>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={handleAccommodation}
-                      >
-                        <Building className="h-3 w-3 mr-1" />
-                        Details
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div>
-                      <h5 className="font-medium text-orange-800">Travel Details Pending</h5>
-                      <p className="text-xs text-orange-600">Please provide your travel information</p>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={handleTravelDetails}
-                    >
-                      <Edit className="h-3 w-3 mr-1" />
-                      Add
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div>
-                      <h5 className="font-medium text-orange-800">Accommodation Pending</h5>
-                      <p className="text-xs text-orange-600">Accommodation details will be shared</p>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={handleAccommodation}
-                    >
-                      <Hotel className="h-3 w-3 mr-1" />
-                      Check
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="pt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full"
-                  onClick={() => router.push('/faculty/travel')}
-                >
-                  <Car className="h-3 w-3 mr-2" />
-                  Manage Travel & Stay
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Important Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                Important Updates
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {profile?.data?.cv ? (
-                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
-                  <div>
-                    <h5 className="font-medium text-green-800">CV Uploaded</h5>
-                    <p className="text-xs text-green-600">Your CV is on file</p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => router.push('/faculty/profile')}
-                  >
-                    <Download className="h-3 w-3 mr-1" />
-                    View
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <div>
-                    <h5 className="font-medium text-red-800">CV Required</h5>
-                    <p className="text-xs text-red-600">Please upload your updated CV</p>
-                  </div>
-                  <div className="space-y-2">
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      className="hidden"
-                      id="cv-upload"
-                    />
-                    <label htmlFor="cv-upload">
-                      <Button size="sm" variant="outline" asChild>
-                        <span>
-                          <Upload className="h-3 w-3 mr-1" />
-                          Upload
-                        </span>
-                      </Button>
-                    </label>
-                    {selectedFile && (
-                      <Button 
-                        size="sm" 
-                        onClick={handleCVUpload}
-                        disabled={uploadCV.isLoading}
-                      >
-                        <Send className="h-3 w-3 mr-1" />
-                        Submit
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {unreadNotifications > 0 && (
-                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div>
-                    <h5 className="font-medium text-blue-800">New Messages</h5>
-                    <p className="text-xs text-blue-600">{unreadNotifications} unread notifications</p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => router.push('/faculty/notifications')}
-                  >
-                    <Bell className="h-3 w-3 mr-1" />
-                    Read
-                  </Button>
-                </div>
-              )}
-
-              <div className="pt-2 space-y-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full"
-                  onClick={() => router.push('/faculty/guidelines')}
-                >
-                  <BookOpen className="h-3 w-3 mr-2" />
-                  Conference Guidelines
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full"
-                  onClick={() => router.push('/faculty/resources')}
-                >
-                  <Briefcase className="h-3 w-3 mr-2" />
-                  Presentation Resources
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>
