@@ -215,6 +215,32 @@ CREATE TABLE presentations (
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE cv_uploads (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    faculty_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    file_path VARCHAR(500) NOT NULL,
+    description TEXT,
+    file_type VARCHAR(100),
+    file_size BIGINT,
+    original_filename VARCHAR(500),
+    is_approved BOOLEAN DEFAULT false,
+    approval_notes TEXT,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE feedback (
+    id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(255) REFERENCES users(id) ON DELETE SET NULL,
+    event_id VARCHAR(255) REFERENCES events(id) ON DELETE SET NULL,
+    message TEXT NOT NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    response TEXT,
+    status VARCHAR(50) DEFAULT 'NEW',
+    email VARCHAR(255),
+    name VARCHAR(255)
+);
+
+
 -- ============================
 -- ABSTRACT SYSTEM
 -- ============================
@@ -460,6 +486,10 @@ CREATE INDEX idx_registrations_status ON registrations(status);
 CREATE INDEX idx_attendance_session ON attendance_records(session_id);
 CREATE INDEX idx_attendance_user ON attendance_records(user_id);
 
+CREATE INDEX idx_cv_uploads_faculty ON cv_uploads(faculty_id);
+CREATE INDEX idx_cv_uploads_filetype ON cv_uploads(file_type);
+CREATE INDEX idx_cv_uploads_uploaded_at ON cv_uploads(uploaded_at DESC);
+
 -- Communication indexes
 CREATE INDEX idx_email_logs_user ON email_logs(user_id);
 CREATE INDEX idx_whatsapp_logs_user ON whatsapp_logs(user_id);
@@ -469,6 +499,10 @@ CREATE INDEX idx_notifications_unread ON notifications(user_id, read_at) WHERE r
 -- QR Code indexes
 CREATE INDEX idx_qr_codes_code ON qr_codes(code);
 CREATE INDEX idx_qr_codes_user_event ON qr_codes(user_id, event_id);
+
+CREATE INDEX idx_feedback_user ON feedback(user_id);
+CREATE INDEX idx_feedback_event ON feedback(event_id);
+CREATE INDEX idx_feedback_status ON feedback(status);
 
 -- ============================
 -- TRIGGERS FOR AUTO-UPDATE
@@ -515,7 +549,7 @@ ALTER TABLE users
 ADD COLUMN IF NOT EXISTS designation VARCHAR(255),
 ADD COLUMN IF NOT EXISTS specialization VARCHAR(255),
 ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ACTIVE';
-
+ 
 ALTER TABLE events
 ADD COLUMN IF NOT EXISTS venue VARCHAR(255),
 ADD COLUMN IF NOT EXISTS max_participants INTEGER,

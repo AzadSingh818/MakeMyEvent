@@ -86,6 +86,12 @@ export async function GET(
     }
 
     const faculty = facultyResult.rows[0];
+    const cvResult = await query(
+  `SELECT file_path FROM cv_uploads WHERE faculty_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+  [facultyId]
+);
+faculty.cv = cvResult.rows.length > 0 ? cvResult.rows[0].file_path : null;
+
 
     // Get user events
     let userEventsQuery = `
@@ -591,6 +597,12 @@ async function handleResendInvitation(facultyId: string, body: any) {
   }
 
   const faculty = facultyResult.rows[0];
+  const cvResult = await query(
+  `SELECT file_path FROM cv_uploads WHERE faculty_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+  [facultyId]
+);
+faculty.cv = cvResult.rows.length > 0 ? cvResult.rows[0].file_path : null;
+
 
   // Get user event details
   const userEventResult = await query(`

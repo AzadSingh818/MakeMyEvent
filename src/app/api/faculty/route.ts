@@ -5,7 +5,7 @@ import { authOptions } from '@/lib/auth/config';
 import { query } from '@/lib/database/connection';
 import { emailSender } from '@/lib/email/sender'; // ✅ EMAIL SENDER IMPORT
 import { z } from 'zod';
-
+ 
 // ✅ FIXED: Validation schemas with proper roles
 const FacultyInviteSchema = z.object({
   eventId: z.string().min(1, 'Event ID is required'),
@@ -313,59 +313,67 @@ export async function GET(request: NextRequest) {
 
     // ✅ FIXED: Get additional data for each faculty member using separate queries
     for (const member of faculty) {
-      // Get user events for this faculty
-      if (eventId) {
-        const eventsResult = await query(`
-          SELECT ue.*, e.id as event_id, e.name as event_name, e.start_date, e.end_date
-          FROM user_events ue
-          JOIN events e ON e.id = ue.event_id
-          WHERE ue.user_id = $1 AND ue.event_id = $2
-        `, [member.id, eventId]);
-        member.userEvents = eventsResult.rows;
-      }
+  // Get user events for this faculty
+  if (eventId) {
+    const eventsResult = await query(`
+      SELECT ue.*, e.id as event_id, e.name as event_name, e.start_date, e.end_date
+      FROM user_events ue
+      JOIN events e ON e.id = ue.event_id
+      WHERE ue.user_id = $1 AND ue.event_id = $2
+    `, [member.id, eventId]);
+    member.userEvents = eventsResult.rows;
+  }
 
-      // Get session speakers
-      const speakersResult = await query(`
-        SELECT ss.*, cs.id as session_id, cs.title as session_title, 
-               cs.start_time, cs.end_time, h.name as hall_name
-        FROM session_speakers ss
-        JOIN conference_sessions cs ON cs.id = ss.session_id
-        LEFT JOIN halls h ON h.id = cs.hall_id
-        WHERE ss.user_id = $1
-      `, [member.id]);
-      member.sessionSpeakers = speakersResult.rows;
+  // Get session speakers
+  const speakersResult = await query(`
+    SELECT ss.*, cs.id as session_id, cs.title as session_title, 
+           cs.start_time, cs.end_time, h.name as hall_name
+    FROM session_speakers ss
+    JOIN conference_sessions cs ON cs.id = ss.session_id
+    LEFT JOIN halls h ON h.id = cs.hall_id
+    WHERE ss.user_id = $1
+  `, [member.id]);
+  member.sessionSpeakers = speakersResult.rows;
 
-      // Get travel details if eventId specified
-      if (eventId) {
-        const travelResult = await query(`
-          SELECT * FROM travel_details 
-          WHERE user_id = $1 AND event_id = $2
-        `, [member.id, eventId]);
-        member.travelDetails = travelResult.rows;
+  // Get travel details if eventId specified
+  if (eventId) {
+    const travelResult = await query(`
+      SELECT * FROM travel_details 
+      WHERE user_id = $1 AND event_id = $2
+    `, [member.id, eventId]);
+    member.travelDetails = travelResult.rows;
 
-        // Get accommodations
-        const accommodationResult = await query(`
-          SELECT * FROM accommodations 
-          WHERE user_id = $1 AND event_id = $2
-        `, [member.id, eventId]);
-        member.accommodations = accommodationResult.rows;
+    // Get accommodations
+    const accommodationResult = await query(`
+      SELECT * FROM accommodations 
+      WHERE user_id = $1 AND event_id = $2
+    `, [member.id, eventId]);
+    member.accommodations = accommodationResult.rows;
 
-        // Get presentations
-        const presentationsResult = await query(`
-          SELECT p.id, p.title, p.file_path, p.uploaded_at, cs.title as session_title
-          FROM presentations p
-          JOIN conference_sessions cs ON cs.id = p.session_id
-          WHERE p.user_id = $1 AND cs.event_id = $2
-        `, [member.id, eventId]);
-        member.presentations = presentationsResult.rows;
-      }
+    // Get presentations
+    const presentationsResult = await query(`
+      SELECT p.id, p.title, p.file_path, p.uploaded_at, cs.title as session_title
+      FROM presentations p
+      JOIN conference_sessions cs ON cs.id = p.session_id
+      WHERE p.user_id = $1 AND cs.event_id = $2
+    `, [member.id, eventId]);
+    member.presentations = presentationsResult.rows;
+  }
 
-      // ✅ FIXED: Parse JSON fields safely
-      member.qualifications = safeJSONParse(member.qualifications, []);
-      member.achievements = safeJSONParse(member.achievements, []);
-      member.social_links = safeJSONParse(member.social_links, {});
-      member.emergency_contact = safeJSONParse(member.emergency_contact, {});
-    }
+  // Parse JSON fields safely
+  member.qualifications = safeJSONParse(member.qualifications, []);
+  member.achievements = safeJSONParse(member.achievements, []);
+  member.social_links = safeJSONParse(member.social_links, {});
+  member.emergency_contact = safeJSONParse(member.emergency_contact, {});
+
+  // === Add this block for CV support ===
+  const cvResult = await query(
+    `SELECT file_path FROM cv_uploads WHERE faculty_id = $1 ORDER BY uploaded_at DESC LIMIT 1`,
+    [member.id]
+  );
+  member.cv = cvResult.rows.length > 0 ? cvResult.rows[0].file_path : null;
+}
+
 
     return NextResponse.json({
       success: true,

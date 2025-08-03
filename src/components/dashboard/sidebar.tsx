@@ -240,7 +240,7 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
         label: 'My Sessions',
         href: '/faculty/sessions',
         icon: Monitor,
-        badge: '3'
+        badge: '0'
       },
       {
         label: 'Presentations',

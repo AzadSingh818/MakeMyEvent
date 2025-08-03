@@ -1,6 +1,6 @@
 // src/lib/database/connection.ts
 import { Pool, PoolClient } from 'pg'
-
+ 
 // Parse the connection string to add better timeout settings
 const connectionString = process.env.DATABASE_URL
 

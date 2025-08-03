@@ -6,8 +6,8 @@ import { query } from '@/lib/database/connection';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { z } from 'zod';
-
-// Validation schema
+ 
+// Validation schema  
 const UploadSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   facultyId: z.string().min(1, 'Faculty ID is required'),
