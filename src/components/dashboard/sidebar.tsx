@@ -243,12 +243,12 @@ const getNavigationItems = (role: SidebarProps['userRole']): NavigationItem[] =>
         badge: '0'
       },
       {
-        label: 'Presentations',
-        href: '/faculty/presentations',
+        label: 'Documents',
+        href: "",
         icon: Upload,
         children: [
-          { label: 'Upload', href: '/faculty/presentations/upload', icon: Upload },
-          { label: 'Manage', href: '/faculty/presentations/manage', icon: FileText }
+          // { label: 'Upload', href: '', icon: Upload },
+          { label: 'Manage', href: '', icon: FileText }
         ]
       },
       {
