@@ -1,0 +1,528 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+// prisma/schema.prisma में User model को update करें:
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  phone         String?
+  role          UserRole  @default(DELEGATE)
+  institution   String?   // Add this line
+  password      String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations (बाकी सब same रहेगा)
+  accounts           Account[]
+  sessions           Session[]
+  userEvents         UserEvent[]
+  sessionSpeakers    SessionSpeaker[]
+  presentations      Presentation[]
+  abstracts          Abstract[]
+  abstractReviews    AbstractReview[]
+  registrations      Registration[]
+  travelDetails      TravelDetail[]
+  accommodations     Accommodation[]
+  attendanceRecords  AttendanceRecord[]
+  qrCodes            QRCode[]
+  notifications      Notification[]
+  certificates       Certificate[]
+  uploadedDocuments  Document[]
+  hallAssignments    HallAssignment[]
+  reportedIssues     Issue[]
+  emailLogs          EmailLog[]
+  whatsappLogs       WhatsAppLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+// Event Management
+model Event {
+  id          String      @id @default(cuid())
+  name        String
+  description String?     @db.Text
+  startDate   DateTime
+  endDate     DateTime
+  location    String
+  status      EventStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  userEvents      UserEvent[]
+  sessions        ConferenceSession[]
+  abstracts       Abstract[]
+  registrations   Registration[]
+  travelDetails   TravelDetail[]
+  accommodations  Accommodation[]
+  qrCodes         QRCode[]
+  certificates    Certificate[]
+  documents       Document[]
+  halls           Hall[]
+
+  @@map("events")
+}
+
+model UserEvent {
+  id          String           @id @default(cuid())
+  userId      String
+  eventId     String
+  role        EventRole        @default(ATTENDEE)
+  permissions EventPermission?
+  createdAt   DateTime         @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("user_events")
+}
+
+// Session Management
+model ConferenceSession {
+  id          String    @id @default(cuid())
+  eventId     String
+  title       String
+  description String?   @db.Text
+  startTime   DateTime
+  endTime     DateTime
+  hallId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  hall  Hall? @relation(fields: [hallId], references: [id])
+
+  // Relations
+  sessionSpeakers   SessionSpeaker[]
+  presentations     Presentation[]
+  attendanceRecords AttendanceRecord[]
+
+  @@map("conference_sessions")
+}
+
+model SessionSpeaker {
+  id        String      @id @default(cuid())
+  sessionId String
+  userId    String
+  role      SpeakerRole @default(SPEAKER)
+  createdAt DateTime    @default(now())
+
+  session ConferenceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@map("session_speakers")
+}
+
+model Presentation {
+  id         String   @id @default(cuid())
+  sessionId  String
+  userId     String
+  filePath   String
+  title      String
+  uploadedAt DateTime @default(now())
+
+  session ConferenceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("presentations")
+}
+
+// Abstract System
+model Abstract {
+  id          String         @id @default(cuid())
+  eventId     String
+  userId      String
+  title       String
+  content     String         @db.Text
+  status      AbstractStatus @default(SUBMITTED)
+  submittedAt DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  event   Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews AbstractReview[]
+
+  @@map("abstracts")
+}
+
+model AbstractReview {
+  id         String   @id @default(cuid())
+  abstractId String
+  reviewerId String
+  score      Int?
+  comments   String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  abstract Abstract @relation(fields: [abstractId], references: [id], onDelete: Cascade)
+  reviewer User     @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([abstractId, reviewerId])
+  @@map("abstract_reviews")
+}
+
+// Registration & Hospitality
+model Registration {
+  id               String             @id @default(cuid())
+  eventId          String
+  userId           String
+  registrationData Json?
+  status           RegistrationStatus @default(PENDING)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@map("registrations")
+}
+
+model TravelDetail {
+  id           String      @id @default(cuid())
+  userId       String
+  eventId      String
+  mode         TravelMode
+  itineraryPath String?
+  ticketPath    String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("travel_details")
+}
+
+model Accommodation {
+  id          String   @id @default(cuid())
+  userId      String
+  eventId     String
+  hotel       String?
+  checkIn     DateTime?
+  checkOut    DateTime?
+  preferences String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("accommodations")
+}
+
+// Attendance System
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  sessionId String
+  userId    String
+  markedBy  String
+  timestamp DateTime         @default(now())
+  method    AttendanceMethod @default(MANUAL)
+
+  session ConferenceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@map("attendance_records")
+}
+
+model QRCode {
+  id        String    @id @default(cuid())
+  userId    String
+  eventId   String
+  code      String    @unique
+  expiresAt DateTime?
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("qr_codes")
+}
+
+// Communication
+model EmailLog {
+  id        String      @id @default(cuid())
+  recipient String
+  subject   String
+  content   String      @db.Text
+  sentAt    DateTime    @default(now())
+  status    MessageStatus @default(PENDING)
+  userId    String?
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("email_logs")
+}
+
+model WhatsAppLog {
+  id        String      @id @default(cuid())
+  recipient String
+  message   String      @db.Text
+  sentAt    DateTime    @default(now())
+  status    MessageStatus @default(PENDING)
+  userId    String?
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("whatsapp_logs")
+}
+
+model Notification {
+  id      String            @id @default(cuid())
+  userId  String
+  type    NotificationType
+  title   String
+  message String            @db.Text
+  readAt  DateTime?
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Certificates & Documents
+model Certificate {
+  id          String          @id @default(cuid())
+  userId      String
+  eventId     String
+  type        CertificateType
+  filePath    String
+  generatedAt DateTime        @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@map("certificates")
+}
+
+model Document {
+  id         String           @id @default(cuid())
+  eventId    String
+  name       String
+  filePath   String
+  category   DocumentCategory
+  uploadedBy String
+  createdAt  DateTime         @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [uploadedBy], references: [id])
+
+  @@map("documents")
+}
+
+// Hall Management
+model Hall {
+  id        String @id @default(cuid())
+  eventId   String
+  name      String
+  capacity  Int
+  equipment Json?
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // Relations
+  sessions        ConferenceSession[]
+  hallAssignments HallAssignment[]
+  issues          Issue[]
+
+  @@map("halls")
+}
+
+model HallAssignment {
+  id            String @id @default(cuid())
+  hallId        String
+  sessionId     String?
+  coordinatorId String
+  createdAt     DateTime @default(now())
+
+  hall        Hall               @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  coordinator User               @relation(fields: [coordinatorId], references: [id])
+
+  @@map("hall_assignments")
+}
+
+model Issue {
+  id          String      @id @default(cuid())
+  hallId      String?
+  sessionId   String?
+  reportedBy  String
+  description String      @db.Text
+  status      IssueStatus @default(OPEN)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  hall     Hall? @relation(fields: [hallId], references: [id])
+  reporter User  @relation(fields: [reportedBy], references: [id])
+
+  @@map("issues")
+}
+
+// Enums
+enum UserRole {
+  ORGANIZER
+  EVENT_MANAGER
+  FACULTY
+  DELEGATE
+  HALL_COORDINATOR
+  SPONSOR
+  VOLUNTEER
+  VENDOR
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum EventRole {
+  ORGANIZER
+  EVENT_MANAGER
+  SPEAKER
+  MODERATOR
+  CHAIRPERSON
+  ATTENDEE
+  COORDINATOR
+}
+
+enum EventPermission {
+  FULL_ACCESS
+  EDIT_SESSIONS
+  MANAGE_FACULTY
+  VIEW_ONLY
+}
+
+enum SpeakerRole {
+  SPEAKER
+  MODERATOR
+  CHAIRPERSON
+}
+
+enum AbstractStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  REVISION_REQUIRED
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum TravelMode {
+  BUS
+  TRAIN
+  FLIGHT
+  CAR
+  OTHER
+}
+
+enum AttendanceMethod {
+  MANUAL
+  QR_CODE
+  AUTOMATIC
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+  REMINDER
+}
+
+enum CertificateType {
+  PARTICIPATION
+  SPEAKER
+  CHAIRPERSON
+  MODERATOR
+  ORGANIZER
+}
+
+enum DocumentCategory {
+  PRESENTATION
+  CV
+  TRAVEL
+  ACCOMMODATION
+  CERTIFICATE
+  OTHER
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
