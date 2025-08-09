@@ -1,6 +1,6 @@
 // src/app/(dashboard)/faculty/page.tsx
 "use client";
-
+ 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,9 @@ import { FacultyLayout } from "@/components/dashboard/layout";
 import { useRouter } from "next/navigation";
 import FeedbackModal from "@/app/modals/Feedback";
 import ContactSupportModal from "@/app/modals/contact-support";
+import TravelInfoModal from "@/app/modals/TravelInfoModal";
+import AccommodationInfoModal from "@/app/modals/AccommodationInfoModal";
+
 
 import {
   Calendar,
@@ -92,6 +95,26 @@ export default function FacultyDashboardPage() {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isContactSupportOpen, setIsContactSupportOpen] = useState(false);
 
+  // Travel and Accommodation Modals
+  const [isTravelModalOpen, setIsTravelModalOpen] = useState(false);
+  const [isAccommodationModalOpen, setIsAccommodationModalOpen] = useState(false);
+ // Example: state for which mode to use
+const [travelMode, setTravelMode] = useState<"self-arranged" | "preference" | "organizer-provided">("self-arranged");
+const [accommodationMode, setAccommodationMode] = useState<"self-arranged" | "preference" | "organizer-provided">("self-arranged");
+
+// Optionally: store travel/accommodation data to pass to modal
+const [currentTravelData, setCurrentTravelData] = useState(null);
+const [currentAccommodationData, setCurrentAccommodationData] = useState(null);
+const [hotelOptions, setHotelOptions] = useState([]);
+const [travelOptions, setTravelOptions] = useState([]);
+
+
+  // Button handlers
+  const handleTravelModalOpen = () => setIsTravelModalOpen(true);
+  const handleAccommodationModalOpen = () => setIsAccommodationModalOpen(true);
+
+  
+
   // DATA FETCHING
   const {
     data: profile,
@@ -114,6 +137,7 @@ export default function FacultyDashboardPage() {
   const handleCertificates = () => router.push("/faculty/certificates");
   const handleSessionClick = (sessionId: string) =>
     router.push(`/faculty/sessions/${sessionId}`);
+
 
   // PRESENTATION HANDLERS
   const handlePresentationFileSelect = (
@@ -331,12 +355,23 @@ export default function FacultyDashboardPage() {
   }
 
   return (
-    <FacultyLayout userName={userName} userEmail={userEmail} headerStats={[
-    { label: "My Sessions", value: mySessionsCount, color: "bg-blue-500" },
-    { label: "Presentations", value: totalPresentations, color: "bg-green-500" },
-    { label: "CV", value: hasCV ? "Yes" : "No", color: hasCV ? "bg-green-500" : "bg-red-500" },
-  ]}
->
+    <FacultyLayout
+      userName={userName}
+      userEmail={userEmail}
+      headerStats={[
+        { label: "My Sessions", value: mySessionsCount, color: "bg-blue-500" },
+        {
+          label: "Presentations",
+          value: totalPresentations,
+          color: "bg-green-500",
+        },
+        {
+          label: "CV",
+          value: hasCV ? "Yes" : "No",
+          color: hasCV ? "bg-green-500" : "bg-red-500",
+        },
+      ]}
+    >
       <div className="space-y-6">
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
@@ -849,12 +884,19 @@ export default function FacultyDashboardPage() {
                 )}
               </div>
 
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline" 
+                onClick={handleTravelModalOpen}
+              >
                 <Plane className="h-4 w-4 mr-2" />
                 Travel Information
               </Button>
-
-              <Button className="w-full justify-start" variant="outline">
+              <Button
+                className="w-full justify-start"
+                variant="outline"
+                onClick={handleAccommodationModalOpen}
+              >
                 <Hotel className="h-4 w-4 mr-2" />
                 Accommodation Details
               </Button>
@@ -897,6 +939,26 @@ export default function FacultyDashboardPage() {
         open={isContactSupportOpen}
         onClose={() => setIsContactSupportOpen(false)}
       />
+      <TravelInfoModal
+  open={isTravelModalOpen}
+  onClose={() => setIsTravelModalOpen(false)}
+  mode={travelMode}
+  travelData={currentTravelData}
+  travelOptions={travelOptions}
+  onUpload={(data) => {/* handle upload & refresh */}}
+  onPreferenceSelect={(option) => {/* handle preference select & refresh */}}
+/>
+
+<AccommodationInfoModal
+  open={isAccommodationModalOpen}
+  onClose={() => setIsAccommodationModalOpen(false)}
+  mode={accommodationMode}
+  accommodationData={currentAccommodationData}
+  hotelOptions={hotelOptions}
+  onUpload={(data) => {/* handle upload & refresh */}}
+  onPreferenceSelect={(option) => {/* handle preference select & refresh */}}
+/>
+
     </FacultyLayout>
   );
 }
