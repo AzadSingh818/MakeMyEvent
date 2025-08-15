@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 
 type Arrangement = "self-arranged" | "preference" | "organizer-provided";
 
-type HotelOption = {
-id: string;
+type HotelOption = { 
+id: string; 
 name: string;
 location?: string;
 };
@@ -163,50 +163,50 @@ const canSubmit = !submitting && !localUploading && baseCanSubmit && !isEventMis
 
 return (
 <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+  <DialogContent className="max-w-2xl rounded-xl shadow-lg">
+    <DialogTitle className="text-lg font-semibold tracking-tight">Accommodation</DialogTitle>
 
-<DialogTitle>Accommodation</DialogTitle>
-<DialogContent>
-<div className="space-y-6">
-{/* Arrangement row (mirrors Travel Info style) */}
-<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-<Field label="Arrangement">
-<select
-className="input w-full"
-value={arrangement}
-onChange={(e) => setArrangement(e.target.value as Arrangement)}
->
-<option value="self-arranged">Self-arranged</option>
-<option value="preference">Share preference</option>
-<option value="organizer-provided">Organizer-provided</option>
-</select>
-</Field>
-</div>
+    <div className="space-y-6">
+      {/* Arrangement */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Field label="Arrangement">
+          <select
+            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:ring-1 focus:ring-primary"
+            value={arrangement}
+            onChange={(e) => setArrangement(e.target.value as Arrangement)}
+          >
+            <option value="self-arranged">Self-arranged</option>
+            <option value="preference">Share preference</option>
+            <option value="organizer-provided">Organizer-provided</option>
+          </select>
+        </Field>
+      </div>
 
-      {/* Event not selected banner (same UX as Travel Info) */}
+      {/* Event missing warning */}
       {isEventMissing && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 px-3 py-2 text-sm">
+        <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
           Event not selected yet. Please select an event to enable saving.
         </div>
       )}
 
-      {/* Self-arranged section */}
+      {/* Self-arranged */}
       {arrangement === "self-arranged" && (
-        <div className="space-y-4">
+        <div className="space-y-4 border-t pt-4">
           <Field label="Hotel Name" error={errors.hotel}>
             <input
               type="text"
-              className="input w-full"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:ring-1 focus:ring-primary"
               value={hotel}
               onChange={(e) => setHotel(e.target.value)}
               placeholder="Enter hotel name"
             />
           </Field>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Check-in Date" error={errors.checkIn} helper={`Earliest: ${minCheckIn}`}>
               <input
                 type="date"
-                className="input w-full"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 min={minCheckIn}
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
@@ -215,7 +215,7 @@ onChange={(e) => setArrangement(e.target.value as Arrangement)}
             <Field label="Check-out Date" error={errors.checkOut} helper={checkIn ? `After ${checkIn}` : undefined}>
               <input
                 type="date"
-                className="input w-full"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:ring-1 focus:ring-primary"
                 min={minCheckOut}
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
@@ -227,6 +227,7 @@ onChange={(e) => setArrangement(e.target.value as Arrangement)}
             <input
               type="file"
               accept="image/*,.pdf"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-white hover:file:bg-primary/90"
               onChange={handleFileChange}
               disabled={!onUpload || localUploading}
             />
@@ -239,7 +240,7 @@ onChange={(e) => setArrangement(e.target.value as Arrangement)}
 
           <Field label="Special Requests (optional)">
             <textarea
-              className="input w-full min-h-[80px]"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:ring-1 focus:ring-primary min-h-[80px]"
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
               placeholder="e.g., Late check-in, non-smoking room"
@@ -248,101 +249,8 @@ onChange={(e) => setArrangement(e.target.value as Arrangement)}
         </div>
       )}
 
-      {/* Preference section */}
-      {arrangement === "preference" && (
-        <div className="space-y-4">
-          {hotelOptions.length > 0 ? (
-            <Field label="Choose Hotel">
-              <div className="space-y-2">
-                {hotelOptions.map((option) => (
-                  <label key={option.id} className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="hotel"
-                      value={option.id}
-                      checked={selectedHotelId === option.id}
-                      onChange={() => {
-                        setSelectedHotelId(option.id);
-                        setHotel(option.name);
-                        onPreferenceSelect?.(option);
-                      }}
-                    />
-                    <span>
-                      {option.name}
-                      {option.location ? ` (${option.location})` : ""}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </Field>
-          ) : (
-            <Field label="Hotel Preference (optional)">
-              <input
-                type="text"
-                className="input w-full"
-                placeholder="Type preferred hotel/location"
-                value={preferenceText}
-                onChange={(e) => setPreferenceText(e.target.value)}
-              />
-            </Field>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Check-in Date">
-              <input
-                type="date"
-                className="input w-full"
-                min={minCheckIn}
-                value={checkIn}
-                onChange={(e) => setCheckIn(e.target.value)}
-              />
-            </Field>
-            <Field label="Check-out Date" error={errors.checkOut}>
-              <input
-                type="date"
-                className="input w-full"
-                min={minCheckOut}
-                value={checkOut}
-                onChange={(e) => setCheckOut(e.target.value)}
-              />
-            </Field>
-          </div>
-
-          <Field label="Special Requests (optional)">
-            <textarea
-              className="input w-full min-h-[80px]"
-              value={specialRequests}
-              onChange={(e) => setSpecialRequests(e.target.value)}
-              placeholder="e.g., Nearby elevator, quiet room"
-            />
-          </Field>
-        </div>
-      )}
-
-      {/* Organizer-provided section */}
-      {arrangement === "organizer-provided" && (
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Accommodation will be provided by the organizers. Details will appear here once assigned.
-          </p>
-          {(accommodationData?.hotel || accommodationData?.check_in || accommodationData?.check_out) && (
-            <div className="mt-2 p-3 border rounded bg-gray-50">
-              {accommodationData?.hotel && (
-                <div><strong>Hotel:</strong> {accommodationData.hotel}</div>
-              )}
-              {accommodationData?.check_in && (
-                <div><strong>Check-in:</strong> {toYMD(accommodationData.check_in)}</div>
-              )}
-              {accommodationData?.check_out && (
-                <div><strong>Check-out:</strong> {toYMD(accommodationData.check_out)}</div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Footer actions (aligned with Travel modal) */}
-      <div className="flex justify-end gap-2">
+      {/* Footer */}
+      <div className="flex justify-end gap-2 border-t pt-4">
         <Button variant="outline" onClick={onClose} disabled={submitting}>
           Close
         </Button>
@@ -355,6 +263,7 @@ onChange={(e) => setArrangement(e.target.value as Arrangement)}
     </div>
   </DialogContent>
 </Dialog>
+
 );
 }
 
@@ -400,5 +309,3 @@ function toYMD(value?: string | null) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-
-// ...existing code...
