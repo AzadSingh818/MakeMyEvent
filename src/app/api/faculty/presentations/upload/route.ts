@@ -232,38 +232,44 @@ export async function POST(request: NextRequest) {
     
     await writeFile(filePath, buffer);
 
-    // Save to database (handle both cases: with and without session)
+    // ✅ UPDATED: Save to database WITH file metadata
     const dbFilePath = `/uploads/presentations/${uniqueFilename}`;
     
     let insertQuery: string;
     let insertParams: any[];
 
     if (finalSessionId) {
-      // Insert with session
+      // Insert with session and file metadata
       insertQuery = `
         INSERT INTO presentations (
           user_id, 
           session_id, 
           title, 
-          file_path, 
+          file_path,
+          file_size,
+          file_type,
+          original_filename,
           uploaded_at
-        ) VALUES ($1, $2, $3, $4, NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
         RETURNING *
       `;
-      insertParams = [facultyId, finalSessionId, validatedData.title, dbFilePath];
+      insertParams = [facultyId, finalSessionId, validatedData.title, dbFilePath, file.size, file.type, file.name];
     } else {
-      // Insert without session (if your DB allows NULL for session_id)
+      // Insert without session but with file metadata
       insertQuery = `
         INSERT INTO presentations (
           user_id, 
           session_id, 
           title, 
-          file_path, 
+          file_path,
+          file_size,
+          file_type,
+          original_filename,
           uploaded_at
-        ) VALUES ($1, NULL, $2, $3, NOW())
+        ) VALUES ($1, NULL, $2, $3, $4, $5, $6, NOW())
         RETURNING *
       `;
-      insertParams = [facultyId, validatedData.title, dbFilePath];
+      insertParams = [facultyId, validatedData.title, dbFilePath, file.size, file.type, file.name];
     }
 
     const insertResult = await query(insertQuery, insertParams);
@@ -284,6 +290,7 @@ export async function POST(request: NextRequest) {
             facultyId: facultyId,
             filename: file.name,
             fileSize: file.size,
+            fileType: file.type,
             sessionId: finalSessionId
           })
         ]
@@ -293,7 +300,7 @@ export async function POST(request: NextRequest) {
       console.log('Activity logging skipped:', logError);
     }
 
-    // Return success response
+    // ✅ UPDATED: Return success response with complete metadata
     return NextResponse.json({
       success: true,
       message: 'Presentation uploaded successfully',
@@ -302,6 +309,8 @@ export async function POST(request: NextRequest) {
         title: presentation.title,
         fileName: file.name,
         fileSize: file.size,
+        fileType: file.type,
+        originalFilename: file.name,
         filePath: dbFilePath,
         uploadedAt: presentation.uploaded_at,
         sessionId: finalSessionId,
@@ -343,7 +352,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET - List faculty presentations
+// ✅ UPDATED: GET - List faculty presentations with file metadata
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -389,7 +398,7 @@ export async function GET(request: NextRequest) {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    // Get presentations with related data
+    // ✅ UPDATED: Get presentations with file metadata
     const presentationsQuery = `
       SELECT 
         p.*,
@@ -407,7 +416,6 @@ export async function GET(request: NextRequest) {
     `;
 
     params.push(limit, offset);
-
     const result = await query(presentationsQuery, params);
 
     // Get total count
@@ -419,16 +427,78 @@ export async function GET(request: NextRequest) {
       ${whereClause}
     `;
 
-    const countResult = await query(countQuery, params.slice(0, -2)); // Remove limit and offset
+    const countResult = await query(countQuery, params.slice(0, -2));
     const total = parseInt(countResult.rows[0].total);
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        presentations: result.rows.map(row => ({
+    // Helper function to get file info from filesystem (fallback if DB doesn't have metadata)
+    const getFileInfoFromFilesystem = async (filePath: string) => {
+      try {
+        const fs = require('fs').promises;
+        const path = require('path');
+        
+        const fullPath = path.join(process.cwd(), 'public', filePath);
+        const stats = await fs.stat(fullPath);
+        const filename = path.basename(filePath);
+        
+        // Extract file type from extension
+        const extension = filename.split('.').pop()?.toLowerCase();
+        let fileType = 'Unknown';
+        
+        switch (extension) {
+          case 'pdf':
+            fileType = 'application/pdf';
+            break;
+          case 'ppt':
+            fileType = 'application/vnd.ms-powerpoint';
+            break;
+          case 'pptx':
+            fileType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+            break;
+          case 'doc':
+            fileType = 'application/msword';
+            break;
+          case 'docx':
+            fileType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            break;
+        }
+        
+        return {
+          fileSize: stats.size,
+          fileType: fileType,
+          originalFilename: filename
+        };
+      } catch (error) {
+        console.error('Error getting file info:', error);
+        return {
+          fileSize: 0,
+          fileType: 'Unknown',
+          originalFilename: 'Unknown'
+        };
+      }
+    };
+
+    // ✅ UPDATED: Process results and ensure complete file metadata
+    const presentationsWithMetadata = await Promise.all(
+      result.rows.map(async (row) => {
+        let fileSize = row.file_size;
+        let fileType = row.file_type;
+        let originalFilename = row.original_filename;
+
+        // If database doesn't have complete metadata, get it from filesystem
+        if (!fileSize || !fileType || !originalFilename) {
+          const fileInfo = await getFileInfoFromFilesystem(row.file_path);
+          fileSize = fileSize || fileInfo.fileSize;
+          fileType = fileType || fileInfo.fileType;
+          originalFilename = originalFilename || fileInfo.originalFilename;
+        }
+        
+        return {
           id: row.id,
           title: row.title,
           filePath: row.file_path,
+          fileSize: fileSize,              // ✅ Now included
+          fileType: fileType,              // ✅ Now included
+          originalFilename: originalFilename, // ✅ Now included
           uploadedAt: row.uploaded_at,
           faculty: {
             id: row.user_id,
@@ -441,7 +511,14 @@ export async function GET(request: NextRequest) {
             title: row.session_title,
             startTime: row.session_start_time
           } : null
-        })),
+        };
+      })
+    );
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        presentations: presentationsWithMetadata,
         pagination: {
           total,
           limit,
@@ -455,6 +532,117 @@ export async function GET(request: NextRequest) {
     console.error('Get presentations error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch presentations' },
+      { status: 500 }
+    );
+  }
+}
+
+// ✅ UPDATED: DELETE - Delete presentation
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { fileId, facultyId } = body;
+
+    if (!fileId) {
+      return NextResponse.json(
+        { error: 'File ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check permissions
+    if (session.user.role === 'FACULTY' && session.user.id !== facultyId) {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // Get presentation details first
+    const presentationResult = await query(
+      'SELECT * FROM presentations WHERE id = $1',
+      [fileId]
+    );
+
+    if (presentationResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Presentation not found' },
+        { status: 404 }
+      );
+    }
+
+    const presentation = presentationResult.rows[0];
+
+    // Additional permission check
+    if (session.user.role === 'FACULTY' && presentation.user_id !== session.user.id) {
+      return NextResponse.json(
+        { error: 'Cannot delete another faculty\'s presentation' },
+        { status: 403 }
+      );
+    }
+
+    // Delete file from filesystem
+    try {
+      const fs = require('fs').promises;
+      const path = require('path');
+      const fullPath = path.join(process.cwd(), 'public', presentation.file_path);
+      await fs.unlink(fullPath);
+    } catch (fileError) {
+      console.error('Error deleting file from filesystem:', fileError);
+      // Continue with database deletion even if file deletion fails
+    }
+
+    // Delete from database
+    const deleteResult = await query(
+      'DELETE FROM presentations WHERE id = $1 RETURNING *',
+      [fileId]
+    );
+
+    if (deleteResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Failed to delete presentation' },
+        { status: 500 }
+      );
+    }
+
+    // Log the activity
+    try {
+      await query(
+        `INSERT INTO activity_logs (
+          user_id, action, description, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, NOW())`,
+        [
+          session.user.id,
+          'PRESENTATION_DELETE',
+          `Deleted presentation: ${presentation.title}`,
+          JSON.stringify({
+            presentationId: fileId,
+            facultyId: presentation.user_id,
+            filename: presentation.original_filename || 'Unknown'
+          })
+        ]
+      );
+    } catch (logError) {
+      console.log('Activity logging skipped:', logError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Presentation deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete presentation error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete presentation' },
       { status: 500 }
     );
   }
