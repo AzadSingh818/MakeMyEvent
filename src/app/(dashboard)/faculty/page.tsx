@@ -1,6 +1,5 @@
-// src/app/(dashboard)/faculty/page.tsx
 "use client";
- 
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,53 +12,36 @@ import ContactSupportModal from "@/app/modals/contact-support";
 import TravelInfoModal from "@/app/modals/TravelInfoModal";
 import AccommodationInfoModal from "@/app/modals/AccommodationInfoModal";
 
-
 import {
   Calendar,
   Clock,
-  Users,
-  CheckCircle,
-  AlertTriangle,
-  BarChart3,
   Upload,
   FileText,
   MapPin,
   Activity,
   ExternalLink,
   ArrowRight,
-  Plus,
   Mail,
   MessageSquare,
   Award,
-  Download,
-  QrCode,
   Hotel,
   Plane,
   Bed,
   Bell,
-  Eye,
   Target,
   Zap,
-  Globe,
-  Star,
   Shield,
-  User,
   Presentation,
-  Coffee,
-  Car,
-  Wifi,
-  Building,
   Phone,
-  Edit,
   Send,
-  BookOpen,
-  Briefcase,
   UserCheck,
   X,
   Check,
+  RefreshCw,
+  AlertTriangle,
+  Star,
 } from "lucide-react";
-import { format } from "date-fns";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { useMyFacultyProfile } from "@/hooks/use-faculty";
 import {
@@ -91,29 +73,23 @@ export default function FacultyDashboardPage() {
   const [cvUploadError, setCvUploadError] = useState<string | null>(null);
   const cvInputRef = useRef<HTMLInputElement>(null);
 
-  //modals
+  // Modals
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isContactSupportOpen, setIsContactSupportOpen] = useState(false);
 
   // Travel and Accommodation Modals
   const [isTravelModalOpen, setIsTravelModalOpen] = useState(false);
-  const [isAccommodationModalOpen, setIsAccommodationModalOpen] = useState(false);
- // Example: state for which mode to use
-const [travelMode, setTravelMode] = useState<"self-arranged" | "preference" | "organizer-provided">("self-arranged");
-const [accommodationMode, setAccommodationMode] = useState<"self-arranged" | "preference" | "organizer-provided">("self-arranged");
+  const [isAccommodationModalOpen, setIsAccommodationModalOpen] =
+    useState(false);
 
-// Optionally: store travel/accommodation data to pass to modal
-const [currentTravelData, setCurrentTravelData] = useState(null);
-const [currentAccommodationData, setCurrentAccommodationData] = useState(null);
-const [hotelOptions, setHotelOptions] = useState([]);
-const [travelOptions, setTravelOptions] = useState([]);
-
+  // Faculty Sessions State
+  const [facultySessions, setFacultySessions] = useState<any[]>([]);
+  const [loadingFacultySessions, setLoadingFacultySessions] = useState(true);
+  const [sessionsStats, setSessionsStats] = useState<any>({});
 
   // Button handlers
   const handleTravelModalOpen = () => setIsTravelModalOpen(true);
   const handleAccommodationModalOpen = () => setIsAccommodationModalOpen(true);
-
-  
 
   // DATA FETCHING
   const {
@@ -121,7 +97,7 @@ const [travelOptions, setTravelOptions] = useState([]);
     isLoading: profileLoading,
     refetch: refetchProfile,
   } = useMyFacultyProfile();
-  const { data: mySessions, isLoading: sessionsLoading } = useUserSessions(
+  const { data: mySessions, isLoading: userSessionsLoading } = useUserSessions(
     user?.id
   );
   const { data: todaysSessions } = useTodaysSessions();
@@ -130,6 +106,34 @@ const [travelOptions, setTravelOptions] = useState([]);
   const { data: myRegistrations } = useMyRegistrations();
   const { data: notifications } = useNotifications();
 
+  // NEW: Fetch Faculty Sessions from Session Management System
+  const fetchFacultySessions = async () => {
+    if (!user?.email) return;
+
+    setLoadingFacultySessions(true);
+    try {
+      const response = await fetch(
+        `/api/faculty/sessions?email=${encodeURIComponent(user.email)}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setFacultySessions(data.data.sessions);
+        setSessionsStats(data.data.stats);
+      }
+    } catch (error) {
+      console.error("Error fetching faculty sessions:", error);
+    } finally {
+      setLoadingFacultySessions(false);
+    }
+  };
+
+  // Fetch sessions on component mount and periodically
+  useEffect(() => {
+    fetchFacultySessions();
+    const interval = setInterval(fetchFacultySessions, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, [user?.email]);
+
   // NAVIGATION
   const handleViewProfile = () => router.push("/faculty/profile");
   const handlePresentations = () => router.push("/faculty/presentations");
@@ -137,7 +141,6 @@ const [travelOptions, setTravelOptions] = useState([]);
   const handleCertificates = () => router.push("/faculty/certificates");
   const handleSessionClick = (sessionId: string) =>
     router.push(`/faculty/sessions/${sessionId}`);
-
 
   // PRESENTATION HANDLERS
   const handlePresentationFileSelect = (
@@ -209,7 +212,6 @@ const [travelOptions, setTravelOptions] = useState([]);
         setPresentationFiles([]);
         if (presentationInputRef.current)
           presentationInputRef.current.value = "";
-        // Optional: refetch faculty profile
       }
     } catch {
       setUploadErrors(["Upload failed. Please try again."]);
@@ -223,7 +225,6 @@ const [travelOptions, setTravelOptions] = useState([]);
     setPresentationFiles((files) => files.filter((_, i) => i !== index));
   };
 
-  // For presentation alerts (success/error)
   const clearPresentationMessages = () => {
     setUploadSuccess([]);
     setUploadErrors([]);
@@ -277,7 +278,6 @@ const [travelOptions, setTravelOptions] = useState([]);
         setCvUploadSuccess(result.data.fileName);
         setCVFile(null);
         if (cvInputRef.current) cvInputRef.current.value = "";
-        // The critical line:
         refetchProfile && refetchProfile();
       } else {
         const error = await response.json();
@@ -312,33 +312,373 @@ const [travelOptions, setTravelOptions] = useState([]);
     ).length || 0;
   const registeredEvents = myRegistrations?.data?.registrations?.length || 0;
   const attendanceRate = myAttendance?.data?.attendanceRate || 0;
-  const totalPresentations = profile?.data?.presentations?.length || 0;
 
-  const hasCV = !!profile?.data?.cv;
+  const totalPresentations = profile?.data?.presentations?.length || 0;
+  const hasCV = !!(profile?.data as any)?.cv;
   const totalDocuments = totalPresentations + (hasCV ? 1 : 0);
 
   const unreadNotifications =
-    notifications?.data?.notifications?.filter((n) => !n.readAt).length || 0;
+    notifications?.data?.notifications?.filter((n: any) => !n.readAt).length ||
+    0;
+
+  const profileInstitution = (profile?.data as any)?.institution || "";
+  const profileBio = (profile?.data as any)?.bio || "";
+  const profileExpertise = (profile?.data as any)?.expertise || "";
+  const profileCV = (profile?.data as any)?.cv || null;
+  const profilePhoto = (profile?.data as any)?.photo || null;
+  const profileUserName =
+    (profile?.data as any)?.user?.name || user?.name || "Faculty";
+  const profileUserEmail =
+    (profile?.data as any)?.user?.email || user?.email || "faculty@example.com";
+
   const profileFields = [
-    profile?.data?.bio,
-    profile?.data?.institution,
-    profile?.data?.expertise,
-    profile?.data?.cv,
-    profile?.data?.photo,
+    profileBio,
+    profileInstitution,
+    profileExpertise,
+    profileCV,
+    profilePhoto,
   ];
   const completedFields = profileFields.filter((field) => field).length;
   const profileCompletionRate = Math.round(
     (completedFields / profileFields.length) * 100
   );
-  const userName = profile?.data?.user?.name || user?.name || "Faculty";
-  const userEmail =
-    profile?.data?.user?.email || user?.email || "faculty@example.com";
-  const myUpcomingSessions =
-    upcomingSessions?.data?.sessions?.filter((session) =>
-      session.speakers?.some((speaker) => speaker.userId === user?.id)
-    ) || [];
 
-  if (profileLoading || sessionsLoading) {
+  const userName = profileUserName;
+  const userEmail = profileUserEmail;
+
+  // RESPOND STATE AND HANDLERS
+  const [respondSubmitting, setRespondSubmitting] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
+  const [declineReason, setDeclineReason] = useState<
+    "NotInterested" | "SuggestedTopic" | "TimeConflict"
+  >("NotInterested");
+  const [suggestedTopic, setSuggestedTopic] = useState("");
+  const [suggestedStart, setSuggestedStart] = useState("");
+  const [suggestedEnd, setSuggestedEnd] = useState("");
+  const [optionalQuery, setOptionalQuery] = useState("");
+
+  const openDecline = (id: string) => {
+    setDeclineTargetId(id);
+    setDeclineReason("NotInterested");
+    setSuggestedTopic("");
+    setSuggestedStart("");
+    setSuggestedEnd("");
+    setOptionalQuery("");
+    setDeclineOpen(true);
+  };
+
+  const acceptInvite = async (id: string) => {
+    try {
+      setRespondSubmitting(true);
+      const res = await fetch(`/api/sessions/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, inviteStatus: "Accepted" }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || "Failed to accept.");
+      }
+      setFacultySessions((prev: any[]) =>
+        prev.map((s) => (s.id === id ? { ...s, inviteStatus: "Accepted" } : s))
+      );
+      fetchFacultySessions();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRespondSubmitting(false);
+    }
+  };
+
+  const submitDecline = async () => {
+    if (!declineTargetId) return;
+    try {
+      setRespondSubmitting(true);
+      const payload: any = {
+        id: declineTargetId,
+        inviteStatus: "Declined",
+        rejectionReason: declineReason,
+      };
+      if (declineReason === "SuggestedTopic")
+        payload.suggestedTopic = suggestedTopic.trim();
+      if (declineReason === "TimeConflict") {
+        if (suggestedStart)
+          payload.suggestedTimeStart = new Date(suggestedStart).toISOString();
+        if (suggestedEnd)
+          payload.suggestedTimeEnd = new Date(suggestedEnd).toISOString();
+      }
+      if (optionalQuery.trim()) payload.optionalQuery = optionalQuery.trim();
+
+      const res = await fetch(`/api/sessions/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || "Failed to decline.");
+      }
+
+      setFacultySessions((prev: any[]) =>
+        prev.map((s) =>
+          s.id === declineTargetId
+            ? {
+                ...s,
+                inviteStatus: "Declined",
+                rejectionReason: payload.rejectionReason,
+                suggestedTopic: payload.suggestedTopic,
+                suggestedTimeStart: payload.suggestedTimeStart,
+                suggestedTimeEnd: payload.suggestedTimeEnd,
+                optionalQuery: payload.optionalQuery,
+              }
+            : s
+        )
+      );
+      fetchFacultySessions();
+      setDeclineOpen(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRespondSubmitting(false);
+    }
+  };
+
+  // Sessions card (kept styling, DARK background for status)
+  const SessionsCard = () => (
+    <Card className="lg:col-span-2">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Presentation className="h-5 w-5" />
+            My Sessions & Invitations
+          </CardTitle>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchFacultySessions}
+              disabled={loadingFacultySessions}
+            >
+              <RefreshCw
+                className={`h-3 w-3 mr-1 ${
+                  loadingFacultySessions ? "animate-spin" : ""
+                }`}
+              />
+              Refresh
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSchedule}>
+              <Calendar className="h-3 w-3 mr-1" />
+              Full Schedule
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Sessions Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="text-center p-3 bg-indigo-900/20 border border-indigo-700/30 rounded-lg">
+            <div className="text-2xl font-bold text-indigo-300">
+              {sessionsStats.total || 0}
+            </div>
+            <div className="text-xs text-indigo-200">Total Sessions</div>
+          </div>
+          <div className="text-center p-3 bg-emerald-900/20 border border-emerald-700/30 rounded-lg">
+            <div className="text-2xl font-bold text-emerald-300">
+              {sessionsStats.accepted || 0}
+            </div>
+            <div className="text-xs text-emerald-200">Accepted</div>
+          </div>
+          <div className="text-center p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
+            <div className="text-2xl font-bold text-amber-300">
+              {sessionsStats.pending || 0}
+            </div>
+            <div className="text-xs text-amber-200">Pending</div>
+          </div>
+          <div className="text-center p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg">
+            <div className="text-2xl font-bold text-purple-300">
+              {sessionsStats.upcoming || 0}
+            </div>
+            <div className="text-xs text-purple-200">Upcoming</div>
+          </div>
+        </div>
+
+        {loadingFacultySessions ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-4 bg-slate-800 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-slate-800 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        ) : facultySessions.length > 0 ? (
+          <div className="space-y-4">
+            {facultySessions.slice(0, 5).map((session) => (
+              <div
+                key={session.id}
+                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                  session.inviteStatus === "Pending"
+                    ? "border-amber-400/30 bg-amber-900/20 hover:bg-amber-900/30"
+                    : session.inviteStatus === "Accepted"
+                    ? "border-emerald-400/30 bg-emerald-900/20 hover:bg-emerald-900/30"
+                    : session.inviteStatus === "Declined"
+                    ? "border-rose-400/30 bg-rose-900/20 hover:bg-rose-900/30"
+                    : "border-slate-700/60 bg-slate-900/30 hover:bg-slate-900/40"
+                }`}
+                onClick={() => router.push(`/faculty/sessions/${session.id}`)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="font-semibold text-slate-100 truncate">
+                        {session.title}
+                      </h4>
+                      <Badge
+                        variant={
+                          session.inviteStatus === "Accepted"
+                            ? "default"
+                            : session.inviteStatus === "Pending"
+                            ? "secondary"
+                            : session.inviteStatus === "Declined"
+                            ? "destructive"
+                            : "outline"
+                        }
+                      >
+                        {session.inviteStatus}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-300">
+                      <div className="flex items-center">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {session.formattedTime}
+                      </div>
+                      <div className="flex items-center">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {session.place} - {session.roomName}
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {session.daysUntil > 0
+                          ? `${session.daysUntil} days to go`
+                          : session.daysUntil === 0
+                          ? "Today"
+                          : "Past session"}
+                      </div>
+                      <div className="flex items-center">
+                        <Activity className="h-3 w-3 mr-1" />
+                        {session.sessionStatus}
+                      </div>
+                    </div>
+
+                    {session.description && (
+                      <p className="text-xs text-slate-400 mt-2 line-clamp-2">
+                        {session.description}
+                      </p>
+                    )}
+
+                    {/* Existing action alert */}
+                    {session.inviteStatus === "Pending" && (
+                      <div className="flex items-center gap-2 mt-3">
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                        <span className="text-sm text-amber-300 font-medium">
+                          Response required - Check your email for action links
+                        </span>
+                      </div>
+                    )}
+
+                    {session.inviteStatus === "Declined" &&
+                      session.rejectionReason === "SuggestedTopic" &&
+                      session.suggestedTopic && (
+                        <div className="mt-3 p-2 bg-blue-900/20 border border-blue-700/30 rounded">
+                          <div className="text-sm text-blue-200">
+                            <strong>Your suggestion:</strong>{" "}
+                            {session.suggestedTopic}
+                          </div>
+                        </div>
+                      )}
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <ExternalLink className="h-4 w-4 text-slate-400" />
+                    {session.inviteStatus === "Accepted" && (
+                      <Badge variant="outline" className="text-xs">
+                        Confirmed
+                      </Badge>
+                    )}
+
+                    {/* Respond actions */}
+                    <div className="flex gap-2 mt-1">
+                      <Button
+                        size="sm"
+                        disabled={
+                          respondSubmitting ||
+                          session.inviteStatus === "Accepted"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          acceptInvite(session.id);
+                        }}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={
+                          respondSubmitting ||
+                          session.inviteStatus === "Declined"
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDecline(session.id);
+                        }}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {facultySessions.length > 5 && (
+              <div className="text-center pt-4 border-t border-slate-800">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/faculty/sessions")}
+                >
+                  View All {facultySessions.length} Sessions
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-slate-400">
+            <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+            <h3 className="font-medium mb-2 text-slate-200">
+              No sessions assigned yet
+            </h3>
+            <p className="text-sm mb-4">
+              Session invitations will appear here when organizers assign you to
+              speak
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/faculty/contact")}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Contact Organizers
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  if (profileLoading || userSessionsLoading) {
     return (
       <FacultyLayout>
         <div className="space-y-6">
@@ -359,7 +699,11 @@ const [travelOptions, setTravelOptions] = useState([]);
       userName={userName}
       userEmail={userEmail}
       headerStats={[
-        { label: "My Sessions", value: mySessionsCount, color: "bg-blue-500" },
+        {
+          label: "My Sessions",
+          value: sessionsStats.total || 0,
+          color: "bg-blue-500",
+        },
         {
           label: "Presentations",
           value: totalPresentations,
@@ -368,7 +712,7 @@ const [travelOptions, setTravelOptions] = useState([]);
         {
           label: "CV",
           value: hasCV ? "Yes" : "No",
-          color: hasCV ? "bg-green-500" : "bg-red-500",
+          color: "bg-green-500",
         },
       ]}
     >
@@ -382,9 +726,9 @@ const [travelOptions, setTravelOptions] = useState([]);
             <p className="text-muted-foreground">
               Your academic conference participation hub
             </p>
-            {profile?.data?.institution && (
+            {profileInstitution && (
               <p className="text-sm text-blue-600 font-medium">
-                {profile.data.institution}
+                {profileInstitution}
               </p>
             )}
           </div>
@@ -407,74 +751,39 @@ const [travelOptions, setTravelOptions] = useState([]);
           </Alert>
         )}
 
-        {/* Presentation Upload Errors/Success */}
-        {(uploadSuccess.length > 0 || uploadErrors.length > 0) && (
-          <div className="space-y-2">
-            {uploadSuccess.length > 0 && (
-              <Alert className="border-green-200 bg-green-50">
-                <Check className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="flex items-center justify-between">
-                    <div>Successfully uploaded: {uploadSuccess.join(", ")}</div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearPresentationMessages}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-            {uploadErrors.length > 0 && (
-              <Alert className="border-red-200 bg-red-50">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <div className="flex items-center justify-between">
-                    <div>Upload errors: {uploadErrors.join(", ")}</div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearPresentationMessages}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-        )}
-
         {/* Faculty Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* My Sessions Card */}
-          <Card className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => router.push("/faculty/sessions")}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">My Sessions</CardTitle>
               <Presentation className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mySessionsCount}</div>
+              <div className="text-2xl font-bold">
+                {sessionsStats.total || 0}
+              </div>
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <div className="flex items-center space-x-4">
                   <span className="text-green-600">
-                    Today: {todaysSessionsCount}
+                    Accepted: {sessionsStats.accepted || 0}
                   </span>
-                  <span className="text-blue-600">
-                    Upcoming: {upcomingSessionsCount}
+                  <span className="text-yellow-600">
+                    Pending: {sessionsStats.pending || 0}
                   </span>
                 </div>
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <Activity className="h-3 w-3 mr-1 text-purple-500" />
-                Active speaker
+                {sessionsStats.upcoming || 0} upcoming sessions
               </div>
             </CardContent>
           </Card>
 
-          {/* Profile Completion */}
+          {/* Accommodation & Travel */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={handleViewProfile}
@@ -486,12 +795,11 @@ const [travelOptions, setTravelOptions] = useState([]);
               <Hotel className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {/* Accommodation Status */}
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <Bed className="h-3 w-3 mr-1 text-purple-600" />
                 Accommodation:{" "}
-                {profile?.data?.accommodations &&
-                profile.data.accommodations.length > 0 ? (
+                {(profile?.data as any)?.accommodations &&
+                (profile?.data as any).accommodations.length > 0 ? (
                   <span className="ml-1 text-green-600 font-medium">
                     Provided
                   </span>
@@ -502,12 +810,11 @@ const [travelOptions, setTravelOptions] = useState([]);
                 )}
               </div>
 
-              {/* Travel Status */}
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <Plane className="h-3 w-3 mr-1 text-blue-600" />
                 Travel Details:{" "}
-                {profile?.data?.travelDetails &&
-                profile.data.travelDetails.length > 0 ? (
+                {(profile?.data as any)?.travelDetails &&
+                (profile?.data as any).travelDetails.length > 0 ? (
                   <span className="ml-1 text-green-600 font-medium">
                     Provided
                   </span>
@@ -517,7 +824,6 @@ const [travelOptions, setTravelOptions] = useState([]);
                   </span>
                 )}
               </div>
-              {/* You can add more info or a "Complete/Incomplete" badge as you wish */}
             </CardContent>
           </Card>
 
@@ -536,13 +842,13 @@ const [travelOptions, setTravelOptions] = useState([]);
               <div className="text-2xl font-bold">{totalDocuments}</div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <Upload className="h-3 w-3 mr-1 text-green-500" />
-                {profile?.data?.presentations?.length > 0
+                {(profile?.data as any)?.presentations?.length > 0
                   ? "Presentation uploaded"
                   : "Presentation pending"}
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <Shield className="h-3 w-3 mr-1 text-green-500" />
-                {profile?.data?.cv ? "CV uploaded" : "CV pending"}
+                {profileCV ? "CV uploaded" : "CV pending"}
               </div>
             </CardContent>
           </Card>
@@ -574,109 +880,10 @@ const [travelOptions, setTravelOptions] = useState([]);
 
         {/* Main Content Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* My Sessions & Schedule */}
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  My Speaking Schedule
-                </CardTitle>
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" onClick={handleSchedule}>
-                    <Calendar className="h-3 w-3 mr-1" />
-                    Full Schedule
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {sessionsLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : myUpcomingSessions.length > 0 ? (
-                <div className="space-y-4">
-                  {myUpcomingSessions.slice(0, 4).map((session) => {
-                    const myRole = session.speakers?.find(
-                      (s) => s.userId === user?.id
-                    )?.role;
-                    return (
-                      <div
-                        key={session.id}
-                        className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                        onClick={() => handleSessionClick(session.id)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-medium truncate">
-                              {session.title}
-                            </h4>
-                            <Badge
-                              variant={
-                                myRole === "SPEAKER"
-                                  ? "default"
-                                  : myRole === "MODERATOR"
-                                  ? "secondary"
-                                  : myRole === "CHAIRPERSON"
-                                  ? "destructive"
-                                  : "outline"
-                              }
-                              className="ml-2"
-                            >
-                              {myRole}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center text-sm text-muted-foreground mt-1">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {format(
-                              new Date(session.startTime),
-                              "MMM dd, yyyy"
-                            )}
-                            <Clock className="h-3 w-3 ml-3 mr-1" />
-                            {format(
-                              new Date(session.startTime),
-                              "HH:mm"
-                            )} - {format(new Date(session.endTime), "HH:mm")}
-                          </div>
-                          <div className="flex items-center text-xs text-muted-foreground mt-1">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {session.hall?.name || "Venue TBA"}
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {session.sessionType}
-                            </Badge>
-                          </div>
-                        </div>
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="font-medium mb-2">No upcoming sessions</h3>
-                  <p className="text-sm mb-4">
-                    Your speaking schedule will appear here
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push("/faculty/contact")}
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Contact Organizers
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* My Sessions & Schedule - with Respond controls */}
+          <SessionsCard />
 
-          {/* Faculty Tools Card */}
+          {/* Faculty Tools Card (unchanged) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -736,7 +943,11 @@ const [travelOptions, setTravelOptions] = useState([]);
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => removePresentationFile(index)}
+                              onClick={() => {
+                                setPresentationFiles((prev) =>
+                                  prev.filter((_, i) => i !== index)
+                                );
+                              }}
                             >
                               <X className="h-3 w-3" />
                             </Button>
@@ -766,7 +977,7 @@ const [travelOptions, setTravelOptions] = useState([]);
                 )}
               </div>
 
-              {/* --- CV Upload Section styled like presentations --- */}
+              {/* CV Upload Section */}
               <div className="space-y-3">
                 <input
                   ref={cvInputRef}
@@ -789,7 +1000,6 @@ const [travelOptions, setTravelOptions] = useState([]);
                   </Button>
                 </label>
 
-                {/* Show selected CV in a blue card, like presentation files */}
                 {cvFile && (
                   <div className="space-y-2 p-3 border rounded-lg bg-blue-50">
                     <div className="flex items-center justify-between">
@@ -847,7 +1057,6 @@ const [travelOptions, setTravelOptions] = useState([]);
                   </div>
                 )}
 
-                {/* Success and Error messages */}
                 {cvUploadSuccess && (
                   <Alert className="border-green-200 bg-green-50 mt-2">
                     <Check className="h-4 w-4" />
@@ -886,7 +1095,7 @@ const [travelOptions, setTravelOptions] = useState([]);
 
               <Button
                 className="w-full justify-start"
-                variant="outline" 
+                variant="outline"
                 onClick={handleTravelModalOpen}
               >
                 <Plane className="h-4 w-4 mr-2" />
@@ -931,6 +1140,8 @@ const [travelOptions, setTravelOptions] = useState([]);
           </Card>
         </div>
       </div>
+
+      {/* Modals */}
       <FeedbackModal
         open={isFeedbackOpen}
         onClose={() => setIsFeedbackOpen(false)}
@@ -940,25 +1151,136 @@ const [travelOptions, setTravelOptions] = useState([]);
         onClose={() => setIsContactSupportOpen(false)}
       />
       <TravelInfoModal
-  open={isTravelModalOpen}
-  onClose={() => setIsTravelModalOpen(false)}
-  mode={travelMode}
-  travelData={currentTravelData}
-  travelOptions={travelOptions}
-  onUpload={(data) => {/* handle upload & refresh */}}
-  onPreferenceSelect={(option) => {/* handle preference select & refresh */}}
-/>
+        open={isTravelModalOpen}
+        onClose={() => setIsTravelModalOpen(false)}
+        mode="self-arranged"
+      />
+      <AccommodationInfoModal
+        open={isAccommodationModalOpen}
+        onClose={() => setIsAccommodationModalOpen(false)}
+      />
 
-<AccommodationInfoModal
-  open={isAccommodationModalOpen}
-  onClose={() => setIsAccommodationModalOpen(false)}
-  mode={accommodationMode}
-  accommodationData={currentAccommodationData}
-  hotelOptions={hotelOptions}
-  onUpload={(data) => {/* handle upload & refresh */}}
-  onPreferenceSelect={(option) => {/* handle preference select & refresh */}}
-/>
+      {/* Respond: Decline Modal */}
+      {declineOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-lg rounded-lg border bg-white p-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Decline Invitation</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDeclineOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
 
+            <div className="mt-4 space-y-3">
+              <div>
+                <div className="text-xs font-medium text-gray-700">
+                  Choose a reason
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button
+                    variant={
+                      declineReason === "NotInterested" ? "default" : "outline"
+                    }
+                    size="sm"
+                    onClick={() => setDeclineReason("NotInterested")}
+                  >
+                    Not Interested
+                  </Button>
+                  <Button
+                    variant={
+                      declineReason === "SuggestedTopic" ? "default" : "outline"
+                    }
+                    size="sm"
+                    onClick={() => setDeclineReason("SuggestedTopic")}
+                  >
+                    Suggest a Topic
+                  </Button>
+                  <Button
+                    variant={
+                      declineReason === "TimeConflict" ? "default" : "outline"
+                    }
+                    size="sm"
+                    onClick={() => setDeclineReason("TimeConflict")}
+                  >
+                    Time Conflict
+                  </Button>
+                </div>
+              </div>
+
+              {declineReason === "SuggestedTopic" && (
+                <div>
+                  <div className="text-xs font-medium text-gray-700">
+                    Suggested Topic
+                  </div>
+                  <input
+                    className="mt-1 w-full rounded border p-2"
+                    value={suggestedTopic}
+                    onChange={(e) => setSuggestedTopic(e.target.value)}
+                    placeholder="e.g., Emerging Trends in GenAI"
+                  />
+                </div>
+              )}
+
+              {declineReason === "TimeConflict" && (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-medium text-gray-700">
+                      Suggested Start
+                    </div>
+                    <input
+                      type="datetime-local"
+                      className="mt-1 w-full rounded border p-2"
+                      value={suggestedStart}
+                      onChange={(e) => setSuggestedStart(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-gray-700">
+                      Suggested End
+                    </div>
+                    <input
+                      type="datetime-local"
+                      className="mt-1 w-full rounded border p-2"
+                      value={suggestedEnd}
+                      onChange={(e) => setSuggestedEnd(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="text-xs font-medium text-gray-700">
+                  Optional message
+                </div>
+                <textarea
+                  className="mt-1 w-full rounded border p-2"
+                  value={optionalQuery}
+                  onChange={(e) => setOptionalQuery(e.target.value)}
+                  placeholder="Add an optional note for the organizer"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setDeclineOpen(false)}
+                disabled={respondSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button onClick={submitDecline} disabled={respondSubmitting}>
+                Submit Decline
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </FacultyLayout>
   );
 }

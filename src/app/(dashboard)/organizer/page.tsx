@@ -418,8 +418,7 @@ export default function OrganizerDashboardPage() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
                   <h3 className="font-medium mb-2">No events created yet</h3>
-                  <p className="text-sm mb-4">
-                  </p>
+                  <p className="text-sm mb-4"></p>
                   {/* <Button onClick={handleCreateEvent}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Your First Event

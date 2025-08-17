@@ -1,155 +1,154 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import Link from 'next/link'
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
+import { useState } from "react";
+import { signIn, getSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
   CardTitle,
   Button,
   Input,
   Label,
   LoadingButton,
   ErrorAlert,
-  InlineAlert
-} from '@/components/ui'
-import { 
-  Eye, 
-  EyeOff, 
-  Mail, 
-  Lock, 
+  InlineAlert,
+} from "@/components/ui";
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
   Calendar,
   QrCode,
   Chrome,
-  ArrowLeft
-} from 'lucide-react'
+  ArrowLeft,
+} from "lucide-react";
 
 // Login form validation schema
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters')
-})
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
 
-type LoginFormData = z.infer<typeof loginSchema>
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/'
-  const authError = searchParams.get('error')
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const authError = searchParams.get("error");
 
   const {
     register,
     handleSubmit,
-    formState: { errors }
+    formState: { errors },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema)
-  })
+    resolver: zodResolver(loginSchema),
+  });
 
   // Handle form submission
   const onSubmit = async (data: LoginFormData) => {
-    setIsLoading(true)
-    setError('')
+    setIsLoading(true);
+    setError("");
 
     try {
-      const result = await signIn('credentials', {
+      const result = await signIn("credentials", {
         email: data.email.toLowerCase(),
         password: data.password,
-        redirect: false
-      })
+        redirect: false,
+      });
 
       if (result?.error) {
-        setError('Invalid email or password')
+        setError("Invalid email or password");
       } else if (result?.ok) {
         // Get user session to determine redirect
-        const session = await getSession()
+        const session = await getSession();
         if (session?.user?.role) {
           const roleRoutes = {
-            ORGANIZER: '/organizer',
-            EVENT_MANAGER: '/event-manager',
-            FACULTY: '/faculty',
-            DELEGATE: '/delegate',
-            HALL_COORDINATOR: '/hall-coordinator',
-            SPONSOR: '/sponsor',
-            VOLUNTEER: '/volunteer',
-            VENDOR: '/vendor'
-          }
-          
-          const redirectUrl = roleRoutes[session.user.role] || '/delegate'
-          router.push(callbackUrl !== '/' ? callbackUrl : redirectUrl)
+            ORGANIZER: "/organizer",
+            EVENT_MANAGER: "/event-manager",
+            FACULTY: "/faculty",
+            DELEGATE: "/delegate",
+            HALL_COORDINATOR: "/hall-coordinator",
+            SPONSOR: "/sponsor",
+            VOLUNTEER: "/volunteer",
+            VENDOR: "/vendor",
+          };
+
+          const redirectUrl = roleRoutes[session.user.role] || "/delegate";
+          router.push(callbackUrl !== "/" ? callbackUrl : redirectUrl);
         } else {
-          router.push(callbackUrl)
+          router.push(callbackUrl);
         }
       }
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
+      setError("An unexpected error occurred. Please try again.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   // Handle Google sign-in
   const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true)
-    setError('')
+    setIsGoogleLoading(true);
+    setError("");
 
     try {
-      await signIn('google', { 
+      await signIn("google", {
         callbackUrl,
-        redirect: true 
-      })
+        redirect: true,
+      });
     } catch (err) {
-      setError('Failed to sign in with Google')
-      setIsGoogleLoading(false)
+      setError("Failed to sign in with Google");
+      setIsGoogleLoading(false);
     }
-  }
+  };
 
   // Get error message from URL params
   const getAuthErrorMessage = (error: string | null) => {
     switch (error) {
-      case 'CredentialsSignin':
-        return 'Invalid email or password'
-      case 'EmailSignin':
-        return 'Error sending email verification'
-      case 'OAuthSignin':
-        return 'Error with OAuth provider'
-      case 'OAuthCallback':
-        return 'Error in OAuth callback'
-      case 'OAuthCreateAccount':
-        return 'Could not create OAuth account'
-      case 'EmailCreateAccount':
-        return 'Could not create email account'
-      case 'Callback':
-        return 'Error in callback'
-      case 'OAuthAccountNotLinked':
-        return 'OAuth account not linked. Please use the same provider you used to sign up.'
-      case 'SessionRequired':
-        return 'Please sign in to continue'
+      case "CredentialsSignin":
+        return "Invalid email or password";
+      case "EmailSignin":
+        return "Error sending email verification";
+      case "OAuthSignin":
+        return "Error with OAuth provider";
+      case "OAuthCallback":
+        return "Error in OAuth callback";
+      case "OAuthCreateAccount":
+        return "Could not create OAuth account";
+      case "EmailCreateAccount":
+        return "Could not create email account";
+      case "Callback":
+        return "Error in callback";
+      case "OAuthAccountNotLinked":
+        return "OAuth account not linked. Please use the same provider you used to sign up.";
+      case "SessionRequired":
+        return "Please sign in to continue";
       default:
-        return 'An error occurred during authentication'
+        return "An error occurred during authentication";
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
-        
         {/* Back to Home */}
         <div>
-          <Link 
-            href="/" 
+          <Link
+            href="/"
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -170,24 +169,18 @@ export default function LoginPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            
             {/* Auth Error Alert */}
             {authError && (
-              <ErrorAlert>
-                {getAuthErrorMessage(authError)}
-              </ErrorAlert>
+              <ErrorAlert>{getAuthErrorMessage(authError)}</ErrorAlert>
             )}
 
             {/* Login Error */}
             {error && (
-              <ErrorAlert onClose={() => setError('')}>
-                {error}
-              </ErrorAlert>
+              <ErrorAlert onClose={() => setError("")}>{error}</ErrorAlert>
             )}
 
             {/* Login Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              
               {/* Email Field */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
@@ -198,11 +191,14 @@ export default function LoginPage() {
                     type="email"
                     placeholder="john@example.com"
                     className="pl-10"
-                    {...register('email')}
+                    {...register("email")}
                   />
                 </div>
                 {errors.email && (
-                  <InlineAlert type="error" message={errors.email.message || ''} />
+                  <InlineAlert
+                    type="error"
+                    message={errors.email.message || ""}
+                  />
                 )}
               </div>
 
@@ -213,28 +209,35 @@ export default function LoginPage() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                   <Input
                     id="password"
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
                     className="pl-10 pr-12"
-                    {...register('password')}
+                    {...register("password")}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
                 {errors.password && (
-                  <InlineAlert type="error" message={errors.password.message || ''} />
+                  <InlineAlert
+                    type="error"
+                    message={errors.password.message || ""}
+                  />
                 )}
               </div>
 
               {/* Forgot Password */}
               <div className="text-right">
-                <Link 
-                  href="/forgot-password" 
+                <Link
+                  href="/forgot-password"
                   className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   Forgot your password?
@@ -257,7 +260,9 @@ export default function LoginPage() {
                 <span className="w-full border-t border-gray-300" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">Or continue with</span>
+                <span className="bg-white dark:bg-gray-800 px-2 text-gray-500">
+                  Or continue with
+                </span>
               </div>
             </div>
 
@@ -276,7 +281,7 @@ export default function LoginPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push('/qr-login')}
+              onClick={() => router.push("/qr-login")}
               className="w-full"
             >
               <QrCode className="w-4 h-4 mr-2" />
@@ -285,9 +290,11 @@ export default function LoginPage() {
 
             {/* Sign Up Link */}
             <div className="text-center text-sm">
-              <span className="text-gray-600 dark:text-gray-400">Don't have an account? </span>
-              <Link 
-                href="/register" 
+              <span className="text-gray-600 dark:text-gray-400">
+                Don't have an account?{" "}
+              </span>
+              <Link
+                href="/register"
                 className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
               >
                 Sign up
@@ -296,19 +303,27 @@ export default function LoginPage() {
 
             {/* Demo Accounts */}
             <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <h4 className="text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">Demo Accounts:</h4>
+              <h4 className="text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
+                Demo Accounts:
+              </h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <p className="font-medium">Organizer:</p>
-                  <p className="text-gray-600 dark:text-gray-400">organizer@demo.com</p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    organizer@demo.com
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium">Faculty:</p>
-                  <p className="text-gray-600 dark:text-gray-400">faculty@demo.com</p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    faculty@demo.com
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium">Hall Coordinator:</p>
-                  <p className="text-gray-600 dark:text-gray-400">hall@demo.com</p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    hall@demo.com
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium">Password:</p>
@@ -322,11 +337,11 @@ export default function LoginPage() {
         {/* Footer */}
         <div className="text-center text-xs text-gray-500">
           <p>
-            By signing in, you agree to our{' '}
+            By signing in, you agree to our{" "}
             <Link href="/terms" className="underline hover:text-gray-700">
               Terms of Service
-            </Link>{' '}
-            and{' '}
+            </Link>{" "}
+            and{" "}
             <Link href="/privacy" className="underline hover:text-gray-700">
               Privacy Policy
             </Link>
@@ -334,5 +349,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
