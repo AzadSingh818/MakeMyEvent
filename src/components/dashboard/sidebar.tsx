@@ -820,12 +820,12 @@ export function NavigationSidebar({
 
 interface MobileSidebarProps extends SidebarProps {
   isOpen: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
 }
 
 export function MobileSidebar({
   isOpen,
-  onClose,
+  onCloseAction,
   ...props
 }: MobileSidebarProps) {
   if (!isOpen) return null;
@@ -834,7 +834,7 @@ export function MobileSidebar({
     <div className="fixed inset-0 z-50 lg:hidden">
       <div
         className="fixed inset-0 bg-black/20 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={onCloseAction}
       />
       <div className="fixed left-0 top-0 h-full">
         <NavigationSidebar {...props} />
