@@ -85,6 +85,11 @@ const getNavigationItems = (
     {
       ORGANIZER: [
         {
+          label: "Visual Representation", // NEW: Added Visual Representation
+          href: "/organizer/visual",
+          icon: Eye,
+        },
+        {
           label: "Events",
           href: "/organizer/events",
           icon: Calendar,
@@ -165,7 +170,7 @@ const getNavigationItems = (
         {
           label: "Communication",
           href: "/organizer/communication",
-          icon: MessageSquare, 
+          icon: MessageSquare,
           children: [
             {
               label: "Email",
@@ -330,7 +335,7 @@ const getNavigationItems = (
               href: "/event-manager/venues/halls",
               icon: Building,
             },
-            { 
+            {
               label: "Equipment",
               href: "/event-manager/venues/equipment",
               icon: Settings,
@@ -412,11 +417,6 @@ const getNavigationItems = (
             },
           ],
         },
-        // {
-        // label: 'Schedule',
-        // href: '/faculty/schedule',
-        // icon: Calendar
-        // },
         {
           label: "Certificates",
           href: "/faculty/certificates",
@@ -642,11 +642,11 @@ export function NavigationSidebar({
     const hasHref = !!item.href;
 
     // Handle explicit actions first
-  if (item.action === "openDocumentsModal") {
-    e.preventDefault();
-    setIsDocsModalOpen(true);
-    return;
-  }
+    if (item.action === "openDocumentsModal") {
+      e.preventDefault();
+      setIsDocsModalOpen(true);
+      return;
+    }
 
     if (item.label === "Certificates") {
       e.preventDefault();

@@ -10,6 +10,70 @@ import { ROOMS } from "../rooms/route";
 import { FACULTIES } from "../faculties/route";
 import { sendInviteEmail } from "../_utils/session-email";
 
+// Helper function to check for scheduling conflicts
+async function checkSessionConflicts(
+  sessionData: {
+    facultyId: string;
+    roomId: string;
+    startTime: string;
+    endTime: string;
+  },
+  excludeSessionId?: string
+) {
+  const allSessions = await getSessions();
+  const conflicts = [];
+
+  const newStart = new Date(sessionData.startTime);
+  const newEnd = new Date(sessionData.endTime);
+
+  for (const existingSession of allSessions) {
+    // Skip the session we're updating
+    if (excludeSessionId && existingSession.id === excludeSessionId) {
+      continue;
+    }
+
+    const existingStart = new Date(existingSession.startTime);
+    const existingEnd = new Date(existingSession.endTime);
+
+    // Check for time overlap
+    const hasTimeOverlap = newStart < existingEnd && newEnd > existingStart;
+
+    if (hasTimeOverlap) {
+      // Faculty conflict
+      if (existingSession.facultyId === sessionData.facultyId) {
+        conflicts.push({
+          id: existingSession.id,
+          title: existingSession.title,
+          facultyId: existingSession.facultyId,
+          roomId: existingSession.roomId,
+          startTime: existingSession.startTime,
+          endTime: existingSession.endTime,
+          type: "faculty",
+          message: `Faculty is already scheduled for "${existingSession.title}" during this time`,
+          sessionTitle: existingSession.title,
+        });
+      }
+
+      // Room conflict
+      if (existingSession.roomId === sessionData.roomId) {
+        conflicts.push({
+          id: existingSession.id,
+          title: existingSession.title,
+          facultyId: existingSession.facultyId,
+          roomId: existingSession.roomId,
+          startTime: existingSession.startTime,
+          endTime: existingSession.endTime,
+          type: "room",
+          message: `Room is already booked for "${existingSession.title}" during this time`,
+          sessionTitle: existingSession.title,
+        });
+      }
+    }
+  }
+
+  return conflicts;
+}
+
 // GET: list all sessions enriched for listing pages (Organizer/Overview/Faculty)
 export async function GET() {
   try {
@@ -89,6 +153,11 @@ export async function POST(req: NextRequest) {
         | "Declined") || "Pending";
     const travelStatus = formData.get("travelStatus")?.toString() || "Pending";
 
+    // Check if this is a conflict-only request
+    const conflictOnly = formData.get("conflictOnly")?.toString() === "true";
+    const overwriteConflicts =
+      formData.get("overwriteConflicts")?.toString() === "true";
+
     if (
       !title ||
       !facultyId ||
@@ -104,9 +173,58 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate time logic
     const finalEndTime =
       endTime ||
       new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
+
+    const start = new Date(startTime);
+    const end = new Date(finalEndTime);
+
+    if (end <= start) {
+      return NextResponse.json(
+        { success: false, error: "End time must be after start time" },
+        { status: 400 }
+      );
+    }
+
+    const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
+    if (durationMinutes < 15) {
+      return NextResponse.json(
+        { success: false, error: "Session must be at least 15 minutes long" },
+        { status: 400 }
+      );
+    }
+
+    // Check for conflicts
+    const conflicts = await checkSessionConflicts({
+      facultyId,
+      roomId,
+      startTime,
+      endTime: finalEndTime,
+    });
+
+    // If this is just a conflict check, return conflicts
+    if (conflictOnly) {
+      return NextResponse.json({
+        success: true,
+        conflicts,
+        hasConflicts: conflicts.length > 0,
+      });
+    }
+
+    // If there are conflicts and not overwriting, return conflict error
+    if (conflicts.length > 0 && !overwriteConflicts) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Scheduling conflicts detected",
+          conflicts,
+          hasConflicts: true,
+        },
+        { status: 409 }
+      );
+    }
 
     const newSession: StoreSession = {
       id: randomUUID(),
@@ -148,7 +266,6 @@ export async function POST(req: NextRequest) {
           {
             success: true,
             emailStatus: "failed",
-            // warning: result.message || "Email not sent",
             data: {
               ...newSession,
               facultyName: faculty?.name,
@@ -187,6 +304,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (err: any) {
+    console.error("Error creating session:", err);
     return NextResponse.json(
       {
         success: false,
