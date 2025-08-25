@@ -40,8 +40,14 @@ import {
   RefreshCw,
   AlertTriangle,
   Star,
+  CalendarDays,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Clock4,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+import { format } from "date-fns";
 
 import { useMyFacultyProfile } from "@/hooks/use-faculty";
 import {
@@ -52,6 +58,7 @@ import {
 import { useMyAttendance } from "@/hooks/use-attendance";
 import { useMyRegistrations } from "@/hooks/use-registrations";
 import { useAuth, useNotifications } from "@/hooks/use-auth";
+import { useFacultyEvents } from "@/hooks/use-faculty-events";
 
 export default function FacultyDashboardPage() {
   const { user } = useAuth();
@@ -82,7 +89,7 @@ export default function FacultyDashboardPage() {
   const [isAccommodationModalOpen, setIsAccommodationModalOpen] =
     useState(false);
 
-  // Faculty Sessions State
+  // Faculty Sessions State (existing)
   const [facultySessions, setFacultySessions] = useState<any[]>([]);
   const [loadingFacultySessions, setLoadingFacultySessions] = useState(true);
   const [sessionsStats, setSessionsStats] = useState<any>({});
@@ -91,7 +98,7 @@ export default function FacultyDashboardPage() {
   const handleTravelModalOpen = () => setIsTravelModalOpen(true);
   const handleAccommodationModalOpen = () => setIsAccommodationModalOpen(true);
 
-  // DATA FETCHING
+  // DATA FETCHING (existing)
   const {
     data: profile,
     isLoading: profileLoading,
@@ -106,10 +113,17 @@ export default function FacultyDashboardPage() {
   const { data: myRegistrations } = useMyRegistrations();
   const { data: notifications } = useNotifications();
 
-  // NEW: Fetch Faculty Sessions from Session Management System
+  // NEW: Faculty Events Hook
+  const {
+    events: facultyEvents,
+    loading: loadingFacultyEvents,
+    refetch: refetchFacultyEvents,
+    respondToEvent,
+  } = useFacultyEvents(user?.email);
+
+  // Existing Sessions Management (keep original)
   const fetchFacultySessions = async () => {
     if (!user?.email) return;
-
     setLoadingFacultySessions(true);
     try {
       const response = await fetch(
@@ -130,7 +144,7 @@ export default function FacultyDashboardPage() {
   // Fetch sessions on component mount and periodically
   useEffect(() => {
     fetchFacultySessions();
-    const interval = setInterval(fetchFacultySessions, 30000); // Refresh every 30 seconds
+    const interval = setInterval(fetchFacultySessions, 30000);
     return () => clearInterval(interval);
   }, [user?.email]);
 
@@ -142,7 +156,7 @@ export default function FacultyDashboardPage() {
   const handleSessionClick = (sessionId: string) =>
     router.push(`/faculty/sessions/${sessionId}`);
 
-  // PRESENTATION HANDLERS
+  // PRESENTATION HANDLERS (existing - keep as is)
   const handlePresentationFileSelect = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -230,7 +244,7 @@ export default function FacultyDashboardPage() {
     setUploadErrors([]);
   };
 
-  // CV HANDLERS
+  // CV HANDLERS (existing - keep as is)
   const handleCVFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -300,7 +314,7 @@ export default function FacultyDashboardPage() {
     setCvUploadError(null);
   };
 
-  // STATS
+  // STATS (updated to include events)
   const mySessionsCount = mySessions?.data?.sessions?.length || 0;
   const todaysSessionsCount =
     todaysSessions?.data?.sessions?.filter((s) =>
@@ -346,10 +360,13 @@ export default function FacultyDashboardPage() {
   const userName = profileUserName;
   const userEmail = profileUserEmail;
 
-  // RESPOND STATE AND HANDLERS
+  // RESPOND STATE AND HANDLERS (updated for both sessions and events)
   const [respondSubmitting, setRespondSubmitting] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
+  const [declineTargetType, setDeclineTargetType] = useState<
+    "session" | "event"
+  >("session");
   const [declineReason, setDeclineReason] = useState<
     "NotInterested" | "SuggestedTopic" | "TimeConflict"
   >("NotInterested");
@@ -358,8 +375,9 @@ export default function FacultyDashboardPage() {
   const [suggestedEnd, setSuggestedEnd] = useState("");
   const [optionalQuery, setOptionalQuery] = useState("");
 
-  const openDecline = (id: string) => {
+  const openDecline = (id: string, type: "session" | "event" = "session") => {
     setDeclineTargetId(id);
+    setDeclineTargetType(type);
     setDeclineReason("NotInterested");
     setSuggestedTopic("");
     setSuggestedStart("");
@@ -368,7 +386,8 @@ export default function FacultyDashboardPage() {
     setDeclineOpen(true);
   };
 
-  const acceptInvite = async (id: string) => {
+  // Accept handlers
+  const acceptSessionInvite = async (id: string) => {
     try {
       setRespondSubmitting(true);
       const res = await fetch(`/api/sessions/respond`, {
@@ -391,51 +410,88 @@ export default function FacultyDashboardPage() {
     }
   };
 
+  const acceptEventInvite = async (id: string) => {
+    try {
+      setRespondSubmitting(true);
+      await respondToEvent(id, "ACCEPTED");
+    } catch (e) {
+      console.error("Error accepting event:", e);
+    } finally {
+      setRespondSubmitting(false);
+    }
+  };
+
+  // Submit decline handler (unified)
   const submitDecline = async () => {
     if (!declineTargetId) return;
     try {
       setRespondSubmitting(true);
-      const payload: any = {
-        id: declineTargetId,
-        inviteStatus: "Declined",
-        rejectionReason: declineReason,
-      };
-      if (declineReason === "SuggestedTopic")
-        payload.suggestedTopic = suggestedTopic.trim();
-      if (declineReason === "TimeConflict") {
-        if (suggestedStart)
-          payload.suggestedTimeStart = new Date(suggestedStart).toISOString();
-        if (suggestedEnd)
-          payload.suggestedTimeEnd = new Date(suggestedEnd).toISOString();
-      }
-      if (optionalQuery.trim()) payload.optionalQuery = optionalQuery.trim();
 
-      const res = await fetch(`/api/sessions/respond`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || "Failed to decline.");
+      if (declineTargetType === "session") {
+        // Handle session decline (existing logic)
+        const payload: any = {
+          id: declineTargetId,
+          inviteStatus: "Declined",
+          rejectionReason: declineReason,
+        };
+        if (declineReason === "SuggestedTopic")
+          payload.suggestedTopic = suggestedTopic.trim();
+        if (declineReason === "TimeConflict") {
+          if (suggestedStart)
+            payload.suggestedTimeStart = new Date(suggestedStart).toISOString();
+          if (suggestedEnd)
+            payload.suggestedTimeEnd = new Date(suggestedEnd).toISOString();
+        }
+        if (optionalQuery.trim()) payload.optionalQuery = optionalQuery.trim();
+
+        const res = await fetch(`/api/sessions/respond`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j?.error || "Failed to decline.");
+        }
+
+        setFacultySessions((prev: any[]) =>
+          prev.map((s) =>
+            s.id === declineTargetId
+              ? {
+                  ...s,
+                  inviteStatus: "Declined",
+                  rejectionReason: payload.rejectionReason,
+                  suggestedTopic: payload.suggestedTopic,
+                  suggestedTimeStart: payload.suggestedTimeStart,
+                  suggestedTimeEnd: payload.suggestedTimeEnd,
+                  optionalQuery: payload.optionalQuery,
+                }
+              : s
+          )
+        );
+        fetchFacultySessions();
+      } else {
+        // Handle event decline
+        const additionalData: any = { rejectionReason: declineReason };
+        if (declineReason === "SuggestedTopic" && suggestedTopic.trim()) {
+          additionalData.suggestedTopic = suggestedTopic.trim();
+        }
+        if (declineReason === "TimeConflict") {
+          if (suggestedStart)
+            additionalData.suggestedTimeStart = new Date(
+              suggestedStart
+            ).toISOString();
+          if (suggestedEnd)
+            additionalData.suggestedTimeEnd = new Date(
+              suggestedEnd
+            ).toISOString();
+        }
+        if (optionalQuery.trim())
+          additionalData.optionalQuery = optionalQuery.trim();
+
+        await respondToEvent(declineTargetId, "DECLINED", additionalData);
       }
 
-      setFacultySessions((prev: any[]) =>
-        prev.map((s) =>
-          s.id === declineTargetId
-            ? {
-                ...s,
-                inviteStatus: "Declined",
-                rejectionReason: payload.rejectionReason,
-                suggestedTopic: payload.suggestedTopic,
-                suggestedTimeStart: payload.suggestedTimeStart,
-                suggestedTimeEnd: payload.suggestedTimeEnd,
-                optionalQuery: payload.optionalQuery,
-              }
-            : s
-        )
-      );
-      fetchFacultySessions();
       setDeclineOpen(false);
     } catch (e) {
       console.error(e);
@@ -444,25 +500,30 @@ export default function FacultyDashboardPage() {
     }
   };
 
-  // Sessions card (kept styling, DARK background for status)
-  const SessionsCard = () => (
+  // COMBINED SESSIONS AND EVENTS CARD
+  const SessionsAndEventsCard = () => (
     <Card className="lg:col-span-2">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Presentation className="h-5 w-5" />
-            My Sessions & Invitations
+            My Sessions & Event Invitations
           </CardTitle>
           <div className="flex space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchFacultySessions}
-              disabled={loadingFacultySessions}
+              onClick={() => {
+                fetchFacultySessions();
+                refetchFacultyEvents();
+              }}
+              disabled={loadingFacultySessions || loadingFacultyEvents}
             >
               <RefreshCw
                 className={`h-3 w-3 mr-1 ${
-                  loadingFacultySessions ? "animate-spin" : ""
+                  loadingFacultySessions || loadingFacultyEvents
+                    ? "animate-spin"
+                    : ""
                 }`}
               />
               Refresh
@@ -475,35 +536,38 @@ export default function FacultyDashboardPage() {
         </div>
       </CardHeader>
       <CardContent>
-        {/* Sessions Stats */}
+        {/* Combined Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Sessions Stats */}
           <div className="text-center p-3 bg-indigo-900/20 border border-indigo-700/30 rounded-lg">
-            <div className="text-2xl font-bold text-indigo-300">
+            <div className="text-xl font-bold text-indigo-300">
               {sessionsStats.total || 0}
             </div>
             <div className="text-xs text-indigo-200">Total Sessions</div>
           </div>
-          <div className="text-center p-3 bg-emerald-900/20 border border-emerald-700/30 rounded-lg">
-            <div className="text-2xl font-bold text-emerald-300">
-              {sessionsStats.accepted || 0}
+          <div className="text-center p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg">
+            <div className="text-xl font-bold text-purple-300">
+              {facultyEvents.length}
             </div>
-            <div className="text-xs text-emerald-200">Accepted</div>
+            <div className="text-xs text-purple-200">Event Invitations</div>
+          </div>
+          <div className="text-center p-3 bg-emerald-900/20 border border-emerald-700/30 rounded-lg">
+            <div className="text-xl font-bold text-emerald-300">
+              {(sessionsStats.accepted || 0) +
+                facultyEvents.filter((e) => e.status === "ACCEPTED").length}
+            </div>
+            <div className="text-xs text-emerald-200">Total Accepted</div>
           </div>
           <div className="text-center p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
-            <div className="text-2xl font-bold text-amber-300">
-              {sessionsStats.pending || 0}
+            <div className="text-xl font-bold text-amber-300">
+              {(sessionsStats.pending || 0) +
+                facultyEvents.filter((e) => e.status === "PENDING").length}
             </div>
-            <div className="text-xs text-amber-200">Pending</div>
-          </div>
-          <div className="text-center p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg">
-            <div className="text-2xl font-bold text-purple-300">
-              {sessionsStats.upcoming || 0}
-            </div>
-            <div className="text-xs text-purple-200">Upcoming</div>
+            <div className="text-xs text-amber-200">Total Pending</div>
           </div>
         </div>
 
-        {loadingFacultySessions ? (
+        {loadingFacultySessions || loadingFacultyEvents ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="animate-pulse">
@@ -512,172 +576,291 @@ export default function FacultyDashboardPage() {
               </div>
             ))}
           </div>
-        ) : facultySessions.length > 0 ? (
-          <div className="space-y-4">
-            {facultySessions.slice(0, 5).map((session) => (
-              <div
-                key={session.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  session.inviteStatus === "Pending"
-                    ? "border-amber-400/30 bg-amber-900/20 hover:bg-amber-900/30"
-                    : session.inviteStatus === "Accepted"
-                    ? "border-emerald-400/30 bg-emerald-900/20 hover:bg-emerald-900/30"
-                    : session.inviteStatus === "Declined"
-                    ? "border-rose-400/30 bg-rose-900/20 hover:bg-rose-900/30"
-                    : "border-slate-700/60 bg-slate-900/30 hover:bg-slate-900/40"
-                }`}
-                onClick={() => router.push(`/faculty/sessions/${session.id}`)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="font-semibold text-slate-100 truncate">
-                        {session.title}
-                      </h4>
-                      <Badge
-                        variant={
-                          session.inviteStatus === "Accepted"
-                            ? "default"
-                            : session.inviteStatus === "Pending"
-                            ? "secondary"
-                            : session.inviteStatus === "Declined"
-                            ? "destructive"
-                            : "outline"
-                        }
-                      >
-                        {session.inviteStatus}
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-300">
-                      <div className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {session.formattedTime}
-                      </div>
-                      <div className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {session.place} - {session.roomName}
-                      </div>
-                      <div className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {session.daysUntil > 0
-                          ? `${session.daysUntil} days to go`
-                          : session.daysUntil === 0
-                          ? "Today"
-                          : "Past session"}
-                      </div>
-                      <div className="flex items-center">
-                        <Activity className="h-3 w-3 mr-1" />
-                        {session.sessionStatus}
-                      </div>
-                    </div>
-
-                    {session.description && (
-                      <p className="text-xs text-slate-400 mt-2 line-clamp-2">
-                        {session.description}
-                      </p>
-                    )}
-
-                    {/* Existing action alert */}
-                    {session.inviteStatus === "Pending" && (
-                      <div className="flex items-center gap-2 mt-3">
-                        <AlertTriangle className="h-4 w-4 text-amber-400" />
-                        <span className="text-sm text-amber-300 font-medium">
-                          Response required - Check your email for action links
-                        </span>
-                      </div>
-                    )}
-
-                    {session.inviteStatus === "Declined" &&
-                      session.rejectionReason === "SuggestedTopic" &&
-                      session.suggestedTopic && (
-                        <div className="mt-3 p-2 bg-blue-900/20 border border-blue-700/30 rounded">
-                          <div className="text-sm text-blue-200">
-                            <strong>Your suggestion:</strong>{" "}
-                            {session.suggestedTopic}
+        ) : (
+          <div className="space-y-6">
+            {/* Sessions Section */}
+            {facultySessions.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
+                  <Presentation className="h-4 w-4 text-indigo-400" />
+                  <h3 className="font-semibold text-slate-200">
+                    Conference Sessions
+                  </h3>
+                  <Badge variant="outline" className="text-xs">
+                    {facultySessions.length}
+                  </Badge>
+                </div>
+                {facultySessions.slice(0, 3).map((session) => (
+                  <div
+                    key={session.id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      session.inviteStatus === "Pending"
+                        ? "border-amber-400/30 bg-amber-900/20 hover:bg-amber-900/30"
+                        : session.inviteStatus === "Accepted"
+                        ? "border-emerald-400/30 bg-emerald-900/20 hover:bg-emerald-900/30"
+                        : session.inviteStatus === "Declined"
+                        ? "border-rose-400/30 bg-rose-900/20 hover:bg-rose-900/30"
+                        : "border-slate-700/60 bg-slate-900/30 hover:bg-slate-900/40"
+                    }`}
+                    onClick={() =>
+                      router.push(`/faculty/sessions/${session.id}`)
+                    }
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-slate-100 truncate">
+                            {session.title}
+                          </h4>
+                          <Badge
+                            variant={
+                              session.inviteStatus === "Accepted"
+                                ? "default"
+                                : session.inviteStatus === "Pending"
+                                ? "secondary"
+                                : session.inviteStatus === "Declined"
+                                ? "destructive"
+                                : "outline"
+                            }
+                          >
+                            {session.inviteStatus}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-300">
+                          <div className="flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {session.formattedTime}
+                          </div>
+                          <div className="flex items-center">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {session.place} - {session.roomName}
                           </div>
                         </div>
-                      )}
-                  </div>
-
-                  <div className="flex flex-col items-end gap-2">
-                    <ExternalLink className="h-4 w-4 text-slate-400" />
-                    {session.inviteStatus === "Accepted" && (
-                      <Badge variant="outline" className="text-xs">
-                        Confirmed
-                      </Badge>
-                    )}
-
-                    {/* Respond actions */}
-                    <div className="flex gap-2 mt-1">
-                      <Button
-                        size="sm"
-                        disabled={
-                          respondSubmitting ||
-                          session.inviteStatus === "Accepted"
-                        }
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          acceptInvite(session.id);
-                        }}
-                      >
-                        Accept
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={
-                          respondSubmitting ||
-                          session.inviteStatus === "Declined"
-                        }
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDecline(session.id);
-                        }}
-                      >
-                        Decline
-                      </Button>
+                        {session.inviteStatus === "Pending" && (
+                          <div className="flex items-center gap-2 mt-3">
+                            <AlertTriangle className="h-4 w-4 text-amber-400" />
+                            <span className="text-sm text-amber-300 font-medium">
+                              Response required
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        {session.inviteStatus === "Pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              disabled={respondSubmitting}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                acceptSessionInvite(session.id);
+                              }}
+                            >
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={respondSubmitting}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDecline(session.id, "session");
+                              }}
+                            >
+                              Decline
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
 
-            {facultySessions.length > 5 && (
-              <div className="text-center pt-4 border-t border-slate-800">
+            {/* Events Section */}
+            {facultyEvents.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
+                  <CalendarDays className="h-4 w-4 text-purple-400" />
+                  <h3 className="font-semibold text-slate-200">
+                    Event Invitations
+                  </h3>
+                  <Badge variant="outline" className="text-xs">
+                    {facultyEvents.length}
+                  </Badge>
+                </div>
+                {facultyEvents.slice(0, 3).map((event) => (
+                  <div
+                    key={event.id}
+                    className={`p-4 border rounded-lg transition-colors ${
+                      event.status === "PENDING"
+                        ? "border-amber-400/30 bg-amber-900/20"
+                        : event.status === "ACCEPTED"
+                        ? "border-emerald-400/30 bg-emerald-900/20"
+                        : event.status === "DECLINED"
+                        ? "border-rose-400/30 bg-rose-900/20"
+                        : "border-slate-700/60 bg-slate-900/30"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-slate-100 truncate">
+                            {event.title}
+                          </h4>
+                          <Badge
+                            variant={
+                              event.status === "ACCEPTED"
+                                ? "default"
+                                : event.status === "PENDING"
+                                ? "secondary"
+                                : event.status === "DECLINED"
+                                ? "destructive"
+                                : "outline"
+                            }
+                          >
+                            {event.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-300 mb-2">
+                          <div className="flex items-center">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            {format(new Date(event.startDate), "MMM dd, yyyy")}
+                          </div>
+                          <div className="flex items-center">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {event.location} - {event.venue}
+                          </div>
+                          <div className="flex items-center">
+                            <Clock4 className="h-3 w-3 mr-1" />
+                            {event.duration}
+                          </div>
+                          <div className="flex items-center">
+                            <Users className="h-3 w-3 mr-1" />
+                            {event.sessionCount} sessions
+                          </div>
+                        </div>
+                        {event.description && (
+                          <p className="text-xs text-slate-400 line-clamp-2 mb-2">
+                            {event.description}
+                          </p>
+                        )}
+                        {event.status === "PENDING" && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-400" />
+                            <span className="text-sm text-amber-300 font-medium">
+                              Response required
+                            </span>
+                          </div>
+                        )}
+                        {event.status === "DECLINED" &&
+                          event.rejectionReason === "SuggestedTopic" &&
+                          event.suggestedTopic && (
+                            <div className="mt-2 p-2 bg-blue-900/20 border border-blue-700/30 rounded">
+                              <div className="text-sm text-blue-200">
+                                <strong>Your suggestion:</strong>{" "}
+                                {event.suggestedTopic}
+                              </div>
+                            </div>
+                          )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        {event.status === "PENDING" && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              disabled={respondSubmitting}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                acceptEventInvite(event.id);
+                              }}
+                            >
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={respondSubmitting}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDecline(event.id, "event");
+                              }}
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Decline
+                            </Button>
+                          </div>
+                        )}
+                        {event.status === "ACCEPTED" && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs bg-emerald-900/20 text-emerald-300"
+                          >
+                            Confirmed
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* View All Links */}
+            {(facultySessions.length > 3 || facultyEvents.length > 3) && (
+              <div className="flex gap-4 pt-4 border-t border-slate-800">
+                {facultySessions.length > 3 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/faculty/sessions")}
+                    className="flex-1"
+                  >
+                    View All Sessions ({facultySessions.length})
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )}
+                {facultyEvents.length > 3 && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/faculty/events")}
+                    className="flex-1"
+                  >
+                    View All Events ({facultyEvents.length})
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {facultySessions.length === 0 && facultyEvents.length === 0 && (
+              <div className="text-center py-8 text-slate-400">
+                <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                <h3 className="font-medium mb-2 text-slate-200">
+                  No sessions or events yet
+                </h3>
+                <p className="text-sm mb-4">
+                  Session and event invitations will appear here when organizers
+                  assign you
+                </p>
                 <Button
                   variant="outline"
-                  onClick={() => router.push("/faculty/sessions")}
+                  onClick={() => router.push("/faculty/contact")}
                 >
-                  View All {facultySessions.length} Sessions
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                  <Mail className="h-4 w-4 mr-2" />
+                  Contact Organizers
                 </Button>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-slate-400">
-            <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
-            <h3 className="font-medium mb-2 text-slate-200">
-              No sessions assigned yet
-            </h3>
-            <p className="text-sm mb-4">
-              Session invitations will appear here when organizers assign you to
-              speak
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => router.push("/faculty/contact")}
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              Contact Organizers
-            </Button>
           </div>
         )}
       </CardContent>
     </Card>
   );
 
+  // Rest of your existing handlers and component code...
   if (profileLoading || userSessionsLoading) {
     return (
       <FacultyLayout>
@@ -700,20 +883,21 @@ export default function FacultyDashboardPage() {
       userEmail={userEmail}
       headerStats={[
         {
-          label: "My Sessions",
+          label: "Sessions",
           value: sessionsStats.total || 0,
           color: "bg-blue-500",
+        },
+        {
+          label: "Events",
+          value: facultyEvents.length,
+          color: "bg-purple-500",
         },
         {
           label: "Presentations",
           value: totalPresentations,
           color: "bg-green-500",
         },
-        {
-          label: "CV",
-          value: hasCV ? "Yes" : "No",
-          color: "bg-green-500",
-        },
+        { label: "CV", value: hasCV ? "Yes" : "No", color: "bg-green-500" },
       ]}
     >
       <div className="space-y-6">
@@ -751,9 +935,9 @@ export default function FacultyDashboardPage() {
           </Alert>
         )}
 
-        {/* Faculty Stats Grid */}
+        {/* Updated Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {/* My Sessions Card */}
+          {/* Sessions Card */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => router.push("/faculty/sessions")}
@@ -778,12 +962,47 @@ export default function FacultyDashboardPage() {
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <Activity className="h-3 w-3 mr-1 text-purple-500" />
-                {sessionsStats.upcoming || 0} upcoming sessions
+                {sessionsStats.upcoming || 0} upcoming
               </div>
             </CardContent>
           </Card>
 
-          {/* Accommodation & Travel */}
+          {/* Events Card */}
+          <Card
+            className="cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => router.push("/faculty/events")}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                Event Invitations
+              </CardTitle>
+              <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{facultyEvents.length}</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <div className="flex items-center space-x-4">
+                  <span className="text-green-600">
+                    Accepted:{" "}
+                    {
+                      facultyEvents.filter((e) => e.status === "ACCEPTED")
+                        .length
+                    }
+                  </span>
+                  <span className="text-yellow-600">
+                    Pending:{" "}
+                    {facultyEvents.filter((e) => e.status === "PENDING").length}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center text-xs text-muted-foreground">
+                <Clock4 className="h-3 w-3 mr-1 text-blue-500" />
+                Multi-day events
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Keep existing Accommodation & Travel and Documents cards as they are */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={handleViewProfile}
@@ -809,7 +1028,6 @@ export default function FacultyDashboardPage() {
                   </span>
                 )}
               </div>
-
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <Plane className="h-3 w-3 mr-1 text-blue-600" />
                 Travel Details:{" "}
@@ -827,7 +1045,6 @@ export default function FacultyDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Documents & Presentations */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={handlePresentations}
@@ -852,38 +1069,13 @@ export default function FacultyDashboardPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Attendance Rate */}
-          <Card
-            className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => router.push("/faculty/attendance")}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance</CardTitle>
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {attendanceRate.toFixed(0)}%
-              </div>
-              <div className="flex items-center text-xs text-muted-foreground mt-1">
-                <Target className="h-3 w-3 mr-1" />
-                Conference participation
-              </div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <Star className="h-3 w-3 mr-1 text-yellow-500" />
-                {registeredEvents} events registered
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Main Content Grid - Replace Sessions card with combined card */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* My Sessions & Schedule - with Respond controls */}
-          <SessionsCard />
+          <SessionsAndEventsCard />
 
-          {/* Faculty Tools Card (unchanged) */}
+          {/* Keep existing Faculty Tools Card exactly as it is */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -892,7 +1084,7 @@ export default function FacultyDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* Presentations Upload */}
+              {/* Keep all existing upload functionality */}
               <div className="space-y-3">
                 <input
                   ref={presentationInputRef}
@@ -943,11 +1135,7 @@ export default function FacultyDashboardPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => {
-                                setPresentationFiles((prev) =>
-                                  prev.filter((_, i) => i !== index)
-                                );
-                              }}
+                              onClick={() => removePresentationFile(index)}
                             >
                               <X className="h-3 w-3" />
                             </Button>
@@ -1057,6 +1245,59 @@ export default function FacultyDashboardPage() {
                   </div>
                 )}
 
+                {/* Success and Error Messages */}
+                {uploadSuccess.length > 0 && (
+                  <Alert className="border-green-200 bg-green-50">
+                    <Check className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">
+                            Successfully uploaded:
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearPresentationMessages}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {uploadSuccess.map((fileName, index) => (
+                          <div key={index} className="text-sm">
+                            • {fileName}
+                          </div>
+                        ))}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {uploadErrors.length > 0 && (
+                  <Alert className="border-red-200 bg-red-50">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="font-medium">Upload errors:</div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearPresentationMessages}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {uploadErrors.map((error, index) => (
+                          <div key={index} className="text-sm">
+                            • {error}
+                          </div>
+                        ))}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {cvUploadSuccess && (
                   <Alert className="border-green-200 bg-green-50 mt-2">
                     <Check className="h-4 w-4" />
@@ -1109,7 +1350,6 @@ export default function FacultyDashboardPage() {
                 <Hotel className="h-4 w-4 mr-2" />
                 Accommodation Details
               </Button>
-
               <Button
                 className="w-full justify-start"
                 variant="outline"
@@ -1118,7 +1358,6 @@ export default function FacultyDashboardPage() {
                 <Award className="h-4 w-4 mr-2" />
                 Download Certificates
               </Button>
-
               <Button
                 className="w-full justify-start"
                 variant="outline"
@@ -1127,7 +1366,6 @@ export default function FacultyDashboardPage() {
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Submit Feedback
               </Button>
-
               <Button
                 className="w-full justify-start"
                 variant="outline"
@@ -1160,12 +1398,15 @@ export default function FacultyDashboardPage() {
         onClose={() => setIsAccommodationModalOpen(false)}
       />
 
-      {/* Respond: Decline Modal */}
+      {/* Updated Decline Modal */}
       {declineOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-lg rounded-lg border bg-white p-4 shadow-lg">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Decline Invitation</h3>
+              <h3 className="text-lg font-semibold">
+                Decline {declineTargetType === "session" ? "Session" : "Event"}{" "}
+                Invitation
+              </h3>
               <Button
                 variant="ghost"
                 size="icon"

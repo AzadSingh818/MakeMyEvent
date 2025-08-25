@@ -19,6 +19,7 @@ import {
   Trash2,
   RefreshCw,
   Building2,
+  AlertTriangle,
 } from "lucide-react";
 import {
   format,
@@ -31,7 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-// Session Type
+// Session Type (keeping existing interface)
 export interface Session {
   id: string;
   title: string;
@@ -54,10 +55,33 @@ export interface Session {
   formattedStartTime?: string;
   formattedEndTime?: string;
   duration?: string;
+  eventId?: string; // Add eventId to sessions
 }
 
 type RoomLite = { id: string; name: string };
-type Faculty = { id: string; name: string };
+
+// Updated Faculty type to match uploaded data structure
+type Faculty = {
+  id: string;
+  name: string;
+  email: string;
+  department?: string;
+  institution?: string;
+  expertise?: string;
+  phone?: string;
+  eventId: string;
+  eventName: string;
+};
+
+// Event type for dropdown
+type Event = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  location?: string;
+  facultyCount: number;
+};
 
 type DraftSession = {
   title?: string;
@@ -94,6 +118,7 @@ interface SessionDetailsModalProps {
   onSessionDelete: (sessionId: string) => void;
 }
 
+// Keep existing SessionDetailsModal component as is...
 const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -613,7 +638,8 @@ interface CreateSessionModalProps {
   defaultDate?: Date | undefined;
   defaultHour?: number | undefined;
   rooms: RoomLite[];
-  faculties: Faculty[];
+  events: Event[];
+  facultiesByEvent: Record<string, Faculty[]>;
   onCreate: () => void;
 }
 
@@ -623,10 +649,12 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   defaultDate,
   defaultHour,
   rooms,
-  faculties,
+  events,
+  facultiesByEvent,
   onCreate,
 }) => {
   const [title, setTitle] = useState("");
+  const [selectedEventId, setSelectedEventId] = useState("");
   const [facultyId, setFacultyId] = useState("");
   const [email, setEmail] = useState("");
   const [place, setPlace] = useState("");
@@ -655,8 +683,40 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
     }
   }, [isOpen, defaultDate, defaultHour]);
 
+  // Get faculty for selected event
+  const availableFaculty = selectedEventId
+    ? facultiesByEvent[selectedEventId] || []
+    : [];
+
+  // Auto-populate email when faculty is selected
+  const handleFacultyChange = (selectedFacultyId: string) => {
+    setFacultyId(selectedFacultyId);
+    const selectedFaculty = availableFaculty.find(
+      (f) => f.id === selectedFacultyId
+    );
+    if (selectedFaculty) {
+      setEmail(selectedFaculty.email);
+    } else {
+      setEmail("");
+    }
+  };
+
+  // Handle event selection
+  const handleEventChange = (eventId: string) => {
+    setSelectedEventId(eventId);
+    setFacultyId(""); // Reset faculty selection
+    setEmail(""); // Reset email
+
+    // Auto-fill place with event location if available
+    const selectedEvent = events.find((e) => e.id === eventId);
+    if (selectedEvent?.location) {
+      setPlace(selectedEvent.location);
+    }
+  };
+
   const resetForm = () => {
     setTitle("");
+    setSelectedEventId("");
     setFacultyId("");
     setEmail("");
     setPlace("");
@@ -699,6 +759,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
       formData.append("status", status);
       formData.append("inviteStatus", "Pending");
       formData.append("travelStatus", "Pending");
+      formData.append("eventId", selectedEventId); // Add eventId to session
 
       const response = await fetch("/api/sessions", {
         method: "POST",
@@ -767,28 +828,75 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Faculty *
+                  Event *
+                  <span className="text-xs text-blue-400 ml-2">
+                    ({events.length} events available)
+                  </span>
                 </label>
                 <select
-                  value={facultyId}
-                  onChange={(e) => setFacultyId(e.target.value)}
+                  value={selectedEventId}
+                  onChange={(e) => handleEventChange(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
                   required
                 >
-                  <option value="">Select Faculty</option>
-                  {faculties.map((faculty) => (
-                    <option key={faculty.id} value={faculty.id}>
-                      {faculty.name}
+                  <option value="">Select Event</option>
+                  {events.map((event) => (
+                    <option key={event.id} value={event.id}>
+                      {event.name} ({event.facultyCount} faculty)
                     </option>
                   ))}
                 </select>
+                {events.length === 0 && (
+                  <p className="text-xs text-yellow-400 mt-1">
+                    ⚠️ No events with faculty found. Please upload faculty lists
+                    first.
+                  </p>
+                )}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Faculty *
+                <span className="text-xs text-blue-400 ml-2">
+                  ({availableFaculty.length} faculty available for selected
+                  event)
+                </span>
+              </label>
+              <select
+                value={facultyId}
+                onChange={(e) => handleFacultyChange(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                required
+                disabled={!selectedEventId}
+              >
+                <option value="">
+                  {selectedEventId
+                    ? "Select Faculty"
+                    : "Please select an event first"}
+                </option>
+                {availableFaculty.map((faculty) => (
+                  <option key={faculty.id} value={faculty.id}>
+                    {faculty.name}
+                    {faculty.department && ` (${faculty.department})`}
+                    {faculty.institution && ` - ${faculty.institution}`}
+                  </option>
+                ))}
+              </select>
+              {selectedEventId && availableFaculty.length === 0 && (
+                <p className="text-xs text-yellow-400 mt-1">
+                  ⚠️ No faculty available for this event.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Faculty Email *
+                  <span className="text-xs text-gray-400 ml-2">
+                    (auto-filled)
+                  </span>
                 </label>
                 <input
                   type="email"
@@ -797,6 +905,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                   className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
                   placeholder="faculty@university.edu"
                   required
+                  readOnly={!!facultyId} // Make readonly if faculty is selected
                 />
               </div>
 
@@ -892,6 +1001,35 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
               />
             </div>
 
+            {/* Selected Event and Faculty Info */}
+            {selectedEventId && facultyId && (
+              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-200 mb-2">
+                  Session Summary:
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-300">
+                  <div>
+                    <span className="font-medium">Event:</span>{" "}
+                    {events.find((e) => e.id === selectedEventId)?.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Faculty:</span>{" "}
+                    {availableFaculty.find((f) => f.id === facultyId)?.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Department:</span>{" "}
+                    {availableFaculty.find((f) => f.id === facultyId)
+                      ?.department || "N/A"}
+                  </div>
+                  <div>
+                    <span className="font-medium">Institution:</span>{" "}
+                    {availableFaculty.find((f) => f.id === facultyId)
+                      ?.institution || "N/A"}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
               <Button
                 type="button"
@@ -904,7 +1042,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
               </Button>
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !selectedEventId || !facultyId}
                 className="bg-green-600 hover:bg-green-700"
               >
                 {loading ? (
@@ -922,10 +1060,14 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   );
 };
 
+// Main Sessions Calendar Component with Event Filtering
 const SessionsCalendarView: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [rooms, setRooms] = useState<RoomLite[]>([]);
-  const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [facultiesByEvent, setFacultiesByEvent] = useState<
+    Record<string, Faculty[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<Session[]>([]);
@@ -945,53 +1087,133 @@ const SessionsCalendarView: React.FC = () => {
 
   const POLL_INTERVAL = 3000;
 
-  const fetchSessions = useCallback(async (showLoading = true) => {
+  // Helper function to load events and faculty from localStorage
+  const loadEventsAndFacultyFromLocalStorage = useCallback(() => {
     try {
-      if (showLoading) setLoading(true);
+      const savedFacultyData = localStorage.getItem("eventFacultyData");
+      if (savedFacultyData) {
+        const eventFacultyData = JSON.parse(savedFacultyData);
 
-      const [sessionsRes, roomsRes, facultiesRes] = await Promise.all([
-        fetch("/api/sessions", { cache: "no-store" }),
-        fetch("/api/rooms", { cache: "no-store" }),
-        fetch("/api/faculties", { cache: "no-store" }),
-      ]);
+        // Create events list with faculty counts
+        const eventsWithFaculty: Event[] = eventFacultyData.map(
+          (eventData: any) => ({
+            id: eventData.eventId,
+            name: eventData.eventName,
+            startDate: new Date(
+              Date.now() + 30 * 24 * 60 * 60 * 1000
+            ).toISOString(), // Default future date
+            endDate: new Date(
+              Date.now() + 32 * 24 * 60 * 60 * 1000
+            ).toISOString(),
+            location: "University Campus", // Default location
+            facultyCount: eventData.totalCount || 0,
+          })
+        );
 
-      if (!sessionsRes.ok || !roomsRes.ok || !facultiesRes.ok) {
-        throw new Error("Failed to fetch data");
+        // Create faculty mapping by event
+        const facultyMapping: Record<string, Faculty[]> = {};
+        eventFacultyData.forEach((eventData: any) => {
+          facultyMapping[eventData.eventId] = eventData.facultyList || [];
+        });
+
+        console.log(
+          `📋 Loaded ${eventsWithFaculty.length} events with faculty data`
+        );
+        console.log(
+          `👥 Total faculty across all events: ${
+            Object.values(facultyMapping).flat().length
+          }`
+        );
+
+        return { events: eventsWithFaculty, facultiesByEvent: facultyMapping };
       }
-
-      const sessionsData = await sessionsRes.json();
-      const roomsData = await roomsRes.json();
-      const facultiesData = await facultiesRes.json();
-
-      const sessionsList =
-        sessionsData?.data?.sessions ||
-        sessionsData?.sessions ||
-        sessionsData ||
-        [];
-      const roomsList = roomsData || [];
-      const facultiesList = facultiesData || [];
-
-      if (Array.isArray(sessionsList)) {
-        const enhancedSessions = sessionsList.map((session: any) => ({
-          ...session,
-          roomName: roomsList.find((r: RoomLite) => r.id === session.roomId)
-            ?.name,
-        }));
-
-        setSessions(enhancedSessions);
-        setRooms(roomsList);
-        setFaculties(facultiesList);
-        setLastUpdateTime(new Date().toLocaleTimeString());
-      } else {
-        setError(sessionsData?.error || "Failed to fetch sessions");
-      }
-    } catch (err) {
-      setError("Error fetching sessions");
-      console.error("Error:", err);
-    } finally {
-      if (showLoading) setLoading(false);
+    } catch (error) {
+      console.error(
+        "Error loading events and faculty from localStorage:",
+        error
+      );
     }
+    return { events: [], facultiesByEvent: {} };
   }, []);
+
+  // Updated fetchSessions function to use localStorage for events and faculty
+  const fetchSessions = useCallback(
+    async (showLoading = true) => {
+      try {
+        if (showLoading) setLoading(true);
+
+        const [sessionsRes, roomsRes] = await Promise.all([
+          fetch("/api/sessions", { cache: "no-store" }),
+          fetch("/api/rooms", { cache: "no-store" }),
+        ]);
+
+        if (!sessionsRes.ok || !roomsRes.ok) {
+          throw new Error("Failed to fetch data");
+        }
+
+        const sessionsData = await sessionsRes.json();
+        const roomsData = await roomsRes.json();
+
+        // Load events and faculty from localStorage instead of API
+        const { events: eventsFromStorage, facultiesByEvent: facultyMapping } =
+          loadEventsAndFacultyFromLocalStorage();
+
+        const sessionsList =
+          sessionsData?.data?.sessions ||
+          sessionsData?.sessions ||
+          sessionsData ||
+          [];
+        const roomsList = roomsData || [];
+
+        if (Array.isArray(sessionsList)) {
+          const enhancedSessions = sessionsList.map((session: any) => ({
+            ...session,
+            roomName: roomsList.find((r: RoomLite) => r.id === session.roomId)
+              ?.name,
+          }));
+
+          setSessions(enhancedSessions);
+          setRooms(roomsList);
+          setEvents(eventsFromStorage);
+          setFacultiesByEvent(facultyMapping);
+          setLastUpdateTime(new Date().toLocaleTimeString());
+        } else {
+          setError(sessionsData?.error || "Failed to fetch sessions");
+        }
+      } catch (err) {
+        setError("Error fetching sessions");
+        console.error("Error:", err);
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [loadEventsAndFacultyFromLocalStorage]
+  );
+
+  // Listen for faculty data updates from localStorage
+  useEffect(() => {
+    const handleFacultyDataUpdate = () => {
+      console.log(
+        "🔄 Faculty data updated, refreshing events and faculty lists"
+      );
+      const { events: updatedEvents, facultiesByEvent: updatedFacultyMapping } =
+        loadEventsAndFacultyFromLocalStorage();
+      setEvents(updatedEvents);
+      setFacultiesByEvent(updatedFacultyMapping);
+    };
+
+    // Listen for storage events
+    window.addEventListener("storage", handleFacultyDataUpdate);
+    window.addEventListener("eventFacultyDataUpdated", handleFacultyDataUpdate);
+
+    return () => {
+      window.removeEventListener("storage", handleFacultyDataUpdate);
+      window.removeEventListener(
+        "eventFacultyDataUpdated",
+        handleFacultyDataUpdate
+      );
+    };
+  }, [loadEventsAndFacultyFromLocalStorage]);
 
   useEffect(() => {
     fetchSessions();
@@ -1153,6 +1375,9 @@ const SessionsCalendarView: React.FC = () => {
     );
   };
 
+  // Calculate total faculty across all events
+  const totalAvailableFaculty = Object.values(facultiesByEvent).flat().length;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 p-6">
@@ -1193,6 +1418,10 @@ const SessionsCalendarView: React.FC = () => {
               </h1>
               <p className="text-gray-400">
                 Real-time schedule overview • Last updated: {lastUpdateTime}
+                <span className="text-blue-400 ml-2">
+                  • {events.length} events • {totalAvailableFaculty} faculty
+                  available
+                </span>
               </p>
             </div>
           </div>
@@ -1213,12 +1442,63 @@ const SessionsCalendarView: React.FC = () => {
             <Button
               className="bg-blue-600 hover:bg-blue-700"
               onClick={handleNewSessionClick}
+              disabled={events.length === 0}
+              title={
+                events.length === 0
+                  ? "Please upload faculty lists for events first"
+                  : "Create new session"
+              }
             >
               <Plus className="w-4 h-4 mr-2" />
               New Session
             </Button>
           </div>
         </div>
+
+        {/* Events and Faculty Status Alert */}
+        {events.length === 0 && (
+          <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+            <div className="flex items-center gap-2 text-yellow-300">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="text-sm">
+                No events with faculty found. Please upload faculty lists from
+                Faculty Management to create sessions.
+              </span>
+              <Button
+                variant="link"
+                size="sm"
+                className="text-yellow-300 underline p-0 ml-2"
+                onClick={() => window.open("/organizer/faculty", "_blank")}
+              >
+                Upload Faculty
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Events Summary */}
+        {events.length > 0 && (
+          <div className="mb-4 flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-gray-300">
+                <strong>{events.length}</strong> active events
+              </span>
+            </div>
+            {events.slice(0, 3).map((event, index) => (
+              <div key={event.id} className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {event.name} ({event.facultyCount} faculty)
+                </Badge>
+              </div>
+            ))}
+            {events.length > 3 && (
+              <span className="text-gray-400 text-xs">
+                +{events.length - 3} more events
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -1390,7 +1670,8 @@ const SessionsCalendarView: React.FC = () => {
         defaultDate={newSessionDate}
         defaultHour={newSessionHour}
         rooms={rooms}
-        faculties={faculties}
+        events={events}
+        facultiesByEvent={facultiesByEvent}
         onCreate={() => {
           fetchSessions(true);
           setShowCreateModal(false);
