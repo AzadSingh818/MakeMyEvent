@@ -74,16 +74,21 @@ const getNavigationItems = (
   role: SidebarProps["userRole"]
 ): NavigationItem[] => {
   const commonItems: NavigationItem[] = [
-    {
-      label: "Dashboard",
-      href: "/event-manager",
-      icon: Home,
-    },
+    // {
+    //   label: "Dashboard",
+    //   href: "/event-manager",
+    //   icon: Home,
+    // },
   ];
 
   const roleSpecificItems: Record<SidebarProps["userRole"], NavigationItem[]> =
     {
       ORGANIZER: [
+        {
+          label: "Dashboard",
+          href: "/organizer",
+          icon: Home,
+        },
         {
           label: "Visual Representation", // NEW: Added Visual Representation
           href: "/organizer/visual",
@@ -230,6 +235,11 @@ const getNavigationItems = (
         },
       ],
       EVENT_MANAGER: [
+        {
+          label: "Dashboard",
+          href: "/event-manager",
+          icon: Home,
+        },
         {
           label: "Events",
           href: "/event-manager/events",

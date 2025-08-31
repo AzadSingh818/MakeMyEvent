@@ -1,37 +1,33 @@
-// src/app/api/events/route.ts
+// src/app/api/events/route.ts - FIXED: Allow organizers to see all events for session creation
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { query } from '@/lib/database/connection';
 import { z } from 'zod';
 
-// Validation schemas
+// UPDATED: Validation schema without missing fields
 const CreateEventSchema = z.object({
   name: z.string().min(3, 'Event name must be at least 3 characters'),
   description: z.string().optional(),
   startDate: z.string().transform((str) => new Date(str)),
   endDate: z.string().transform((str) => new Date(str)),
   location: z.string().min(1, 'Location is required'),
-  venue: z.string().optional(),
-  maxParticipants: z.number().positive().optional(),
-  registrationDeadline: z.string().transform((str) => new Date(str)).optional(),
   eventType: z.enum(['CONFERENCE', 'WORKSHOP', 'SEMINAR', 'SYMPOSIUM']).default('CONFERENCE'),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ONGOING', 'COMPLETED', 'CANCELLED']).default('DRAFT'),
   tags: z.array(z.string()).optional(),
   website: z.string().url().optional(),
   contactEmail: z.string().email().optional(),
+  // Removed: venue, maxParticipants, registrationDeadline (not in database)
 });
 
 const UpdateEventSchema = CreateEventSchema.partial();
 
-// ✅ FIXED: Column name mapping for sorting
+// UPDATED: Column mapping without missing columns
 const SORT_COLUMN_MAP = {
   'startDate': 'start_date',
   'endDate': 'end_date',
   'startdate': 'start_date',
   'enddate': 'end_date',
-  'maxParticipants': 'max_participants',
-  'registrationDeadline': 'registration_deadline',
   'eventType': 'event_type',
   'contactEmail': 'contact_email',
   'createdAt': 'created_at',
@@ -59,9 +55,7 @@ export async function GET(request: NextRequest) {
     const sortByParam = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    // ✅ FIXED: Map sort column to correct database column name
     const sortBy = SORT_COLUMN_MAP[sortByParam] || 'created_at';
-
     const skip = (page - 1) * limit;
 
     // Build WHERE clause for filtering
@@ -69,12 +63,15 @@ export async function GET(request: NextRequest) {
     let queryParams: any[] = [];
     let paramCount = 0;
 
-    // Role-based filtering
-    if (session.user.role === 'ORGANIZER') {
-      paramCount++;
-      whereClause += ` AND e.created_by = $${paramCount}`;
-      queryParams.push(session.user.id);
+    // FIXED: Role-based filtering - Allow organizers to see ALL events for session creation
+    if (session.user.role === 'EVENT_MANAGER') {
+      // Event managers see all events (no additional filter)
+    } else if (session.user.role === 'ORGANIZER') {
+      // FIXED: Organizers can see all events to create sessions under them
+      // Remove the restriction that limited them to only their own events
+      // This allows session creation workflow to work properly
     } else if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+      // Other roles (FACULTY, DELEGATE, etc.) only see published events
       paramCount++;
       whereClause += ` AND e.status = $${paramCount}`;
       queryParams.push('PUBLISHED');
@@ -98,7 +95,7 @@ export async function GET(request: NextRequest) {
       queryParams.push(`%${search}%`);
     }
 
-    // ✅ FIXED: Get events with user details and counts using correct column names
+    // FIXED: Query only existing columns
     const eventsQuery = `
       SELECT 
         e.id,
@@ -107,9 +104,6 @@ export async function GET(request: NextRequest) {
         e.start_date,
         e.end_date,
         e.location,
-        e.venue,
-        e.max_participants,
-        e.registration_deadline,
         e.event_type,
         e.status,
         e.tags,
@@ -144,7 +138,7 @@ export async function GET(request: NextRequest) {
       query(countQuery, queryParams.slice(0, -2))
     ]);
 
-    // ✅ FIXED: Safe JSON parsing with null/empty handling
+    // FIXED: Response without missing fields
     const events = eventsResult.rows.map(row => {
       // Safe JSON parsing for tags
       let tags = [];
@@ -161,19 +155,17 @@ export async function GET(request: NextRequest) {
         id: row.id,
         name: row.name,
         description: row.description,
-        startDate: row.start_date,     // ✅ Fixed: Correct database column name
-        endDate: row.end_date,         // ✅ Fixed: Correct database column name
+        startDate: row.start_date,
+        endDate: row.end_date,
         location: row.location,
-        venue: row.venue,
-        maxParticipants: row.max_participants,
-        registrationDeadline: row.registration_deadline,
         eventType: row.event_type,
         status: row.status,
-        tags: tags, // ✅ Fixed: Safe JSON parsing
+        tags: tags,
         website: row.website,
         contactEmail: row.contact_email,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        // Removed: venue, maxParticipants, registrationDeadline
         createdByUser: {
           id: row.created_by,
           name: row.creator_name,
@@ -241,14 +233,14 @@ export async function POST(request: NextRequest) {
     // Generate new UUID for event
     const eventId = `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // ✅ Fixed: Insert event with correct column names
+    // FIXED: Insert only existing columns
     const insertEventQuery = `
       INSERT INTO events (
-        id, name, description, start_date, end_date, location, venue,
-        max_participants, registration_deadline, event_type, status,
-        tags, website, contact_email, created_by, created_at, updated_at
+        id, name, description, start_date, end_date, location,
+        event_type, status, tags, website, contact_email, 
+        created_by, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
       ) RETURNING *
     `;
 
@@ -259,9 +251,6 @@ export async function POST(request: NextRequest) {
       validatedData.startDate,
       validatedData.endDate,
       validatedData.location,
-      validatedData.venue || null,
-      validatedData.maxParticipants || null,
-      validatedData.registrationDeadline || null,
       validatedData.eventType,
       validatedData.status,
       validatedData.tags ? JSON.stringify(validatedData.tags) : null,
@@ -291,7 +280,7 @@ export async function POST(request: NextRequest) {
       [session.user.id]
     );
 
-    // ✅ Fixed: Response data with correct column names and safe JSON parsing
+    // FIXED: Response with existing fields only
     let tags = [];
     try {
       if (newEvent.tags && newEvent.tags.trim() !== '') {
@@ -305,19 +294,17 @@ export async function POST(request: NextRequest) {
       id: newEvent.id,
       name: newEvent.name,
       description: newEvent.description,
-      startDate: newEvent.start_date,         // ✅ Fixed: Correct database column name
-      endDate: newEvent.end_date,             // ✅ Fixed: Correct database column name
+      startDate: newEvent.start_date,
+      endDate: newEvent.end_date,
       location: newEvent.location,
-      venue: newEvent.venue,
-      maxParticipants: newEvent.max_participants,
-      registrationDeadline: newEvent.registration_deadline,
       eventType: newEvent.event_type,
       status: newEvent.status,
-      tags: tags, // ✅ Fixed: Safe JSON parsing
+      tags: tags,
       website: newEvent.website,
       contactEmail: newEvent.contact_email,
       createdAt: newEvent.created_at,
       updatedAt: newEvent.updated_at,
+      // Removed: venue, maxParticipants, registrationDeadline
       createdByUser: {
         id: session.user.id,
         name: userResult.rows[0]?.name,
@@ -390,7 +377,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // ✅ Fixed: Build update query with correct column names
+    // FIXED: Build update query with existing columns only
     const updateFields: string[] = [];
     const updateParams: any[] = [];
     let paramCount = 0;
@@ -402,8 +389,6 @@ export async function PUT(request: NextRequest) {
         let dbField = key;
         if (key === 'startDate') dbField = 'start_date';
         else if (key === 'endDate') dbField = 'end_date';
-        else if (key === 'maxParticipants') dbField = 'max_participants';
-        else if (key === 'registrationDeadline') dbField = 'registration_deadline';
         else if (key === 'eventType') dbField = 'event_type';
         else if (key === 'contactEmail') dbField = 'contact_email';
         else dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();

@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-
-export type Faculty = { id: string; name: string };
-
-export const FACULTIES: Faculty[] = [
-  { id: "1", name: "Dr. Ramesh Sharma" },
-  { id: "2", name: "Prof. Anita Gupta" },
-  { id: "3", name: "Dr. Sunil Verma" },
-];
+import { getFaculties, type Faculty } from "@/lib/database/session-queries";
 
 export async function GET() {
-  return NextResponse.json(FACULTIES);
+  try {
+    const faculties = await getFaculties();
+    return NextResponse.json(faculties);
+  } catch (error) {
+    console.error("Error fetching faculties:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch faculties" },
+      { status: 500 }
+    );
+  }
 }
 
 export const dynamic = "force-dynamic";

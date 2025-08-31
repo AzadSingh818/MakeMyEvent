@@ -73,14 +73,26 @@ type Faculty = {
   eventName: string;
 };
 
-// Event type for dropdown
+// Event type for dropdown - Updated to match API response
 type Event = {
   id: string;
   name: string;
   startDate: string;
   endDate: string;
   location?: string;
-  facultyCount: number;
+  status: string;
+  description?: string;
+  eventType?: string;
+  createdByUser?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  _count?: {
+    sessions: number;
+    registrations: number;
+  };
+  facultyCount?: number; // This will be calculated separately
 };
 
 type DraftSession = {
@@ -118,7 +130,7 @@ interface SessionDetailsModalProps {
   onSessionDelete: (sessionId: string) => void;
 }
 
-// Keep existing SessionDetailsModal component as is...
+// FIXED: Clean SessionDetailsModal component
 const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -842,7 +854,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                   <option value="">Select Event</option>
                   {events.map((event) => (
                     <option key={event.id} value={event.id}>
-                      {event.name} ({event.facultyCount} faculty)
+                      {event.name} ({event.facultyCount || 0} faculty)
                     </option>
                   ))}
                 </select>
@@ -1060,7 +1072,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   );
 };
 
-// Main Sessions Calendar Component with Event Filtering
+// Main Sessions Calendar Component - FIXED: Fetch events from database API
 const SessionsCalendarView: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [rooms, setRooms] = useState<RoomLite[]>([]);
@@ -1087,28 +1099,65 @@ const SessionsCalendarView: React.FC = () => {
 
   const POLL_INTERVAL = 3000;
 
-  // Helper function to load events and faculty from localStorage
-  const loadEventsAndFacultyFromLocalStorage = useCallback(() => {
+  // FIXED: Load events from database API instead of localStorage
+  const loadEventsFromDatabase = useCallback(async () => {
+    try {
+      console.log('🔄 Loading events from database API...');
+      const eventsResponse = await fetch('/api/events', { 
+        cache: 'no-store',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        console.log('📊 Events API response:', eventsData);
+
+        // Handle different API response formats
+        let eventsList = [];
+        if (eventsData.success && eventsData.data && eventsData.data.events) {
+          eventsList = eventsData.data.events;
+        } else if (eventsData.events) {
+          eventsList = eventsData.events;
+        } else if (Array.isArray(eventsData)) {
+          eventsList = eventsData;
+        }
+
+        console.log(`✅ Loaded ${eventsList.length} events from database`);
+        
+        // Map events to the format needed by the calendar
+        const mappedEvents: Event[] = eventsList.map((event: any) => ({
+          id: event.id,
+          name: event.name,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          location: event.location,
+          status: event.status,
+          description: event.description,
+          eventType: event.eventType,
+          createdByUser: event.createdByUser,
+          _count: event._count,
+          facultyCount: 0 // Will be updated from localStorage faculty data
+        }));
+
+        return mappedEvents;
+      } else {
+        console.error('❌ Failed to fetch events:', eventsResponse.status);
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ Error loading events from database:', error);
+      return [];
+    }
+  }, []);
+
+  // Load faculty data from localStorage (keeping this part as it works)
+  const loadFacultyFromLocalStorage = useCallback(() => {
     try {
       const savedFacultyData = localStorage.getItem("eventFacultyData");
       if (savedFacultyData) {
         const eventFacultyData = JSON.parse(savedFacultyData);
-
-        // Create events list with faculty counts
-        const eventsWithFaculty: Event[] = eventFacultyData.map(
-          (eventData: any) => ({
-            id: eventData.eventId,
-            name: eventData.eventName,
-            startDate: new Date(
-              Date.now() + 30 * 24 * 60 * 60 * 1000
-            ).toISOString(), // Default future date
-            endDate: new Date(
-              Date.now() + 32 * 24 * 60 * 60 * 1000
-            ).toISOString(),
-            location: "University Campus", // Default location
-            facultyCount: eventData.totalCount || 0,
-          })
-        );
 
         // Create faculty mapping by event
         const facultyMapping: Record<string, Faculty[]> = {};
@@ -1117,46 +1166,40 @@ const SessionsCalendarView: React.FC = () => {
         });
 
         console.log(
-          `📋 Loaded ${eventsWithFaculty.length} events with faculty data`
+          `👥 Loaded faculty data for ${Object.keys(facultyMapping).length} events`
         );
         console.log(
-          `👥 Total faculty across all events: ${
-            Object.values(facultyMapping).flat().length
-          }`
+          `📊 Total faculty: ${Object.values(facultyMapping).flat().length}`
         );
 
-        return { events: eventsWithFaculty, facultiesByEvent: facultyMapping };
+        return facultyMapping;
       }
     } catch (error) {
-      console.error(
-        "Error loading events and faculty from localStorage:",
-        error
-      );
+      console.error("❌ Error loading faculty from localStorage:", error);
     }
-    return { events: [], facultiesByEvent: {} };
+    return {};
   }, []);
 
-  // Updated fetchSessions function to use localStorage for events and faculty
+  // FIXED: Updated fetch function to use database for events
   const fetchSessions = useCallback(
     async (showLoading = true) => {
       try {
         if (showLoading) setLoading(true);
 
-        const [sessionsRes, roomsRes] = await Promise.all([
+        // Load data from multiple sources
+        const [sessionsRes, roomsRes, eventsFromDb, facultyFromStorage] = await Promise.all([
           fetch("/api/sessions", { cache: "no-store" }),
           fetch("/api/rooms", { cache: "no-store" }),
+          loadEventsFromDatabase(), // FIXED: Load from database
+          loadFacultyFromLocalStorage() // Keep localStorage for faculty
         ]);
 
         if (!sessionsRes.ok || !roomsRes.ok) {
-          throw new Error("Failed to fetch data");
+          throw new Error("Failed to fetch sessions or rooms");
         }
 
         const sessionsData = await sessionsRes.json();
         const roomsData = await roomsRes.json();
-
-        // Load events and faculty from localStorage instead of API
-        const { events: eventsFromStorage, facultiesByEvent: facultyMapping } =
-          loadEventsAndFacultyFromLocalStorage();
 
         const sessionsList =
           sessionsData?.data?.sessions ||
@@ -1172,34 +1215,39 @@ const SessionsCalendarView: React.FC = () => {
               ?.name,
           }));
 
+          // FIXED: Update events with faculty counts from localStorage
+          const eventsWithFacultyCounts = eventsFromDb.map((event: Event) => ({
+            ...event,
+            facultyCount: facultyFromStorage[event.id]?.length || 0
+          }));
+
           setSessions(enhancedSessions);
           setRooms(roomsList);
-          setEvents(eventsFromStorage);
-          setFacultiesByEvent(facultyMapping);
+          setEvents(eventsWithFacultyCounts); // FIXED: Use database events
+          setFacultiesByEvent(facultyFromStorage);
           setLastUpdateTime(new Date().toLocaleTimeString());
+          
+          console.log(`✅ Updated calendar with ${eventsWithFacultyCounts.length} events and ${enhancedSessions.length} sessions`);
         } else {
           setError(sessionsData?.error || "Failed to fetch sessions");
         }
       } catch (err) {
         setError("Error fetching sessions");
-        console.error("Error:", err);
+        console.error("❌ Error:", err);
       } finally {
         if (showLoading) setLoading(false);
       }
     },
-    [loadEventsAndFacultyFromLocalStorage]
+    [loadEventsFromDatabase, loadFacultyFromLocalStorage]
   );
 
   // Listen for faculty data updates from localStorage
   useEffect(() => {
     const handleFacultyDataUpdate = () => {
       console.log(
-        "🔄 Faculty data updated, refreshing events and faculty lists"
+        "🔄 Faculty data updated in localStorage, refreshing..."
       );
-      const { events: updatedEvents, facultiesByEvent: updatedFacultyMapping } =
-        loadEventsAndFacultyFromLocalStorage();
-      setEvents(updatedEvents);
-      setFacultiesByEvent(updatedFacultyMapping);
+      fetchSessions(false); // Refresh without loading state
     };
 
     // Listen for storage events
@@ -1213,7 +1261,7 @@ const SessionsCalendarView: React.FC = () => {
         handleFacultyDataUpdate
       );
     };
-  }, [loadEventsAndFacultyFromLocalStorage]);
+  }, [fetchSessions]);
 
   useEffect(() => {
     fetchSessions();
@@ -1445,7 +1493,7 @@ const SessionsCalendarView: React.FC = () => {
               disabled={events.length === 0}
               title={
                 events.length === 0
-                  ? "Please upload faculty lists for events first"
+                  ? "No events available - please ensure EVENT_MANAGER has created events"
                   : "Create new session"
               }
             >
@@ -1455,14 +1503,13 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         </div>
 
-        {/* Events and Faculty Status Alert */}
+        {/* FIXED: Updated status alert */}
         {events.length === 0 && (
           <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
             <div className="flex items-center gap-2 text-yellow-300">
               <AlertTriangle className="h-4 w-4" />
               <span className="text-sm">
-                No events with faculty found. Please upload faculty lists from
-                Faculty Management to create sessions.
+                No events found. Please ensure the EVENT_MANAGER has created events, or upload faculty lists from Faculty Management.
               </span>
               <Button
                 variant="link"
@@ -1476,7 +1523,7 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         )}
 
-        {/* Events Summary */}
+        {/* FIXED: Dynamic events summary */}
         {events.length > 0 && (
           <div className="mb-4 flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">

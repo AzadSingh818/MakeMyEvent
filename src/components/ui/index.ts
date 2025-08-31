@@ -1,3 +1,4 @@
+// src/components/ui/index.ts - FIXED: Removed duplicate Separator export
 // Export all UI components from a single file for easier imports
 
 // Form Components
@@ -65,6 +66,9 @@ export { Progress } from './progress'
 
 // Badge Components
 export { Badge, badgeVariants } from './badge'
+
+// Separator Component
+export { Separator } from './separator'
 
 // Loading Components
 export {

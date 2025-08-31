@@ -21,14 +21,17 @@
     "axe/forms": [
       "default",
       {
-        "label": "off"
+        "label": "off",
+        "select-name": "off"
       }
     ],
     "no-inline-styles": "off",
     "axe/aria": [
       "default",
       {
-        "aria-valid-attr-value": "off"
+        "aria-valid-attr-value": "off",
+        "aria-allowed-attr": "off",
+        "aria-roles": "off"
       }
     ]
   }

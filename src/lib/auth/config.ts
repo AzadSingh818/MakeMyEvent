@@ -1,4 +1,4 @@
-// src/lib/auth/config.ts
+// src/lib/auth/config.ts - FIXED: JWT callback that refreshes user role
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -174,12 +174,34 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
+    // FIXED: JWT callback that refreshes user role from database
     async jwt({ token, user, account }) {
-      // Persist the user role and other data to the token
+      // For NEW logins, set initial token data
       if (user) {
         token.role = user.role;
         token.id = user.id;
-        console.log("🔄 JWT token updated with user data");
+        token.email = user.email;
+        console.log("🔄 JWT token updated with NEW user data:", user.role);
+      }
+
+      // CRITICAL FIX: Refresh user data from database for existing tokens
+      if (token.id && !user) {
+        try {
+          const freshUser = await UserService.findById(token.id as string);
+          if (freshUser) {
+            // Update token with fresh database data
+            const oldRole = token.role;
+            token.role = freshUser.role;
+            token.email = freshUser.email;
+            token.name = freshUser.name;
+            
+            if (oldRole !== freshUser.role) {
+              console.log(`🔄 Role updated in JWT: ${oldRole} → ${freshUser.role}`);
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error refreshing user data in JWT:", error);
+        }
       }
 
       // Handle first-time Google login
@@ -229,6 +251,8 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
+        session.user.email = token.email as string;
+        session.user.name = token.name as string;
       }
 
       return session;
@@ -330,5 +354,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     role: UserRole;
     id: string;
+    email: string;
+    name?: string;
   }
 }

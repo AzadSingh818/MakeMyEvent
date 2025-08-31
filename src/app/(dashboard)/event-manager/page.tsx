@@ -1,18 +1,18 @@
-// src/app/(dashboard)/event-manager/page.tsx
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading';
+import { LoadingSpinner, SkeletonCard } from '@/components/ui/loading'; // ✅ Only valid if you created this file
 import { EventManagerLayout } from '@/components/dashboard/layout';
-import { useRouter } from 'next/navigation'; // ✅ Added useRouter import
+import { useRouter } from 'next/navigation';
 
 import { useEvents } from '@/hooks/use-events';
 import { useSessions, useTodaysSessions, useOngoingSessions } from '@/hooks/use-sessions';
 import { usePendingRegistrations, useRegistrationStats } from '@/hooks/use-registrations';
 import { useFacultyStats } from '@/hooks/use-faculty';
 import { useAuth, useDashboardStats } from '@/hooks/use-auth';
+import { Checkbox } from "@/components/ui/checkbox"
 
 import { 
   Calendar, 
@@ -30,7 +30,9 @@ import {
   ExternalLink,
   ArrowRight
 } from 'lucide-react';
+
 import { format } from 'date-fns';
+
 
 export default function EventManagerDashboardPage() {
   const { user } = useAuth();

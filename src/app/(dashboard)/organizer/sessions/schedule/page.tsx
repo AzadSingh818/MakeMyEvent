@@ -30,11 +30,16 @@ import {
   Timer,
 } from "lucide-react";
 
-type Faculty = { id: string; name: string };
+type Faculty = { 
+  id: string; 
+  name: string;
+  email?: string;
+  eventName?: string;
+};
 type Room = { id: string; name: string };
 
 type SessionForm = {
-  id: string; // Unique ID for form management
+  id: string;
   title: string;
   place: string;
   roomId: string;
@@ -64,7 +69,6 @@ const CreateSession: React.FC = () => {
   const [showConflictWarning, setShowConflictWarning] = useState(false);
   const [conflictCheckLoading, setConflictCheckLoading] = useState(false);
 
-  // Multi-session state
   const [facultyId, setFacultyId] = useState("");
   const [email, setEmail] = useState("");
   const [sessions, setSessions] = useState<SessionForm[]>([
@@ -82,7 +86,6 @@ const CreateSession: React.FC = () => {
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterPreview, setPosterPreview] = useState<string>("");
 
-  // Form step and validation
   const [formStep, setFormStep] = useState(1);
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
@@ -90,27 +93,124 @@ const CreateSession: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
+  // FIXED: Load faculty from uploaded Excel data instead of API
   useEffect(() => {
     (async () => {
       try {
-        const [f, r] = await Promise.all([
-          fetch("/api/faculties").then((r) => r.json()),
-          fetch("/api/rooms").then((r) => r.json()),
-        ]);
-        setFaculties(f);
-        setRooms(r);
-      } catch {
+        const loadFacultyFromUploads = () => {
+          try {
+            const savedFacultyData = localStorage.getItem("eventFacultyData");
+            if (savedFacultyData) {
+              const parsedData = JSON.parse(savedFacultyData);
+              console.log('Loaded faculty data from uploads:', parsedData);
+              
+              const allFaculty: Faculty[] = [];
+              parsedData.forEach((eventData: any) => {
+                eventData.facultyList.forEach((faculty: any) => {
+                  allFaculty.push({
+                    id: faculty.id,
+                    name: faculty.name,
+                    email: faculty.email,
+                    eventName: faculty.eventName,
+                  });
+                });
+              });
+              
+              console.log(`Found ${allFaculty.length} faculty members from uploads`);
+              return allFaculty;
+            } else {
+              console.log('No uploaded faculty data found in localStorage');
+              return [];
+            }
+          } catch (error) {
+            console.error('Error loading uploaded faculty data:', error);
+            return [];
+          }
+        };
+
+        const uploadedFaculty = loadFacultyFromUploads();
+        
+        const roomsResponse = await fetch("/api/rooms");
+        const rooms = roomsResponse.ok ? await roomsResponse.json() : [];
+        
+        if (uploadedFaculty.length === 0) {
+          console.log('No uploaded faculty found, falling back to API...');
+          try {
+            const facultyResponse = await fetch("/api/faculties");
+            const apiFaculty = facultyResponse.ok ? await facultyResponse.json() : [];
+            setFaculties(apiFaculty);
+            console.log(`Loaded ${apiFaculty.length} faculty from API as fallback`);
+          } catch (apiError) {
+            console.error('Failed to load faculty from API:', apiError);
+            setErrorMessage("No faculty data available. Please upload faculty via Faculty Management first.");
+          }
+        } else {
+          setFaculties(uploadedFaculty);
+          console.log(`Using ${uploadedFaculty.length} faculty from Excel uploads`);
+        }
+        
+        setRooms(rooms);
+        
+      } catch (error) {
+        console.error('Error loading data:', error);
         setErrorMessage("Failed to load faculties or rooms.");
       }
     })();
   }, []);
 
-  // Add new session
+  // FIXED: Listen for faculty data updates
+  useEffect(() => {
+    const handleFacultyDataUpdate = (event: CustomEvent) => {
+      console.log('Faculty data updated, reloading...');
+      const eventFacultyData = event.detail.eventFacultyData;
+      
+      const allFaculty: Faculty[] = [];
+      eventFacultyData.forEach((eventData: any) => {
+        eventData.facultyList.forEach((faculty: any) => {
+          allFaculty.push({
+            id: faculty.id,
+            name: faculty.name,
+            email: faculty.email,
+            eventName: faculty.eventName,
+          });
+        });
+      });
+      
+      setFaculties(allFaculty);
+      console.log(`Updated to ${allFaculty.length} faculty members`);
+    };
+
+    window.addEventListener('eventFacultyDataUpdated', handleFacultyDataUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('eventFacultyDataUpdated', handleFacultyDataUpdate as EventListener);
+    };
+  }, []);
+
+  // FIXED: Auto-fill email when faculty is selected
+  const handleFacultyChange = (selectedFacultyId: string) => {
+    setFacultyId(selectedFacultyId);
+    
+    // Find the selected faculty and auto-fill email
+    const selectedFaculty = faculties.find(f => f.id === selectedFacultyId);
+    if (selectedFaculty && selectedFaculty.email) {
+      setEmail(selectedFaculty.email);
+    }
+    
+    // Clear validation errors
+    if (validationErrors.facultyId) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        facultyId: "",
+      }));
+    }
+  };
+
   const addSession = () => {
     const newSession: SessionForm = {
       id: `session-${Date.now()}`,
       title: "",
-      place: sessions[0]?.place || "", // Copy place from first session
+      place: sessions[0]?.place || "",
       roomId: "",
       description: "",
       startTime: "",
@@ -120,11 +220,9 @@ const CreateSession: React.FC = () => {
     setSessions([...sessions, newSession]);
   };
 
-  // Remove session (keep at least one)
   const removeSession = (sessionId: string) => {
     if (sessions.length > 1) {
       setSessions(sessions.filter((s) => s.id !== sessionId));
-      // Clear validation errors for removed session
       const newErrors = { ...validationErrors };
       Object.keys(newErrors).forEach((key) => {
         if (key.startsWith(sessionId)) {
@@ -135,7 +233,6 @@ const CreateSession: React.FC = () => {
     }
   };
 
-  // Update session field
   const updateSession = (
     sessionId: string,
     field: keyof SessionForm,
@@ -147,7 +244,6 @@ const CreateSession: React.FC = () => {
       )
     );
 
-    // Clear validation errors for this field
     if (validationErrors[`${sessionId}-${field}`]) {
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
@@ -156,12 +252,10 @@ const CreateSession: React.FC = () => {
       });
     }
 
-    // Clear general error messages
     setErrorMessage("");
     setSuccessMessage("");
   };
 
-  // Copy session data (exclude time fields)
   const copySession = (sourceSessionId: string) => {
     const sourceSession = sessions.find((s) => s.id === sourceSessionId);
     if (!sourceSession) return;
@@ -179,12 +273,10 @@ const CreateSession: React.FC = () => {
     setSessions([...sessions, newSession]);
   };
 
-  // Bulk update common fields
   const updateAllSessions = (field: "place" | "status", value: string) => {
     setSessions(sessions.map((session) => ({ ...session, [field]: value })));
   };
 
-  // Handle poster upload
   const handlePosterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -199,7 +291,7 @@ const CreateSession: React.FC = () => {
         setPosterPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
-      setErrorMessage(""); // Clear error message
+      setErrorMessage("");
     }
   };
 
@@ -208,7 +300,6 @@ const CreateSession: React.FC = () => {
     setPosterPreview("");
   };
 
-  // Calculate duration
   const calculateDuration = (startTime: string, endTime: string) => {
     if (startTime && endTime) {
       const start = new Date(startTime);
@@ -225,16 +316,13 @@ const CreateSession: React.FC = () => {
     return "";
   };
 
-  // Enhanced validation
   const validateForm = () => {
     const errors: Record<string, string> = {};
 
-    // Faculty validation
     if (!facultyId) errors.facultyId = "Please select a faculty";
     if (!email.trim()) errors.email = "Faculty email is required";
     if (!email.includes("@")) errors.email = "Please enter a valid email";
 
-    // Session validation
     sessions.forEach((session) => {
       const prefix = session.id;
 
@@ -250,7 +338,6 @@ const CreateSession: React.FC = () => {
       if (!session.endTime)
         errors[`${prefix}-endTime`] = "End time is required";
 
-      // Time validation
       if (session.startTime && session.endTime) {
         const start = new Date(session.startTime);
         const end = new Date(session.endTime);
@@ -271,7 +358,6 @@ const CreateSession: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Check for conflicts across all sessions
   const checkConflicts = async () => {
     if (!validateForm()) {
       setErrorMessage("Please fix validation errors before checking conflicts");
@@ -327,7 +413,7 @@ const CreateSession: React.FC = () => {
 
       if (allConflicts.length === 0) {
         setSuccessMessage(
-          "✅ No conflicts detected! All sessions can be scheduled."
+          "No conflicts detected! All sessions can be scheduled."
         );
       }
     } catch (error) {
@@ -338,7 +424,6 @@ const CreateSession: React.FC = () => {
     }
   };
 
-  // Create all sessions
   const handleSubmit = async (
     e: React.FormEvent,
     overwriteConflicts = false
@@ -362,7 +447,6 @@ const CreateSession: React.FC = () => {
       console.log("Email:", email);
       console.log("Sessions to create:", sessions.length);
 
-      // Create each session
       for (const [index, session] of sessions.entries()) {
         console.log(
           `Creating session ${index + 1}/${sessions.length}: ${session.title}`
@@ -370,7 +454,6 @@ const CreateSession: React.FC = () => {
 
         const form = new FormData();
 
-        // Add all session fields - ENSURE ALL REQUIRED FIELDS ARE INCLUDED
         const sessionData = {
           title: session.title.trim(),
           facultyId: facultyId,
@@ -387,7 +470,6 @@ const CreateSession: React.FC = () => {
 
         console.log(`Session ${index + 1} data:`, sessionData);
 
-        // Validate required fields before sending
         const requiredFields = [
           "title",
           "facultyId",
@@ -414,7 +496,6 @@ const CreateSession: React.FC = () => {
           );
         }
 
-        // Add each field to FormData
         Object.entries(sessionData).forEach(([key, value]) => {
           if (value !== undefined && value !== null && value !== "") {
             form.append(key, value.toString());
@@ -425,7 +506,6 @@ const CreateSession: React.FC = () => {
           form.append("overwriteConflicts", "true");
         }
 
-        // Add poster to all sessions (same poster for all)
         if (posterFile) {
           form.append("poster", posterFile);
         }
@@ -454,7 +534,7 @@ const CreateSession: React.FC = () => {
         if (response.ok) {
           const sessionData = await response.json();
           createdSessions.push(sessionData);
-          console.log(`✅ Session created successfully: ${sessionData.title}`);
+          console.log(`Session created successfully: ${sessionData.title}`);
         } else {
           const errorData = await response.json();
           console.error(
@@ -471,7 +551,6 @@ const CreateSession: React.FC = () => {
         `All ${createdSessions.length} sessions created successfully`
       );
 
-      // Send bulk invitation email
       try {
         console.log("Sending bulk invitation email...");
         const emailResponse = await fetch("/api/sessions/bulk-invite", {
@@ -489,7 +568,7 @@ const CreateSession: React.FC = () => {
         if (emailResponse.ok) {
           const emailResult = await emailResponse.json();
           console.log(
-            "✅ Bulk invitation email sent successfully:",
+            "Bulk invitation email sent successfully:",
             emailResult
           );
         } else {
@@ -503,10 +582,9 @@ const CreateSession: React.FC = () => {
       const facultyName =
         faculties.find((f) => f.id === facultyId)?.name || "Faculty Member";
       setSuccessMessage(
-        `🎉 Successfully created ${createdSessions.length} session(s) for ${facultyName}! Bulk invitation email has been sent.`
+        `Successfully created ${createdSessions.length} session(s) for ${facultyName}! Bulk invitation email has been sent.`
       );
 
-      // Reset form
       resetForm();
     } catch (error) {
       console.error("Error creating sessions:", error);
@@ -571,7 +649,6 @@ const CreateSession: React.FC = () => {
     <OrganizerLayout>
       <div className="min-h-screen bg-gray-950 py-8">
         <div className="max-w-7xl mx-auto px-6">
-          {/* Enhanced Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-4">
               <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
@@ -587,7 +664,6 @@ const CreateSession: React.FC = () => {
               </div>
             </div>
 
-            {/* Progress Steps */}
             <div className="flex items-center justify-center gap-4 mb-8">
               {[
                 { step: 1, title: "Faculty & Basic Info", icon: User },
@@ -617,7 +693,6 @@ const CreateSession: React.FC = () => {
             </div>
           </div>
 
-          {/* Alert Messages */}
           {successMessage && (
             <Alert className="mb-6 border-green-600 bg-green-900/20 backdrop-blur">
               <CheckCircle className="h-4 w-4 text-green-400" />
@@ -636,14 +711,13 @@ const CreateSession: React.FC = () => {
             </Alert>
           )}
 
-          {/* Conflict Warning */}
           {showConflictWarning && (
             <Alert className="mb-6 border-amber-600 bg-amber-900/20 backdrop-blur">
               <AlertTriangle className="h-4 w-4 text-amber-400" />
               <AlertDescription>
                 <div className="space-y-3">
                   <p className="font-semibold text-amber-200">
-                    ⚠️ Scheduling conflicts detected in {conflicts.length}{" "}
+                    Scheduling conflicts detected in {conflicts.length}{" "}
                     session(s)!
                   </p>
                   {conflicts.length > 0 && (
@@ -686,7 +760,6 @@ const CreateSession: React.FC = () => {
           )}
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Form */}
             <div className="lg:col-span-2">
               <Card className="border-gray-700 shadow-2xl bg-gray-900/80 backdrop-blur">
                 <CardHeader className="border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-800/50">
@@ -702,7 +775,6 @@ const CreateSession: React.FC = () => {
                 </CardHeader>
                 <CardContent className="p-8 text-white">
                   <form onSubmit={(e) => handleSubmit(e, false)}>
-                    {/* Step 1: Faculty Selection */}
                     {formStep === 1 && (
                       <div className="space-y-6">
                         <div className="grid md:grid-cols-2 gap-6">
@@ -713,15 +785,7 @@ const CreateSession: React.FC = () => {
                             </label>
                             <select
                               value={facultyId}
-                              onChange={(e) => {
-                                setFacultyId(e.target.value);
-                                if (validationErrors.facultyId) {
-                                  setValidationErrors((prev) => ({
-                                    ...prev,
-                                    facultyId: "",
-                                  }));
-                                }
-                              }}
+                              onChange={(e) => handleFacultyChange(e.target.value)}
                               className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white ${
                                 validationErrors.facultyId
                                   ? "border-red-500 bg-red-900/20"
@@ -732,6 +796,7 @@ const CreateSession: React.FC = () => {
                               {faculties.map((f) => (
                                 <option key={f.id} value={f.id}>
                                   {f.name}
+                                  {f.eventName && ` (${f.eventName})`}
                                 </option>
                               ))}
                             </select>
@@ -774,7 +839,6 @@ const CreateSession: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Common Settings */}
                         <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-6">
                           <h3 className="text-lg font-semibold text-blue-200 mb-4 flex items-center gap-2">
                             <Settings className="h-5 w-5" />
@@ -799,7 +863,7 @@ const CreateSession: React.FC = () => {
                                 Default Status
                               </label>
                               <select
-                                className="w-full p-3 border border-blue-600 rounded-lg bg-blue-900/30 text-white focus:border-blue-400 focus:outline-none"
+                                className="w-full p-3 border border-blue-600 rounded-lg bg-blue-900/30 text-white focus:border-blue-400 focus-outline-none"
                                 onChange={(e) =>
                                   updateAllSessions("status", e.target.value)
                                 }
@@ -811,7 +875,6 @@ const CreateSession: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Poster Upload */}
                         <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 hover:border-blue-400 transition-all bg-gray-800/50">
                           <div className="text-center">
                             <Image className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -875,7 +938,6 @@ const CreateSession: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Step 2: Sessions Details */}
                     {formStep === 2 && (
                       <div className="space-y-6">
                         <div className="flex items-center justify-between mb-6">
@@ -1171,7 +1233,6 @@ const CreateSession: React.FC = () => {
                                   </div>
                                 </div>
 
-                                {/* Duration Display */}
                                 {session.startTime && session.endTime && (
                                   <div className="p-3 bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-700 rounded-lg">
                                     <div className="flex items-center gap-3">
@@ -1236,7 +1297,6 @@ const CreateSession: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Step 3: Review */}
                     {formStep === 3 && (
                       <div className="space-y-6">
                         <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 rounded-xl p-6 border border-gray-700">
@@ -1399,7 +1459,6 @@ const CreateSession: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Form Navigation */}
                     <div className="flex justify-between items-center pt-8 border-t border-gray-700">
                       <div>
                         {formStep > 1 && (
@@ -1450,7 +1509,6 @@ const CreateSession: React.FC = () => {
               </Card>
             </div>
 
-            {/* Enhanced Sidebar */}
             <div className="space-y-6">
               <Card className="border-gray-700 shadow-xl bg-gradient-to-br from-gray-800 to-gray-900 backdrop-blur">
                 <CardHeader>
@@ -1566,61 +1624,60 @@ const CreateSession: React.FC = () => {
                             style={{
                               width: `${
                                 (sessions.filter(
-                                  (s) => s.title && s.startTime && s.endTime
-                                ).length /
-                                  sessions.length) *
-                                100
-                              }%`,
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                                  (s) => s.title && s.startTime && s.endTime).length /
+                                 sessions.length) *
+                               100
+                             }%`,
+                           }}
+                         ></div>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+               </CardContent>
+             </Card>
 
-              <Card className="border-gray-700 shadow-xl bg-gray-900/80 backdrop-blur">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg text-white">
-                    <Clock className="h-5 w-5 text-green-400" />
-                    Quick Tips
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="p-3 bg-blue-900/30 rounded-lg border border-blue-800">
-                    <p className="font-medium text-blue-200">💡 Pro Tip</p>
-                    <p className="text-blue-300 text-xs">
-                      Use "Copy Session" to duplicate session details and only
-                      change the time
-                    </p>
-                  </div>
+             <Card className="border-gray-700 shadow-xl bg-gray-900/80 backdrop-blur">
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2 text-lg text-white">
+                   <Clock className="h-5 w-5 text-green-400" />
+                   Quick Tips
+                 </CardTitle>
+               </CardHeader>
+               <CardContent className="space-y-3 text-sm">
+                 <div className="p-3 bg-blue-900/30 rounded-lg border border-blue-800">
+                   <p className="font-medium text-blue-200">Pro Tip</p>
+                   <p className="text-blue-300 text-xs">
+                     Use "Copy Session" to duplicate session details and only
+                     change the time
+                   </p>
+                 </div>
 
-                  <div className="p-3 bg-green-900/30 rounded-lg border border-green-800">
-                    <p className="font-medium text-green-200">⚡ Quick Setup</p>
-                    <p className="text-green-300 text-xs">
-                      Set common location and status in Step 1 to apply to all
-                      sessions
-                    </p>
-                  </div>
+                 <div className="p-3 bg-green-900/30 rounded-lg border border-green-800">
+                   <p className="font-medium text-green-200">Quick Setup</p>
+                   <p className="text-green-300 text-xs">
+                     Set common location and status in Step 1 to apply to all
+                     sessions
+                   </p>
+                 </div>
 
-                  <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-800">
-                    <p className="font-medium text-orange-200">
-                      🔍 Check Conflicts
-                    </p>
-                    <p className="text-orange-300 text-xs">
-                      Always run conflict check before submitting to avoid
-                      scheduling issues
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      </div>
-    </OrganizerLayout>
-  );
+                 <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-800">
+                   <p className="font-medium text-orange-200">
+                     Check Conflicts
+                   </p>
+                   <p className="text-orange-300 text-xs">
+                     Always run conflict check before submitting to avoid
+                     scheduling issues
+                   </p>
+                 </div>
+               </CardContent>
+             </Card>
+           </div>
+         </div>
+       </div>
+     </div>
+   </OrganizerLayout>
+ );
 };
 
 export default CreateSession;

@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-
-export type Room = { id: string; name: string };
-
-export const ROOMS: Room[] = [
-  { id: "A101", name: "Auditorium 101" },
-  { id: "B202", name: "Building B - Room 202" },
-  { id: "C303", name: "Conference Room 303" },
-];
+import { getRooms, type Room } from "@/lib/database/session-queries";
 
 export async function GET() {
-  return NextResponse.json(ROOMS);
+  try {
+    const rooms = await getRooms();
+    return NextResponse.json(rooms);
+  } catch (error) {
+    console.error("Error fetching rooms:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch rooms" },
+      { status: 500 }
+    );
+  }
 }
 
 export const dynamic = "force-dynamic";

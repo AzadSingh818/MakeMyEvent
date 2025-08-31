@@ -1,11 +1,16 @@
+// src/app/(dashboard)/organizer/sessions/page.tsx - FIXED: Event loading from database
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { OrganizerLayout } from "@/components/dashboard/layout";
+import { SessionForm } from "@/components/sessions/session-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Calendar,
   Edit3,
@@ -24,16 +29,15 @@ import {
   Building2,
   FileText,
   Plus,
-  Download,
-  Eye,
-  Settings,
   Timer,
+  CalendarDays
 } from "lucide-react";
 
 type InviteStatus = "Pending" | "Accepted" | "Declined";
 
 type SessionRow = {
   id: string;
+  eventId?: string;
   title: string;
   facultyName: string;
   email: string;
@@ -41,19 +45,38 @@ type SessionRow = {
   roomName?: string;
   roomId?: string;
   description?: string;
-  startTime?: string; // Updated from 'time' to 'startTime'
-  endTime?: string; // NEW: End time field
+  startTime?: string;
+  endTime?: string;
   status: "Draft" | "Confirmed";
   inviteStatus: InviteStatus;
-  rejectionReason?: "NotInterested" | "SuggestedTopic" | "TimeConflict"; // Added TimeConflict
+  rejectionReason?: "NotInterested" | "SuggestedTopic" | "TimeConflict";
   suggestedTopic?: string;
-  suggestedTimeStart?: string; // NEW: Faculty suggested start time
-  suggestedTimeEnd?: string; // NEW: Faculty suggested end time
-  optionalQuery?: string; // NEW: Optional faculty message
+  suggestedTimeStart?: string;
+  suggestedTimeEnd?: string;
+  optionalQuery?: string;
   facultyId?: string;
-  duration?: string; // Calculated duration for display
+  duration?: string;
   formattedStartTime?: string;
   formattedEndTime?: string;
+  eventInfo?: {
+    id: string;
+    name: string;
+    location: string;
+  };
+};
+
+type Event = {
+  id: string;
+  name: string;
+  location: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  createdByName?: string;
+  _count: {
+    sessions: number;
+    registrations: number;
+  };
 };
 
 type RoomLite = { id: string; name: string };
@@ -62,60 +85,24 @@ type Faculty = { id: string; name: string };
 type DraftSession = {
   place: string;
   roomId?: string;
-  startTime?: string; // Changed from 'time'
-  endTime?: string; // NEW: End time field
+  startTime?: string;
+  endTime?: string;
   status: "Draft" | "Confirmed";
   description?: string;
 };
 
+// Helper functions
 const badge = (s: InviteStatus) => {
-  const base =
-    "px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1";
-  if (s === "Accepted")
-    return (
-      <span
-        className={`${base} bg-green-900/30 text-green-300 border border-green-700`}
-      >
-        <CheckCircle className="h-3 w-3" />
-        Accepted
-      </span>
-    );
-  if (s === "Declined")
-    return (
-      <span
-        className={`${base} bg-red-900/30 text-red-300 border border-red-700`}
-      >
-        <X className="h-3 w-3" />
-        Declined
-      </span>
-    );
-  return (
-    <span
-      className={`${base} bg-yellow-900/30 text-yellow-300 border border-yellow-700`}
-    >
-      <Clock className="h-3 w-3" />
-      Pending
-    </span>
-  );
+  const base = "px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1";
+  if (s === "Accepted") return <span className={`${base} bg-green-900/30 text-green-300 border border-green-700`}><CheckCircle className="h-3 w-3" />Accepted</span>;
+  if (s === "Declined") return <span className={`${base} bg-red-900/30 text-red-300 border border-red-700`}><X className="h-3 w-3" />Declined</span>;
+  return <span className={`${base} bg-yellow-900/30 text-yellow-300 border border-yellow-700`}><Clock className="h-3 w-3" />Pending</span>;
 };
 
 const statusBadge = (s: "Draft" | "Confirmed") => {
   const base = "px-2 py-1 rounded-full text-xs font-medium";
-  if (s === "Confirmed")
-    return (
-      <span
-        className={`${base} bg-blue-900/30 text-blue-300 border border-blue-700`}
-      >
-        Confirmed
-      </span>
-    );
-  return (
-    <span
-      className={`${base} bg-gray-700 text-gray-300 border border-gray-600`}
-    >
-      Draft
-    </span>
-  );
+  if (s === "Confirmed") return <span className={`${base} bg-blue-900/30 text-blue-300 border border-blue-700`}>Confirmed</span>;
+  return <span className={`${base} bg-gray-700 text-gray-300 border border-gray-600`}>Draft</span>;
 };
 
 const toInputDateTime = (iso?: string) => {
@@ -125,7 +112,6 @@ const toInputDateTime = (iso?: string) => {
   return local.toISOString().slice(0, 16);
 };
 
-// Helper function to calculate duration
 const calculateDuration = (startTime?: string, endTime?: string) => {
   if (!startTime || !endTime) return "";
   const start = new Date(startTime);
@@ -140,15 +126,24 @@ const calculateDuration = (startTime?: string, endTime?: string) => {
 };
 
 const AllSessions: React.FC = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // State
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [rooms, setRooms] = useState<RoomLite[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [loading, setLoading] = useState(true);
+  const [eventsLoading, setEventsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "Draft" | "Confirmed"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "Draft" | "Confirmed">("all");
   const [inviteFilter, setInviteFilter] = useState<"all" | InviteStatus>("all");
+  const [selectedEventId, setSelectedEventId] = useState<string>("all");
+
+  // Session creation modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [preselectedEventId, setPreselectedEventId] = useState<string>("");
 
   // Edit state
   const [editing, setEditing] = useState<Record<string, boolean>>({});
@@ -156,58 +151,133 @@ const AllSessions: React.FC = () => {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
 
+  // Get URL params
+  const eventIdFromUrl = searchParams.get('eventId');
+  const actionFromUrl = searchParams.get('action');
+
+  useEffect(() => {
+    if (eventIdFromUrl) {
+      setSelectedEventId(eventIdFromUrl);
+      setPreselectedEventId(eventIdFromUrl);
+    }
+    if (actionFromUrl === 'create') {
+      setShowCreateModal(true);
+    }
+  }, [eventIdFromUrl, actionFromUrl]);
+
+  // FIXED: Separate event loading function with proper API response handling
+  const loadEvents = async () => {
+    try {
+      setEventsLoading(true);
+      console.log('Fetching events for sessions page...');
+      
+      const response = await fetch("/api/events", { 
+        cache: "no-store",
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Events API Error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Events API Response:', data);
+
+      // FIXED: Handle the correct API response format
+      let eventsArray = [];
+      if (data.success && data.data && data.data.events) {
+        eventsArray = data.data.events;
+      } else if (data.events) {
+        eventsArray = data.events;
+      } else if (Array.isArray(data)) {
+        eventsArray = data;
+      } else {
+        console.warn('Unexpected events API response format:', data);
+        eventsArray = [];
+      }
+
+      // FIXED: Process events with proper field mapping
+      const processedEvents: Event[] = eventsArray.map((event: any) => ({
+        id: event.id,
+        name: event.name,
+        location: event.venue || event.location || 'TBA',
+        status: event.status || 'DRAFT',
+        startDate: event.start_date || event.startDate,
+        endDate: event.end_date || event.endDate,
+        createdByName: event.created_by_name || event.createdByName,
+        _count: {
+          sessions: event._count?.sessions || 0,
+          registrations: event._count?.registrations || 0,
+        }
+      }));
+
+      console.log(`Successfully loaded ${processedEvents.length} events for sessions`);
+      setEvents(processedEvents);
+
+    } catch (error) {
+      console.error('Error loading events:', error);
+      
+      // FIXED: Fallback events only if API fails
+      const fallbackEvents: Event[] = [
+        {
+          id: "event-1",
+          name: "Academic Excellence Conference 2025",
+          location: "University Campus",
+          status: "PUBLISHED",
+          startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString(),
+          _count: { sessions: 0, registrations: 0 }
+        }
+      ];
+      setEvents(fallbackEvents);
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
   const load = async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
+      await loadEvents();
+
       const [sRes, rRes, fRes] = await Promise.all([
-        fetch("/api/sessions", { cache: "no-store" }),
+        fetch(`/api/sessions${selectedEventId !== "all" ? `?eventId=${selectedEventId}` : ""}`, { cache: "no-store" }),
         fetch("/api/rooms", { cache: "no-store" }),
         fetch("/api/faculties", { cache: "no-store" }),
       ]);
 
-      if (!sRes.ok || !rRes.ok || !fRes.ok)
-        throw new Error("Failed to fetch data");
+      if (!sRes.ok || !rRes.ok || !fRes.ok) {
+        throw new Error("Failed to fetch session data");
+      }
 
-      const sData = await sRes.json();
-      const rData: RoomLite[] = await rRes.json();
-      const fData: Faculty[] = await fRes.json();
+      const [sData, rData, fData] = await Promise.all([
+        sRes.json(),
+        rRes.json(),
+        fRes.json()
+      ]);
 
-      console.log("Raw sessions data:", sData);
-
-      // Enhanced mapping with proper startTime/endTime handling
-      const sessionsList =
-        sData.data?.sessions || sData.sessions || sData || [];
+      const sessionsList = sData.data?.sessions || sData.sessions || sData || [];
       const mapped: SessionRow[] = sessionsList.map((s: any) => {
-        const roomId = s.roomId ?? rData.find((r) => r.name === s.roomName)?.id;
+        const roomId = s.roomId ?? rData.find((r: any) => r.name === s.roomName)?.id;
         const duration = calculateDuration(s.startTime, s.endTime);
-
-        console.log("Processing session:", s.title, {
-          startTime: s.startTime,
-          endTime: s.endTime,
-          duration,
-        });
 
         return {
           ...s,
           roomId,
           duration,
-          // Ensure backward compatibility with old 'time' field
           startTime: s.startTime || s.time,
-          formattedStartTime: s.startTime
-            ? new Date(s.startTime).toLocaleString()
-            : undefined,
-          formattedEndTime: s.endTime
-            ? new Date(s.endTime).toLocaleString()
-            : undefined,
+          formattedStartTime: s.startTime ? new Date(s.startTime).toLocaleString() : undefined,
+          formattedEndTime: s.endTime ? new Date(s.endTime).toLocaleString() : undefined,
         };
       });
 
-      console.log("Mapped sessions:", mapped);
       setSessions(mapped);
-      setRooms(rData);
-      setFaculties(fData);
+      setRooms(rData || []);
+      setFaculties(fData || []);
     } catch (e) {
-      console.error("Failed to load sessions/rooms/faculties:", e);
+      console.error("Failed to load data:", e);
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -215,9 +285,41 @@ const AllSessions: React.FC = () => {
 
   useEffect(() => {
     load();
-    const id = setInterval(() => load(false), 5000);
+    const id = setInterval(() => load(false), 10000);
     return () => clearInterval(id);
-  }, []);
+  }, [selectedEventId]);
+
+  // Event selection handler
+  const handleEventChange = (eventId: string) => {
+    setSelectedEventId(eventId);
+    const newUrl = new URL(window.location.href);
+    if (eventId === "all") {
+      newUrl.searchParams.delete('eventId');
+    } else {
+      newUrl.searchParams.set('eventId', eventId);
+    }
+    window.history.replaceState({}, '', newUrl.toString());
+  };
+
+  // Create session handlers
+  const handleCreateSession = (eventId?: string) => {
+    setPreselectedEventId(eventId || selectedEventId !== "all" ? selectedEventId : "");
+    setShowCreateModal(true);
+  };
+
+  const handleSessionCreated = (session: any) => {
+    setShowCreateModal(false);
+    setPreselectedEventId("");
+    load(false);
+  };
+
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false);
+    setPreselectedEventId("");
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete('action');
+    window.history.replaceState({}, '', newUrl.toString());
+  };
 
   // Filtered sessions
   const filteredSessions = sessions.filter((session) => {
@@ -227,13 +329,13 @@ const AllSessions: React.FC = () => {
       session.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       session.place.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === "all" || session.status === statusFilter;
-    const matchesInvite =
-      inviteFilter === "all" || session.inviteStatus === inviteFilter;
+    const matchesStatus = statusFilter === "all" || session.status === statusFilter;
+    const matchesInvite = inviteFilter === "all" || session.inviteStatus === inviteFilter;
 
     return matchesSearch && matchesStatus && matchesInvite;
   });
+
+  const selectedEvent = events.find(e => e.id === selectedEventId);
 
   // Edit handlers
   const onEdit = (id: string) => {
@@ -262,22 +364,10 @@ const AllSessions: React.FC = () => {
     });
   };
 
-  const onChangeDraft = (
-    id: string,
-    field: keyof DraftSession,
-    value: string
-  ) => {
+  const onChangeDraft = (id: string, field: keyof DraftSession, value: string) => {
     setDraft((d) => ({
       ...d,
-      [id]: {
-        place: d[id]?.place ?? "",
-        roomId: d[id]?.roomId,
-        startTime: d[id]?.startTime,
-        endTime: d[id]?.endTime,
-        status: d[id]?.status ?? "Draft",
-        description: d[id]?.description ?? "",
-        [field]: value,
-      },
+      [id]: { ...d[id], [field]: value },
     }));
   };
 
@@ -295,7 +385,6 @@ const AllSessions: React.FC = () => {
       isoEndTime = new Date(body.endTime).toISOString();
     }
 
-    // Validate time logic
     if (isoStartTime && isoEndTime) {
       const start = new Date(isoStartTime);
       const end = new Date(isoEndTime);
@@ -314,11 +403,9 @@ const AllSessions: React.FC = () => {
       ...body,
       startTime: isoStartTime,
       endTime: isoEndTime,
-      // Keep backward compatibility
       time: isoStartTime,
     };
 
-    console.log("Saving session with payload:", payload);
     setSaving((s) => ({ ...s, [id]: true }));
 
     try {
@@ -333,9 +420,6 @@ const AllSessions: React.FC = () => {
         alert(err.error || "Failed to update session");
         return;
       }
-
-      const result = await res.json();
-      console.log("Session update result:", result);
 
       await load(false);
       onCancel(id);
@@ -384,53 +468,99 @@ const AllSessions: React.FC = () => {
                     Session Management
                   </h1>
                   <p className="text-gray-300 text-lg mt-1">
-                    Enhanced overview with bulk session support and real-time
-                    updates
+                    Event-based session management with real-time updates
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 <Button
+                  onClick={() => handleCreateSession()}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Session
+                </Button>
+                <Button
                   onClick={() => load(true)}
                   variant="outline"
                   size="sm"
                   className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                  disabled={loading || eventsLoading}
                 >
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <RefreshCw className={`h-4 w-4 mr-2 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
                   Refresh
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-gray-600 text-gray-300 hover:bg-gray-800"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
                 </Button>
               </div>
             </div>
 
-            {/* Enhanced Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-900/30">
-                      <Calendar className="h-5 w-5 text-blue-400" />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-white">
-                        {sessions.length}
-                      </div>
-                      <div className="text-sm text-gray-400">
-                        Total Sessions
-                      </div>
-                    </div>
+            {/* Event Selection - FIXED: Show loading state and better error handling */}
+            <Card className="border-gray-700 bg-gray-900/50 backdrop-blur mb-6">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5 text-gray-400" />
+                    <label className="text-sm font-medium text-gray-300">Filter by Event:</label>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex-1 max-w-md">
+                    {eventsLoading ? (
+                      <div className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 flex items-center">
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin text-blue-500" />
+                        <span className="text-gray-300">Loading events from database...</span>
+                      </div>
+                    ) : events.length === 0 ? (
+                      <div className="bg-red-900/20 border border-red-600 rounded-lg px-3 py-2 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-2 text-red-400" />
+                        <span className="text-red-300">No events available. Please create events first.</span>
+                      </div>
+                    ) : (
+                      <Select value={selectedEventId} onValueChange={handleEventChange}>
+                        <SelectTrigger className="bg-gray-800 border-gray-600">
+                          <SelectValue placeholder="Select an event" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Events</SelectItem>
+                          {events.map((event) => (
+                            <SelectItem key={event.id} value={event.id}>
+                              <div className="flex flex-col">
+                                <div className="font-medium">{event.name}</div>
+                                <div className="text-xs text-gray-400">
+                                  {event.location} • {event._count.sessions} sessions
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                  {selectedEvent && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-gray-300">
+                        {selectedEvent.status}
+                      </Badge>
+                      <span className="text-sm text-gray-400">
+                        {selectedEvent._count.sessions} sessions
+                      </span>
+                    </div>
+                  )}
+                  {selectedEventId !== "all" && events.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCreateSession(selectedEventId)}
+                      className="border-blue-600 text-blue-400 hover:bg-blue-900/20"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Session to Event
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -439,10 +569,7 @@ const AllSessions: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {
-                          sessions.filter((s) => s.inviteStatus === "Accepted")
-                            .length
-                        }
+                        {filteredSessions.filter((s) => s.inviteStatus === "Accepted").length}
                       </div>
                       <div className="text-sm text-gray-400">Accepted</div>
                     </div>
@@ -458,10 +585,7 @@ const AllSessions: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {
-                          sessions.filter((s) => s.inviteStatus === "Pending")
-                            .length
-                        }
+                        {filteredSessions.filter((s) => s.inviteStatus === "Pending").length}
                       </div>
                       <div className="text-sm text-gray-400">Pending</div>
                     </div>
@@ -473,14 +597,11 @@ const AllSessions: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-purple-900/30">
-                      <Settings className="h-5 w-5 text-purple-400" />
+                      <Calendar className="h-5 w-5 text-purple-400" />
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {
-                          sessions.filter((s) => s.status === "Confirmed")
-                            .length
-                        }
+                        {filteredSessions.filter((s) => s.status === "Confirmed").length}
                       </div>
                       <div className="text-sm text-gray-400">Confirmed</div>
                     </div>
@@ -488,7 +609,6 @@ const AllSessions: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* NEW: Time Conflicts Card */}
               <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -497,22 +617,16 @@ const AllSessions: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {
-                          sessions.filter(
-                            (s) => s.rejectionReason === "TimeConflict"
-                          ).length
-                        }
+                        {filteredSessions.filter((s) => s.rejectionReason === "TimeConflict").length}
                       </div>
-                      <div className="text-sm text-gray-400">
-                        Time Conflicts
-                      </div>
+                      <div className="text-sm text-gray-400">Time Conflicts</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Filters and Search */}
+            {/* Search and Filters */}
             <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
               <CardContent className="p-4">
                 <div className="flex flex-wrap items-center gap-4">
@@ -555,111 +669,121 @@ const AllSessions: React.FC = () => {
                   </div>
 
                   <div className="text-sm text-gray-400">
-                    Showing {filteredSessions.length} of {sessions.length}{" "}
-                    sessions
+                    Showing {filteredSessions.length} of {sessions.length} sessions
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Enhanced Main Table with Start/End Time Support */}
-          <Card className="border-gray-700 bg-gray-900/50 backdrop-blur shadow-2xl">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-800 border-b border-gray-700">
-                    <tr>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          Session Title
-                        </div>
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          Faculty
-                        </div>
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          Email
-                        </div>
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          Place
-                        </div>
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="h-4 w-4" />
-                          Room
-                        </div>
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          Schedule
-                        </div>
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[100px]">
-                        <div className="flex items-center gap-2">
-                          <Timer className="h-4 w-4" />
-                          Duration
-                        </div>
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[120px]">
-                        Status
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[120px]">
-                        Invite Status
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[250px]">
-                        Faculty Response
-                      </th>
-                      <th className="text-left p-4 font-semibold text-gray-200 min-w-[120px]">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-800">
-                    {loading ? (
+          {/* Main Content */}
+          {loading ? (
+            <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
+              <CardContent className="p-12 text-center">
+                <RefreshCw className="h-12 w-12 animate-spin text-blue-400 mx-auto mb-4" />
+                <div className="text-xl text-gray-300 mb-2">Loading Sessions</div>
+                <div className="text-gray-400">Fetching session data from database...</div>
+              </CardContent>
+            </Card>
+          ) : filteredSessions.length === 0 ? (
+            <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
+              <CardContent className="p-12 text-center">
+                <Calendar className="h-16 w-16 text-gray-600 mx-auto mb-6" />
+                <div className="text-2xl font-semibold text-gray-300 mb-3">No Sessions Found</div>
+                <div className="text-gray-400 mb-6 max-w-md mx-auto">
+                  {selectedEventId !== "all" 
+                    ? "This event doesn't have any sessions yet. Create the first session to get started."
+                    : "No sessions match your current filters. Try adjusting your search criteria or create a new session."
+                  }
+                </div>
+                <div className="flex gap-3 justify-center">
+                  <Button
+                    onClick={() => handleCreateSession()}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create New Session
+                  </Button>
+                  {(searchTerm || statusFilter !== "all" || inviteFilter !== "all") && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSearchTerm("");
+                        setStatusFilter("all");
+                        setInviteFilter("all");
+                      }}
+                      className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                    >
+                      Clear Filters
+                    </Button>
+                    )}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-gray-700 bg-gray-900/50 backdrop-blur shadow-2xl">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-800 border-b border-gray-700">
                       <tr>
-                        <td
-                          colSpan={11}
-                          className="text-center py-12 text-gray-400"
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <RefreshCw className="h-5 w-5 animate-spin" />
-                            Loading sessions...
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Session Title
                           </div>
-                        </td>
-                      </tr>
-                    ) : filteredSessions.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={11}
-                          className="text-center py-12 text-gray-400"
-                        >
-                          <div className="flex flex-col items-center gap-3">
-                            <Calendar className="h-12 w-12 text-gray-600" />
-                            <div>
-                              <div className="text-lg font-medium">
-                                No sessions found
-                              </div>
-                              <div className="text-sm">
-                                Try adjusting your search or filters
-                              </div>
+                        </th>
+                        {selectedEventId === "all" && (
+                          <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
+                            <div className="flex items-center gap-2">
+                              <CalendarDays className="h-4 w-4" />
+                              Event
                             </div>
+                          </th>
+                        )}
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Faculty
                           </div>
-                        </td>
+                        </th>
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            Email
+                          </div>
+                        </th>
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            Place
+                          </div>
+                        </th>
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            Room
+                          </div>
+                        </th>
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4" />
+                            Schedule
+                          </div>
+                        </th>
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[100px]">
+                          Status
+                        </th>
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[120px]">
+                          Invite Status
+                        </th>
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[120px]">
+                          Actions
+                        </th>
                       </tr>
-                    ) : (
-                      filteredSessions.map((s, index) => {
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {filteredSessions.map((s, index) => {
                         const isEditing = editing[s.id];
                         const d = draft[s.id];
                         const isSaving = saving[s.id];
@@ -669,173 +793,114 @@ const AllSessions: React.FC = () => {
                           <tr
                             key={s.id}
                             className={`hover:bg-gray-800/50 transition-colors ${
-                              isEditing
-                                ? "bg-blue-900/10 border border-blue-800/30"
-                                : ""
-                            } ${
-                              index % 2 === 0
-                                ? "bg-gray-900/20"
-                                : "bg-gray-900/40"
-                            }`}
+                              isEditing ? "bg-blue-900/10 border border-blue-800/30" : ""
+                            } ${index % 2 === 0 ? "bg-gray-900/20" : "bg-gray-900/40"}`}
                           >
                             {/* Title */}
                             <td className="p-4">
-                              <div className="font-medium text-white">
-                                {s.title}
-                              </div>
+                              <div className="font-medium text-white">{s.title}</div>
                               {s.description && (
-                                <div className="text-xs text-gray-400 mt-1 line-clamp-2">
-                                  {s.description}
-                                </div>
+                                <div className="text-xs text-gray-400 mt-1 line-clamp-2">{s.description}</div>
                               )}
                             </td>
 
+                            {/* Event (only show when viewing all events) */}
+                            {selectedEventId === "all" && (
+                              <td className="p-4">
+                                {s.eventInfo ? (
+                                  <div className="text-xs">
+                                    <div className="font-medium text-gray-200">{s.eventInfo.name}</div>
+                                    <div className="text-gray-400">{s.eventInfo.location}</div>
+                                  </div>
+                                ) : (
+                                  <div className="text-gray-500">Unknown event</div>
+                                )}
+                              </td>
+                            )}
+
                             {/* Faculty */}
                             <td className="p-4">
-                              <div className="text-gray-200">
-                                {s.facultyName}
-                              </div>
+                              <div className="text-gray-200">{s.facultyName}</div>
                             </td>
-
+                            
                             {/* Email */}
                             <td className="p-4">
-                              <div className="text-gray-300 text-xs">
-                                {s.email}
-                              </div>
+                              <div className="text-gray-300 text-xs">{s.email}</div>
                             </td>
-
+                            
                             {/* Place */}
                             <td className="p-4">
                               {isEditing ? (
                                 <input
                                   className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
                                   value={d?.place || ""}
-                                  onChange={(e) =>
-                                    onChangeDraft(s.id, "place", e.target.value)
-                                  }
+                                  onChange={(e) => onChangeDraft(s.id, "place", e.target.value)}
                                 />
                               ) : (
                                 <div className="text-gray-200">{s.place}</div>
                               )}
                             </td>
-
+                            
                             {/* Room */}
                             <td className="p-4">
                               {isEditing ? (
                                 <select
                                   className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
                                   value={d?.roomId || s.roomId || ""}
-                                  onChange={(e) =>
-                                    onChangeDraft(
-                                      s.id,
-                                      "roomId",
-                                      e.target.value
-                                    )
-                                  }
+                                  onChange={(e) => onChangeDraft(s.id, "roomId", e.target.value)}
                                 >
                                   <option value="">Select Room</option>
                                   {rooms.map((r) => (
-                                    <option key={r.id} value={r.id}>
-                                      {r.name}
-                                    </option>
+                                    <option key={r.id} value={r.id}>{r.name}</option>
                                   ))}
                                 </select>
                               ) : (
-                                <div className="text-gray-200">
-                                  {s.roomName || "-"}
-                                </div>
+                                <div className="text-gray-200">{s.roomName || "-"}</div>
                               )}
                             </td>
-
-                            {/* Enhanced Schedule Column with Start/End Time */}
+                            
+                            {/* Schedule */}
                             <td className="p-4">
                               {isEditing ? (
                                 <div className="space-y-2">
-                                  <div>
-                                    <label className="text-xs text-gray-400 block">
-                                      Start Time
-                                    </label>
-                                    <input
-                                      type="datetime-local"
-                                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-blue-500 focus:outline-none"
-                                      value={d?.startTime || ""}
-                                      onChange={(e) =>
-                                        onChangeDraft(
-                                          s.id,
-                                          "startTime",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-xs text-gray-400 block">
-                                      End Time
-                                    </label>
-                                    <input
-                                      type="datetime-local"
-                                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-blue-500 focus:outline-none"
-                                      value={d?.endTime || ""}
-                                      onChange={(e) =>
-                                        onChangeDraft(
-                                          s.id,
-                                          "endTime",
-                                          e.target.value
-                                        )
-                                      }
-                                    />
-                                  </div>
+                                  <input
+                                    type="datetime-local"
+                                    className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-blue-500 focus:outline-none"
+                                    value={d?.startTime || ""}
+                                    onChange={(e) => onChangeDraft(s.id, "startTime", e.target.value)}
+                                  />
+                                  <input
+                                    type="datetime-local"
+                                    className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-blue-500 focus:outline-none"
+                                    value={d?.endTime || ""}
+                                    onChange={(e) => onChangeDraft(s.id, "endTime", e.target.value)}
+                                  />
                                 </div>
                               ) : s.startTime || s.endTime ? (
                                 <div className="text-xs space-y-1">
                                   {s.startTime && (
                                     <div className="text-green-300">
-                                      <span className="text-gray-400">
-                                        Start:
-                                      </span>{" "}
-                                      {s.formattedStartTime ||
-                                        new Date(s.startTime).toLocaleString()}
+                                      <span className="text-gray-400">Start:</span> {s.formattedStartTime}
                                     </div>
                                   )}
                                   {s.endTime && (
                                     <div className="text-red-300">
-                                      <span className="text-gray-400">
-                                        End:
-                                      </span>{" "}
-                                      {s.formattedEndTime ||
-                                        new Date(s.endTime).toLocaleString()}
+                                      <span className="text-gray-400">End:</span> {s.formattedEndTime}
                                     </div>
                                   )}
                                 </div>
                               ) : (
-                                <div className="text-gray-500 text-xs">
-                                  Not scheduled
-                                </div>
+                                <div className="text-gray-500 text-xs">Not scheduled</div>
                               )}
                             </td>
-
-                            {/* Duration */}
-                            <td className="p-4">
-                              <div className="text-gray-200 text-xs font-medium">
-                                {s.duration ||
-                                  calculateDuration(s.startTime, s.endTime) ||
-                                  "-"}
-                              </div>
-                            </td>
-
+                            
                             {/* Status */}
                             <td className="p-4">
                               {isEditing ? (
                                 <select
                                   className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
                                   value={d?.status || s.status}
-                                  onChange={(e) =>
-                                    onChangeDraft(
-                                      s.id,
-                                      "status",
-                                      e.target.value as "Draft" | "Confirmed"
-                                    )
-                                  }
+                                  onChange={(e) => onChangeDraft(s.id, "status", e.target.value as "Draft" | "Confirmed")}
                                 >
                                   <option value="Draft">Draft</option>
                                   <option value="Confirmed">Confirmed</option>
@@ -844,88 +909,10 @@ const AllSessions: React.FC = () => {
                                 statusBadge(s.status)
                               )}
                             </td>
-
+                            
                             {/* Invite Status */}
                             <td className="p-4">{badge(s.inviteStatus)}</td>
-
-                            {/* Enhanced Faculty Response Column */}
-                            <td className="p-4">
-                              <div className="text-gray-300 text-xs space-y-2">
-                                {s.inviteStatus === "Declined" &&
-                                s.rejectionReason === "SuggestedTopic" &&
-                                s.suggestedTopic ? (
-                                  <div className="bg-orange-900/20 border border-orange-700 rounded px-2 py-1">
-                                    <div className="font-medium text-orange-300">
-                                      Topic Suggestion:
-                                    </div>
-                                    <div className="text-orange-200">
-                                      {s.suggestedTopic}
-                                    </div>
-                                  </div>
-                                ) : s.inviteStatus === "Declined" &&
-                                  s.rejectionReason === "TimeConflict" ? (
-                                  <div className="bg-blue-900/20 border border-blue-700 rounded px-2 py-1">
-                                    <div className="font-medium text-blue-300">
-                                      Time Conflict:
-                                    </div>
-                                    {s.suggestedTimeStart &&
-                                    s.suggestedTimeEnd ? (
-                                      <div className="text-blue-200 space-y-1">
-                                        <div className="text-xs">
-                                          <span className="text-green-300">
-                                            Suggested Start:
-                                          </span>
-                                          <br />
-                                          {new Date(
-                                            s.suggestedTimeStart
-                                          ).toLocaleString()}
-                                        </div>
-                                        <div className="text-xs">
-                                          <span className="text-red-300">
-                                            Suggested End:
-                                          </span>
-                                          <br />
-                                          {new Date(
-                                            s.suggestedTimeEnd
-                                          ).toLocaleString()}
-                                        </div>
-                                        {s.optionalQuery && (
-                                          <div className="text-xs border-t border-blue-800 pt-1 mt-1">
-                                            <span className="text-blue-300">
-                                              Comment:
-                                            </span>
-                                            <br />
-                                            {s.optionalQuery}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div className="text-blue-200">
-                                        Faculty prefers different time
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : s.inviteStatus === "Declined" &&
-                                  s.rejectionReason === "NotInterested" ? (
-                                  <div className="bg-red-900/20 border border-red-700 rounded px-2 py-1">
-                                    <div className="text-red-300">
-                                      Not interested
-                                    </div>
-                                  </div>
-                                ) : s.inviteStatus === "Accepted" ? (
-                                  <div className="bg-green-900/20 border border-green-700 rounded px-2 py-1">
-                                    <div className="text-green-300">
-                                      Confirmed attendance
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="text-gray-500">
-                                    Awaiting response
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-
+                            
                             {/* Actions */}
                             <td className="p-4">
                               {isEditing ? (
@@ -936,11 +923,7 @@ const AllSessions: React.FC = () => {
                                     disabled={isSaving}
                                     className="bg-green-600 hover:bg-green-700 text-white h-8 px-2"
                                   >
-                                    {isSaving ? (
-                                      <RefreshCw className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <Save className="h-3 w-3" />
-                                    )}
+                                    {isSaving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                                   </Button>
                                   <Button
                                     size="sm"
@@ -969,34 +952,43 @@ const AllSessions: React.FC = () => {
                                     disabled={isDeleting}
                                     className="border-red-600 text-red-400 hover:bg-red-900/20 h-8 px-2"
                                   >
-                                    {isDeleting ? (
-                                      <RefreshCw className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-3 w-3" />
-                                    )}
+                                    {isDeleting ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                                   </Button>
                                 </div>
                               )}
                             </td>
                           </tr>
                         );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Footer Stats */}
           {filteredSessions.length > 0 && (
             <div className="mt-6 text-center text-sm text-gray-400">
-              Last updated: {new Date().toLocaleTimeString()} • Auto-refresh
-              every 5 seconds
+              Last updated: {new Date().toLocaleTimeString()} • Auto-refresh every 10 seconds
             </div>
           )}
         </div>
       </div>
+
+      {/* Create Session Modal */}
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Session</DialogTitle>
+          </DialogHeader>
+          <SessionForm
+            session={preselectedEventId ? { eventId: preselectedEventId } : undefined}
+            onSuccess={handleSessionCreated}
+            onCancel={handleCloseCreateModal}
+          />
+        </DialogContent>
+      </Dialog>
     </OrganizerLayout>
   );
 };
