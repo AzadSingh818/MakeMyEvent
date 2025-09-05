@@ -1,526 +1,403 @@
-// src/lib/database/session-queries.ts
-import { query } from './connection';
+import { query } from "./connection";
 
-// Define types based on your frontend requirements
-export interface Session {
+export interface Faculty {
   id: string;
-  title: string;
-  facultyId: string;
+  name: string;
   email: string;
-  place: string;
-  roomId: string;
-  description?: string;
-  startTime: string;
-  endTime: string;
-  status: "Draft" | "Confirmed";
-  inviteStatus: "Pending" | "Accepted" | "Declined";
-  rejectionReason?: "NotInterested" | "SuggestedTopic" | "TimeConflict";
-  suggestedTopic?: string;
-  suggestedTimeStart?: string;
-  suggestedTimeEnd?: string;
-  optionalQuery?: string;
-  travelStatus?: string;
-  facultyName?: string;
-  roomName?: string;
-  duration?: string;
-  formattedStartTime?: string;
-  formattedEndTime?: string;
+  department?: string;
+  institution?: string;
+  expertise?: string;
+  phone?: string;
+  eventId: string;
+  eventName: string;
 }
 
 export interface Room {
   id: string;
   name: string;
   capacity?: number;
-  equipment?: any;
+  location?: string;
 }
 
-export interface Faculty {
+export interface DatabaseSession {
   id: string;
-  name: string;
-  email: string;
-  institution?: string;
+  title: string;
+  description?: string;
+  startTime: string;
+  endTime: string;
+  eventId: string;
+  hallId?: string;
+  facultyId?: string;
+  facultyName?: string;
+  facultyEmail?: string;
+  place?: string;
+  status?: string;
+  inviteStatus?: string;
+  rejectionReason?: string;
+  suggestedTopic?: string;
+  suggestedTimeStart?: string;
+  suggestedTimeEnd?: string;
+  optionalQuery?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  roomName?: string;
+  eventName?: string;
 }
-
-// Default event ID - we'll create one if it doesn't exist
-const DEFAULT_EVENT_ID = 'default-conference-2025';
 
 /**
- * Ensure default event exists
+ * Get all faculties from localStorage and database
  */
-export async function ensureDefaultEvent(): Promise<string> {
+export async function getFaculties(): Promise<Faculty[]> {
   try {
-    // Check if default event exists
-    const result = await query(
-      'SELECT id FROM events WHERE id = $1',
-      [DEFAULT_EVENT_ID]
-    );
+    // Get faculties from localStorage (uploaded faculty lists)
+    let localStorageFaculties: Faculty[] = [];
 
-    if (result.rows.length > 0) {
-      return DEFAULT_EVENT_ID;
+    if (typeof window !== "undefined") {
+      const savedFacultyData = localStorage.getItem("eventFacultyData");
+      if (savedFacultyData) {
+        const eventFacultyData = JSON.parse(savedFacultyData);
+        localStorageFaculties = eventFacultyData.flatMap(
+          (eventData: any) =>
+            eventData.facultyList?.map((faculty: any) => ({
+              ...faculty,
+              eventId: eventData.eventId,
+              eventName: eventData.eventName,
+            })) || []
+        );
+      }
     }
 
-    // Create default event (removed 'venue' column since it doesn't exist)
-    await query(`
-      INSERT INTO events (id, name, description, start_date, end_date, location, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-      ON CONFLICT (id) DO NOTHING
-    `, [
-      DEFAULT_EVENT_ID,
-      'Scientific Conference 2025',
-      'Default conference for session management',
-      new Date('2025-08-25'),
-      new Date('2025-08-31'),
-      'Conference Center',
-      'ACTIVE'
-    ]);
-
-    console.log('✅ Default event created:', DEFAULT_EVENT_ID);
-    return DEFAULT_EVENT_ID;
-  } catch (error) {
-    console.error('❌ Error ensuring default event:', error);
-    throw error;
-  }
-}
-
-/**
- * Create tables for session management if they don't exist
- */
-export async function ensureSessionTables(): Promise<void> {
-  try {
-    // Create session_metadata table to store additional session data
-    await query(`
-      CREATE TABLE IF NOT EXISTS session_metadata (
-        id VARCHAR(255) PRIMARY KEY,
-        session_id VARCHAR(255) NOT NULL REFERENCES conference_sessions(id) ON DELETE CASCADE,
-        faculty_id VARCHAR(255) NOT NULL,
-        faculty_email VARCHAR(255) NOT NULL,
-        place VARCHAR(255) NOT NULL,
-        status VARCHAR(20) DEFAULT 'Draft',
-        invite_status VARCHAR(20) DEFAULT 'Pending',
-        rejection_reason VARCHAR(50),
-        suggested_topic TEXT,
-        suggested_time_start TIMESTAMP,
-        suggested_time_end TIMESTAMP,
-        optional_query TEXT,
-        travel_status VARCHAR(20) DEFAULT 'Pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
+    // Get faculties from database
+    const dbResult = await query(`
+      SELECT DISTINCT
+        u.id,
+        u.name,
+        u.email,
+        u.institution as department,
+        u.institution,
+        '' as expertise,
+        '' as phone,
+        COALESCE(ue.event_id, 'unknown') as "eventId",
+        COALESCE(e.name, 'Unknown Event') as "eventName"
+      FROM users u
+      LEFT JOIN user_events ue ON u.id = ue.user_id
+      LEFT JOIN events e ON ue.event_id = e.id
+      WHERE u.role = 'FACULTY'
+      ORDER BY u.name
     `);
 
-    console.log('✅ Session tables ensured');
+    const dbFaculties: Faculty[] = dbResult.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      department: row.department,
+      institution: row.institution,
+      expertise: row.expertise,
+      phone: row.phone,
+      eventId: row.eventId,
+      eventName: row.eventName,
+    }));
+
+    // Combine both sources, prioritizing localStorage data
+    const allFaculties = [...localStorageFaculties, ...dbFaculties];
+
+    // Remove duplicates based on email
+    const uniqueFaculties = allFaculties.reduce((acc, faculty) => {
+      const existing = acc.find((f) => f.email === faculty.email);
+      if (!existing) {
+        acc.push(faculty);
+      }
+      return acc;
+    }, [] as Faculty[]);
+
+    console.log(`✅ Retrieved ${uniqueFaculties.length} unique faculties`);
+    return uniqueFaculties;
   } catch (error) {
-    console.error('❌ Error creating session tables:', error);
-    throw error;
+    console.error("❌ Error fetching faculties:", error);
+    return [];
   }
 }
 
 /**
- * Get all sessions with enriched data
+ * Get all rooms from database
  */
-export async function getSessions(): Promise<Session[]> {
+export async function getRooms(): Promise<Room[]> {
   try {
-    await ensureDefaultEvent();
-    await ensureSessionTables();
+    const result = await query(`
+      SELECT 
+        id,
+        name,
+        capacity,
+        location
+      FROM halls
+      ORDER BY name
+    `);
 
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      capacity: row.capacity,
+      location: row.location,
+    }));
+  } catch (error) {
+    console.error("❌ Error fetching rooms:", error);
+    return [];
+  }
+}
+
+/**
+ * Get all sessions with enriched data - FIXED: Proper faculty name joining
+ */
+export async function getAllSessions(): Promise<DatabaseSession[]> {
+  try {
     const result = await query(`
       SELECT 
         cs.id,
         cs.title,
         cs.description,
-        cs.start_time as startTime,
-        cs.end_time as endTime,
-        cs.hall_id as roomId,
-        sm.faculty_id as facultyId,
-        sm.faculty_email as email,
+        cs.start_time as "startTime",
+        cs.end_time as "endTime",
+        cs.event_id as "eventId",
+        cs.hall_id as "hallId",
+        sm.faculty_id as "facultyId",
+        COALESCE(u.name, SPLIT_PART(sm.faculty_email, '@', 1), 'Unknown Faculty') as "facultyName",
+        sm.faculty_email as "facultyEmail",
         sm.place,
         sm.status,
-        sm.invite_status as inviteStatus,
-        sm.rejection_reason as rejectionReason,
-        sm.suggested_topic as suggestedTopic,
-        sm.suggested_time_start as suggestedTimeStart,
-        sm.suggested_time_end as suggestedTimeEnd,
-        sm.optional_query as optionalQuery,
-        sm.travel_status as travelStatus,
-        u.name as facultyName,
-        h.name as roomName
+        sm.invite_status as "inviteStatus",
+        sm.rejection_reason as "rejectionReason",
+        sm.suggested_topic as "suggestedTopic",
+        sm.suggested_time_start as "suggestedTimeStart",
+        sm.suggested_time_end as "suggestedTimeEnd",
+        sm.optional_query as "optionalQuery",
+        cs.created_at as "createdAt",
+        cs.updated_at as "updatedAt",
+        h.name as "roomName",
+        e.name as "eventName"
       FROM conference_sessions cs
       LEFT JOIN session_metadata sm ON cs.id = sm.session_id
       LEFT JOIN users u ON sm.faculty_id = u.id
       LEFT JOIN halls h ON cs.hall_id = h.id
-      WHERE cs.event_id = $1
-      ORDER BY cs.start_time ASC
-    `, [DEFAULT_EVENT_ID]);
+      LEFT JOIN events e ON cs.event_id = e.id
+      ORDER BY cs.start_time DESC
+    `);
 
-    return result.rows.map(mapDatabaseRowToSession);
+    return result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      eventId: row.eventId,
+      hallId: row.hallId,
+      facultyId: row.facultyId,
+      facultyName: row.facultyName,
+      facultyEmail: row.facultyEmail,
+      place: row.place,
+      status: row.status || "Draft",
+      inviteStatus: row.inviteStatus || "Pending",
+      rejectionReason: row.rejectionReason,
+      suggestedTopic: row.suggestedTopic,
+      suggestedTimeStart: row.suggestedTimeStart,
+      suggestedTimeEnd: row.suggestedTimeEnd,
+      optionalQuery: row.optionalQuery,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      roomName: row.roomName,
+      eventName: row.eventName,
+    }));
   } catch (error) {
-    console.error('❌ Error getting sessions:', error);
-    throw error;
+    console.error("❌ Error fetching sessions:", error);
+    return [];
   }
 }
 
 /**
  * Get session by ID
  */
-export async function getSessionById(id: string): Promise<Session | undefined> {
+export async function getSessionById(
+  sessionId: string
+): Promise<DatabaseSession | null> {
   try {
-    const result = await query(`
+    const result = await query(
+      `
       SELECT 
         cs.id,
         cs.title,
         cs.description,
-        cs.start_time as startTime,
-        cs.end_time as endTime,
-        cs.hall_id as roomId,
-        sm.faculty_id as facultyId,
-        sm.faculty_email as email,
+        cs.start_time as "startTime",
+        cs.end_time as "endTime",
+        cs.event_id as "eventId",
+        cs.hall_id as "hallId",
+        sm.faculty_id as "facultyId",
+        COALESCE(u.name, SPLIT_PART(sm.faculty_email, '@', 1), 'Unknown Faculty') as "facultyName",
+        sm.faculty_email as "facultyEmail",
         sm.place,
         sm.status,
-        sm.invite_status as inviteStatus,
-        sm.rejection_reason as rejectionReason,
-        sm.suggested_topic as suggestedTopic,
-        sm.suggested_time_start as suggestedTimeStart,
-        sm.suggested_time_end as suggestedTimeEnd,
-        sm.optional_query as optionalQuery,
-        sm.travel_status as travelStatus,
-        u.name as facultyName,
-        h.name as roomName
+        sm.invite_status as "inviteStatus",
+        sm.rejection_reason as "rejectionReason",
+        sm.suggested_topic as "suggestedTopic",
+        sm.suggested_time_start as "suggestedTimeStart",
+        sm.suggested_time_end as "suggestedTimeEnd",
+        sm.optional_query as "optionalQuery",
+        cs.created_at as "createdAt",
+        cs.updated_at as "updatedAt",
+        h.name as "roomName",
+        e.name as "eventName"
       FROM conference_sessions cs
       LEFT JOIN session_metadata sm ON cs.id = sm.session_id
       LEFT JOIN users u ON sm.faculty_id = u.id
       LEFT JOIN halls h ON cs.hall_id = h.id
+      LEFT JOIN events e ON cs.event_id = e.id
       WHERE cs.id = $1
-    `, [id]);
+    `,
+      [sessionId]
+    );
 
-    if (result.rows.length === 0) return undefined;
-    return mapDatabaseRowToSession(result.rows[0]);
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      eventId: row.eventId,
+      hallId: row.hallId,
+      facultyId: row.facultyId,
+      facultyName: row.facultyName,
+      facultyEmail: row.facultyEmail,
+      place: row.place,
+      status: row.status || "Draft",
+      inviteStatus: row.inviteStatus || "Pending",
+      rejectionReason: row.rejectionReason,
+      suggestedTopic: row.suggestedTopic,
+      suggestedTimeStart: row.suggestedTimeStart,
+      suggestedTimeEnd: row.suggestedTimeEnd,
+      optionalQuery: row.optionalQuery,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      roomName: row.roomName,
+      eventName: row.eventName,
+    };
   } catch (error) {
-    console.error('❌ Error getting session by ID:', error);
-    throw error;
+    console.error("❌ Error fetching session by ID:", error);
+    return null;
   }
 }
 
 /**
- * Add new session
+ * Update session metadata - FIXED: Handle null rowCount
  */
-export async function addSession(session: Session): Promise<void> {
+export async function updateSessionMetadata(
+  sessionId: string,
+  updates: Partial<DatabaseSession>
+): Promise<boolean> {
   try {
-    const eventId = await ensureDefaultEvent();
-    await ensureSessionTables();
+    console.log("🔄 Updating session metadata:", sessionId, updates);
+
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+    let paramIndex = 1;
+
+    // Build dynamic update query
+    if (updates.status !== undefined) {
+      updateFields.push(`status = $${paramIndex++}`);
+      updateValues.push(updates.status);
+    }
+
+    if (updates.inviteStatus !== undefined) {
+      updateFields.push(`invite_status = $${paramIndex++}`);
+      updateValues.push(updates.inviteStatus);
+    }
+
+    if (updates.rejectionReason !== undefined) {
+      updateFields.push(`rejection_reason = $${paramIndex++}`);
+      updateValues.push(updates.rejectionReason);
+    }
+
+    if (updates.suggestedTopic !== undefined) {
+      updateFields.push(`suggested_topic = $${paramIndex++}`);
+      updateValues.push(updates.suggestedTopic);
+    }
+
+    if (updates.suggestedTimeStart !== undefined) {
+      updateFields.push(`suggested_time_start = $${paramIndex++}`);
+      updateValues.push(updates.suggestedTimeStart);
+    }
+
+    if (updates.suggestedTimeEnd !== undefined) {
+      updateFields.push(`suggested_time_end = $${paramIndex++}`);
+      updateValues.push(updates.suggestedTimeEnd);
+    }
+
+    if (updates.optionalQuery !== undefined) {
+      updateFields.push(`optional_query = $${paramIndex++}`);
+      updateValues.push(updates.optionalQuery);
+    }
+
+    if (updateFields.length === 0) {
+      console.log("⚠️ No fields to update");
+      return true;
+    }
+
+    // Add session_id and updated_at
+    updateValues.push(sessionId);
+    updateFields.push("updated_at = NOW()");
+
+    const updateQuery = `
+      UPDATE session_metadata 
+      SET ${updateFields.join(", ")} 
+      WHERE session_id = $${paramIndex}
+    `;
+
+    const result = await query(updateQuery, updateValues);
+    console.log("✅ Session metadata updated successfully");
+
+    // FIXED: Handle null rowCount
+    return (result.rowCount ?? 0) > 0;
+  } catch (error) {
+    console.error("❌ Error updating session metadata:", error);
+    return false;
+  }
+}
+
+/**
+ * Delete session - FIXED: Handle null rowCount
+ */
+export async function deleteSession(sessionId: string): Promise<boolean> {
+  try {
+    console.log("🗑️ Deleting session:", sessionId);
 
     // Start transaction
-    await query('BEGIN');
+    await query("BEGIN");
 
     try {
-      // Insert into conference_sessions
-      await query(`
-        INSERT INTO conference_sessions (id, event_id, title, description, start_time, end_time, hall_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-      `, [
-        session.id,
-        eventId,
-        session.title,
-        session.description || '',
-        session.startTime,
-        session.endTime,
-        session.roomId
+      // Delete metadata first
+      await query("DELETE FROM session_metadata WHERE session_id = $1", [
+        sessionId,
       ]);
 
-      // Insert into session_metadata
-      await query(`
-        INSERT INTO session_metadata (id, session_id, faculty_id, faculty_email, place, status, invite_status, travel_status, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-      `, [
-        `meta_${session.id}`,
-        session.id,
-        session.facultyId,
-        session.email,
-        session.place,
-        session.status,
-        session.inviteStatus,
-        session.travelStatus || 'Pending'
-      ]);
+      // Delete session
+      const result = await query(
+        "DELETE FROM conference_sessions WHERE id = $1",
+        [sessionId]
+      );
 
-      await query('COMMIT');
-      console.log('✅ Session added successfully:', session.id);
+      await query("COMMIT");
+      console.log("✅ Session deleted successfully");
+
+      // FIXED: Handle null rowCount
+      return (result.rowCount ?? 0) > 0;
     } catch (error) {
-      await query('ROLLBACK');
+      await query("ROLLBACK");
       throw error;
     }
   } catch (error) {
-    console.error('❌ Error adding session:', error);
-    throw error;
+    console.error("❌ Error deleting session:", error);
+    return false;
   }
-}
-
-/**
- * Update session
- */
-export async function updateSession(id: string, updates: Partial<Session>): Promise<void> {
-  try {
-    await query('BEGIN');
-
-    try {
-      // Update conference_sessions if needed
-      if (updates.title || updates.description || updates.startTime || updates.endTime || updates.roomId) {
-        const setParts = [];
-        const values = [];
-        let paramIndex = 1;
-
-        if (updates.title) {
-          setParts.push(`title = $${paramIndex++}`);
-          values.push(updates.title);
-        }
-        if (updates.description) {
-          setParts.push(`description = $${paramIndex++}`);
-          values.push(updates.description);
-        }
-        if (updates.startTime) {
-          setParts.push(`start_time = $${paramIndex++}`);
-          values.push(updates.startTime);
-        }
-        if (updates.endTime) {
-          setParts.push(`end_time = $${paramIndex++}`);
-          values.push(updates.endTime);
-        }
-        if (updates.roomId) {
-          setParts.push(`hall_id = $${paramIndex++}`);
-          values.push(updates.roomId);
-        }
-
-        if (setParts.length > 0) {
-          setParts.push(`updated_at = NOW()`);
-          values.push(id);
-          
-          await query(`
-            UPDATE conference_sessions 
-            SET ${setParts.join(', ')}
-            WHERE id = $${paramIndex}
-          `, values);
-        }
-      }
-
-      // Update session_metadata
-      const metaSetParts = [];
-      const metaValues = [];
-      let metaParamIndex = 1;
-
-      const metaFields = [
-        'facultyId', 'email', 'place', 'status', 'inviteStatus', 
-        'rejectionReason', 'suggestedTopic', 'suggestedTimeStart', 
-        'suggestedTimeEnd', 'optionalQuery', 'travelStatus'
-      ];
-
-      const metaMapping = {
-        facultyId: 'faculty_id',
-        email: 'faculty_email',
-        place: 'place',
-        status: 'status',
-        inviteStatus: 'invite_status',
-        rejectionReason: 'rejection_reason',
-        suggestedTopic: 'suggested_topic',
-        suggestedTimeStart: 'suggested_time_start',
-        suggestedTimeEnd: 'suggested_time_end',
-        optionalQuery: 'optional_query',
-        travelStatus: 'travel_status'
-      };
-
-      for (const field of metaFields) {
-        if (updates[field as keyof Session] !== undefined) {
-          metaSetParts.push(`${metaMapping[field as keyof typeof metaMapping]} = $${metaParamIndex++}`);
-          metaValues.push(updates[field as keyof Session]);
-        }
-      }
-
-      if (metaSetParts.length > 0) {
-        metaSetParts.push(`updated_at = NOW()`);
-        metaValues.push(id);
-        
-        await query(`
-          UPDATE session_metadata 
-          SET ${metaSetParts.join(', ')}
-          WHERE session_id = $${metaParamIndex}
-        `, metaValues);
-      }
-
-      await query('COMMIT');
-      console.log('✅ Session updated successfully:', id);
-    } catch (error) {
-      await query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    console.error('❌ Error updating session:', error);
-    throw error;
-  }
-}
-
-/**
- * Delete session
- */
-export async function deleteSession(id: string): Promise<void> {
-  try {
-    await query('BEGIN');
-
-    try {
-      // Delete from session_metadata first (foreign key constraint)
-      await query('DELETE FROM session_metadata WHERE session_id = $1', [id]);
-      
-      // Delete from conference_sessions
-      await query('DELETE FROM conference_sessions WHERE id = $1', [id]);
-
-      await query('COMMIT');
-      console.log('✅ Session deleted successfully:', id);
-    } catch (error) {
-      await query('ROLLBACK');
-      throw error;
-    }
-  } catch (error) {
-    console.error('❌ Error deleting session:', error);
-    throw error;
-  }
-}
-
-/**
- * Get sessions by faculty email
- */
-export async function getSessionsByEmail(email: string): Promise<Session[]> {
-  try {
-    const result = await query(`
-      SELECT 
-        cs.id,
-        cs.title,
-        cs.description,
-        cs.start_time as startTime,
-        cs.end_time as endTime,
-        cs.hall_id as roomId,
-        sm.faculty_id as facultyId,
-        sm.faculty_email as email,
-        sm.place,
-        sm.status,
-        sm.invite_status as inviteStatus,
-        sm.rejection_reason as rejectionReason,
-        sm.suggested_topic as suggestedTopic,
-        sm.suggested_time_start as suggestedTimeStart,
-        sm.suggested_time_end as suggestedTimeEnd,
-        sm.optional_query as optionalQuery,
-        sm.travel_status as travelStatus,
-        u.name as facultyName,
-        h.name as roomName
-      FROM conference_sessions cs
-      LEFT JOIN session_metadata sm ON cs.id = sm.session_id
-      LEFT JOIN users u ON sm.faculty_id = u.id
-      LEFT JOIN halls h ON cs.hall_id = h.id
-      WHERE LOWER(sm.faculty_email) = LOWER($1)
-      ORDER BY cs.start_time ASC
-    `, [email]);
-
-    return result.rows.map(mapDatabaseRowToSession);
-  } catch (error) {
-    console.error('❌ Error getting sessions by email:', error);
-    throw error;
-  }
-}
-
-/**
- * Get all rooms
- */
-export async function getRooms(): Promise<Room[]> {
-  try {
-    const eventId = await ensureDefaultEvent();
-    
-    // First, ensure we have some default rooms
-    await query(`
-      INSERT INTO halls (id, event_id, name, capacity, created_at)
-      VALUES 
-        ('A101', $1, 'Auditorium 101', 200, NOW()),
-        ('B202', $1, 'Building B - Room 202', 50, NOW()),
-        ('C303', $1, 'Conference Room 303', 30, NOW())
-      ON CONFLICT (id) DO NOTHING
-    `, [eventId]);
-
-    const result = await query(`
-      SELECT id, name, capacity, equipment
-      FROM halls 
-      WHERE event_id = $1
-      ORDER BY name
-    `, [eventId]);
-
-    return result.rows;
-  } catch (error) {
-    console.error('❌ Error getting rooms:', error);
-    throw error;
-  }
-}
-
-/**
- * Get all faculties
- */
-export async function getFaculties(): Promise<Faculty[]> {
-  try {
-    // First, ensure we have some default faculty (added password field)
-    await query(`
-      INSERT INTO users (id, name, email, role, password, created_at)
-      VALUES 
-        ('faculty_1', 'Dr. Ramesh Sharma', 'ramesh.sharma@university.edu', 'FACULTY', 'temp_password_123', NOW()),
-        ('faculty_2', 'Prof. Anita Gupta', 'anita.gupta@university.edu', 'FACULTY', 'temp_password_123', NOW()),
-        ('faculty_3', 'Dr. Sunil Verma', 'sunil.verma@university.edu', 'FACULTY', 'temp_password_123', NOW())
-      ON CONFLICT (email) DO NOTHING
-    `);
-
-    const result = await query(`
-      SELECT id, name, email, institution
-      FROM users 
-      WHERE role = 'FACULTY'
-      ORDER BY name
-    `);
-
-    return result.rows;
-  } catch (error) {
-    console.error('❌ Error getting faculties:', error);
-    throw error;
-  }
-}
-
-/**
- * Map database row to Session object
- */
-function mapDatabaseRowToSession(row: any): Session {
-  const start = row.starttime ? new Date(row.starttime) : null;
-  const end = row.endtime ? new Date(row.endtime) : null;
-  
-  let duration = "";
-  if (start && end) {
-    const minutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-    if (minutes > 0) {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      duration = hours > 0 ? `${hours}h ${mins}m` : `${minutes} min`;
-    }
-  }
-
-  return {
-    id: row.id,
-    title: row.title || '',
-    facultyId: row.facultyid || '',
-    email: row.email || '',
-    place: row.place || '',
-    roomId: row.roomid || '',
-    description: row.description,
-    startTime: row.starttime,
-    endTime: row.endtime,
-    status: row.status || 'Draft',
-    inviteStatus: row.invitestatus || 'Pending',
-    rejectionReason: row.rejectionreason,
-    suggestedTopic: row.suggestedtopic,
-    suggestedTimeStart: row.suggestedtimestart,
-    suggestedTimeEnd: row.suggestedtimeend,
-    optionalQuery: row.optionalquery,
-    travelStatus: row.travelstatus,
-    facultyName: row.facultyname,
-    roomName: row.roomname,
-    duration,
-    formattedStartTime: start ? start.toLocaleString() : undefined,
-    formattedEndTime: end ? end.toLocaleString() : undefined,
-  };
 }

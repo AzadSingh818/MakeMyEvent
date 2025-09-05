@@ -1,5 +1,4 @@
 import { sendMail } from "@/lib/mailer";
-import type { InviteStatus } from "../_store";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
@@ -7,6 +6,7 @@ export type Session = {
   id: string;
   title: string;
   facultyId: string;
+  facultyName?: string;
   email: string;
   place: string;
   roomId: string;
@@ -15,7 +15,13 @@ export type Session = {
   startTime: string;
   endTime: string;
   status: "Draft" | "Confirmed";
-  inviteStatus: InviteStatus;
+  inviteStatus: "Pending" | "Accepted" | "Declined";
+  rejectionReason?: "NotInterested" | "SuggestedTopic" | "TimeConflict";
+  suggestedTopic?: string;
+  suggestedTimeStart?: string;
+  suggestedTimeEnd?: string;
+  optionalQuery?: string;
+  eventId?: string;
 };
 
 function formatDate(val?: string) {

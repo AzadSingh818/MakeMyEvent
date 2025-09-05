@@ -302,7 +302,7 @@ export default function LoginPage() {
             </div>
 
             {/* Demo Accounts */}
-            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            {/* <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
               <h4 className="text-sm font-medium mb-3 text-gray-700 dark:text-gray-300">
                 Demo Accounts:
               </h4>
@@ -330,7 +330,7 @@ export default function LoginPage() {
                   <p className="text-gray-600 dark:text-gray-400">demo123</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </CardContent>
         </Card>
 

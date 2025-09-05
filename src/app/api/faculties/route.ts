@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getFaculties, type Faculty } from "@/lib/database/session-queries";
+import { getFaculties } from "@/lib/database/session-queries";
 
 export async function GET() {
   try {

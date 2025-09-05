@@ -89,21 +89,28 @@ export default function FacultyDashboardPage() {
   const [isAccommodationModalOpen, setIsAccommodationModalOpen] =
     useState(false);
 
-  // Faculty Sessions State (existing)
+  // FIXED: Initialize with safe defaults to prevent undefined errors
   const [facultySessions, setFacultySessions] = useState<any[]>([]);
   const [loadingFacultySessions, setLoadingFacultySessions] = useState(true);
-  const [sessionsStats, setSessionsStats] = useState<any>({});
+  const [sessionsStats, setSessionsStats] = useState({
+    total: 0,
+    pending: 0,
+    accepted: 0,
+    declined: 0,
+    upcoming: 0,
+  });
 
   // Button handlers
   const handleTravelModalOpen = () => setIsTravelModalOpen(true);
   const handleAccommodationModalOpen = () => setIsAccommodationModalOpen(true);
 
-  // DATA FETCHING (existing)
+  // DATA FETCHING with safe defaults
   const {
     data: profile,
     isLoading: profileLoading,
     refetch: refetchProfile,
   } = useMyFacultyProfile();
+
   const { data: mySessions, isLoading: userSessionsLoading } = useUserSessions(
     user?.id
   );
@@ -113,29 +120,75 @@ export default function FacultyDashboardPage() {
   const { data: myRegistrations } = useMyRegistrations();
   const { data: notifications } = useNotifications();
 
-  // NEW: Faculty Events Hook
+  // NEW: Faculty Events Hook with safe defaults
   const {
-    events: facultyEvents,
-    loading: loadingFacultyEvents,
+    events: facultyEvents = [], // FIXED: Default to empty array
+    loading: loadingFacultyEvents = false,
     refetch: refetchFacultyEvents,
     respondToEvent,
-  } = useFacultyEvents(user?.email);
+  } = useFacultyEvents(user?.email) || {};
 
-  // Existing Sessions Management (keep original)
+  // FIXED: Sessions Management with proper error handling
   const fetchFacultySessions = async () => {
-    if (!user?.email) return;
+    if (!user?.email) {
+      setLoadingFacultySessions(false);
+      return;
+    }
+
     setLoadingFacultySessions(true);
     try {
       const response = await fetch(
-        `/api/faculty/sessions?email=${encodeURIComponent(user.email)}`
+        `/api/faculty/sessions?email=${encodeURIComponent(user.email)}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
+
       if (response.ok) {
         const data = await response.json();
-        setFacultySessions(data.data.sessions);
-        setSessionsStats(data.data.stats);
+        // FIXED: Safe access with defaults
+        const sessions = data?.data?.sessions || [];
+        setFacultySessions(sessions);
+
+        // FIXED: Calculate stats safely
+        const stats = {
+          total: sessions.length,
+          pending: sessions.filter((s: any) => s.inviteStatus === "Pending")
+            .length,
+          accepted: sessions.filter((s: any) => s.inviteStatus === "Accepted")
+            .length,
+          declined: sessions.filter((s: any) => s.inviteStatus === "Declined")
+            .length,
+          upcoming: sessions.filter((s: any) => {
+            if (!s.startTime) return false;
+            const sessionDate = new Date(s.startTime);
+            return sessionDate > new Date();
+          }).length,
+        };
+        setSessionsStats(stats);
+      } else {
+        console.error("Failed to fetch sessions:", response.status);
+        setFacultySessions([]);
+        setSessionsStats({
+          total: 0,
+          pending: 0,
+          accepted: 0,
+          declined: 0,
+          upcoming: 0,
+        });
       }
     } catch (error) {
       console.error("Error fetching faculty sessions:", error);
+      setFacultySessions([]);
+      setSessionsStats({
+        total: 0,
+        pending: 0,
+        accepted: 0,
+        declined: 0,
+        upcoming: 0,
+      });
     } finally {
       setLoadingFacultySessions(false);
     }
@@ -143,9 +196,12 @@ export default function FacultyDashboardPage() {
 
   // Fetch sessions on component mount and periodically
   useEffect(() => {
-    fetchFacultySessions();
-    const interval = setInterval(fetchFacultySessions, 30000);
-    return () => clearInterval(interval);
+    if (user?.email) {
+      fetchFacultySessions();
+      const interval = setInterval(fetchFacultySessions, 30000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
   }, [user?.email]);
 
   // NAVIGATION
@@ -156,7 +212,7 @@ export default function FacultyDashboardPage() {
   const handleSessionClick = (sessionId: string) =>
     router.push(`/faculty/sessions/${sessionId}`);
 
-  // PRESENTATION HANDLERS (existing - keep as is)
+  // PRESENTATION HANDLERS (with better error handling)
   const handlePresentationFileSelect = (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -170,6 +226,7 @@ export default function FacultyDashboardPage() {
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
+
     files.forEach((file) => {
       if (!allowedTypes.includes(file.type)) {
         errors.push(
@@ -183,6 +240,7 @@ export default function FacultyDashboardPage() {
       }
       validFiles.push(file);
     });
+
     if (errors.length > 0) setUploadErrors(errors);
     else setUploadErrors([]);
     setPresentationFiles(validFiles);
@@ -190,10 +248,12 @@ export default function FacultyDashboardPage() {
 
   const handlePresentationUpload = async () => {
     if (presentationFiles.length === 0 || !user?.id) return;
+
     setIsUploading(true);
     setUploadProgress(0);
     setUploadSuccess([]);
     setUploadErrors([]);
+
     try {
       const uploadPromises = presentationFiles.map(async (file, index) => {
         const formData = new FormData();
@@ -201,18 +261,24 @@ export default function FacultyDashboardPage() {
         formData.append("facultyId", user.id);
         formData.append("title", file.name.split(".")[0] || file.name);
         formData.append("sessionId", "");
+
         const response = await fetch("/api/faculty/presentations/upload", {
           method: "POST",
           body: formData,
         });
+
         setUploadProgress(((index + 1) / presentationFiles.length) * 100);
+
         if (response.ok) {
           return { success: true, fileName: file.name };
         } else {
-          const error = await response.json();
+          const error = await response
+            .json()
+            .catch(() => ({ message: "Upload failed" }));
           return { success: false, fileName: file.name, error: error.message };
         }
       });
+
       const results = await Promise.all(uploadPromises);
       const successFiles = results
         .filter((r) => r.success)
@@ -220,14 +286,17 @@ export default function FacultyDashboardPage() {
       const errorFiles = results
         .filter((r) => !r.success)
         .map((r) => `${r.fileName}: ${r.error}`);
+
       setUploadSuccess(successFiles);
       setUploadErrors(errorFiles);
+
       if (successFiles.length > 0) {
         setPresentationFiles([]);
         if (presentationInputRef.current)
           presentationInputRef.current.value = "";
       }
-    } catch {
+    } catch (error) {
+      console.error("Upload error:", error);
       setUploadErrors(["Upload failed. Please try again."]);
     } finally {
       setIsUploading(false);
@@ -244,62 +313,74 @@ export default function FacultyDashboardPage() {
     setUploadErrors([]);
   };
 
-  // CV HANDLERS (existing - keep as is)
+  // CV HANDLERS (with better error handling)
   const handleCVFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
       setCVFile(null);
       return;
     }
+
     const allowedTypes = [
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ];
+
     if (!allowedTypes.includes(file.type)) {
       setCvUploadError("Invalid file type. Only PDF, DOC, DOCX allowed.");
       setCVFile(null);
       if (cvInputRef.current) cvInputRef.current.value = "";
       return;
     }
+
     if (file.size > 10 * 1024 * 1024) {
       setCvUploadError("File too large. Max 10MB.");
       setCVFile(null);
       if (cvInputRef.current) cvInputRef.current.value = "";
       return;
     }
+
     setCVFile(file);
     setCvUploadError(null);
   };
 
   const handleCVUpload = async () => {
     if (!cvFile || !user?.id) return;
+
     setCvIsUploading(true);
     setCvProgress(0);
     setCvUploadError(null);
     setCvUploadSuccess(null);
+
     try {
       const formData = new FormData();
       formData.append("file", cvFile);
       formData.append("facultyId", user.id);
+
       const response = await fetch("/api/faculty/cv/upload", {
         method: "POST",
         body: formData,
       });
+
       setCvProgress(100);
+
       if (response.ok) {
         const result = await response.json();
-        setCvUploadSuccess(result.data.fileName);
+        setCvUploadSuccess(result.data?.fileName || cvFile.name);
         setCVFile(null);
         if (cvInputRef.current) cvInputRef.current.value = "";
-        refetchProfile && refetchProfile();
+        refetchProfile?.();
       } else {
-        const error = await response.json();
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Upload failed" }));
         setCvUploadError(error.error || error.message || "Upload failed!");
         setCVFile(null);
         if (cvInputRef.current) cvInputRef.current.value = "";
       }
-    } catch {
+    } catch (error) {
+      console.error("CV upload error:", error);
       setCvUploadError("Upload failed. Please try again.");
       setCVFile(null);
       if (cvInputRef.current) cvInputRef.current.value = "";
@@ -314,15 +395,15 @@ export default function FacultyDashboardPage() {
     setCvUploadError(null);
   };
 
-  // STATS (updated to include events)
+  // FIXED: STATS with safe access
   const mySessionsCount = mySessions?.data?.sessions?.length || 0;
   const todaysSessionsCount =
-    todaysSessions?.data?.sessions?.filter((s) =>
-      s.speakers?.some((speaker) => speaker.userId === user?.id)
+    todaysSessions?.data?.sessions?.filter((s: any) =>
+      s.speakers?.some((speaker: any) => speaker.userId === user?.id)
     ).length || 0;
   const upcomingSessionsCount =
-    upcomingSessions?.data?.sessions?.filter((s) =>
-      s.speakers?.some((speaker) => speaker.userId === user?.id)
+    upcomingSessions?.data?.sessions?.filter((s: any) =>
+      s.speakers?.some((speaker: any) => speaker.userId === user?.id)
     ).length || 0;
   const registeredEvents = myRegistrations?.data?.registrations?.length || 0;
   const attendanceRate = myAttendance?.data?.attendanceRate || 0;
@@ -335,15 +416,16 @@ export default function FacultyDashboardPage() {
     notifications?.data?.notifications?.filter((n: any) => !n.readAt).length ||
     0;
 
-  const profileInstitution = (profile?.data as any)?.institution || "";
-  const profileBio = (profile?.data as any)?.bio || "";
-  const profileExpertise = (profile?.data as any)?.expertise || "";
-  const profileCV = (profile?.data as any)?.cv || null;
-  const profilePhoto = (profile?.data as any)?.photo || null;
-  const profileUserName =
-    (profile?.data as any)?.user?.name || user?.name || "Faculty";
+  // FIXED: Safe profile data access
+  const profileData = profile?.data as any;
+  const profileInstitution = profileData?.institution || "";
+  const profileBio = profileData?.bio || "";
+  const profileExpertise = profileData?.expertise || "";
+  const profileCV = profileData?.cv || null;
+  const profilePhoto = profileData?.photo || null;
+  const profileUserName = profileData?.user?.name || user?.name || "Faculty";
   const profileUserEmail =
-    (profile?.data as any)?.user?.email || user?.email || "faculty@example.com";
+    profileData?.user?.email || user?.email || "faculty@example.com";
 
   const profileFields = [
     profileBio,
@@ -360,7 +442,7 @@ export default function FacultyDashboardPage() {
   const userName = profileUserName;
   const userEmail = profileUserEmail;
 
-  // RESPOND STATE AND HANDLERS (updated for both sessions and events)
+  // RESPOND STATE AND HANDLERS
   const [respondSubmitting, setRespondSubmitting] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineTargetId, setDeclineTargetId] = useState<string | null>(null);
@@ -386,25 +468,54 @@ export default function FacultyDashboardPage() {
     setDeclineOpen(true);
   };
 
-  // Accept handlers
+  // IMPROVED ACCEPT/DECLINE HANDLERS WITH BETTER ERROR HANDLING
   const acceptSessionInvite = async (id: string) => {
     try {
       setRespondSubmitting(true);
+      console.log("🔄 Accepting session:", id);
+
       const res = await fetch(`/api/sessions/respond`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, inviteStatus: "Accepted" }),
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          inviteStatus: "Accepted",
+        }),
       });
+
+      console.log("📡 Response status:", res.status);
+
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || "Failed to accept.");
+        let errorMessage = "Failed to accept invitation";
+        try {
+          const errorData = await res.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          console.error("❌ Server error:", errorData);
+        } catch (parseError) {
+          console.error("❌ Failed to parse error response:", parseError);
+          errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
+
+      const result = await res.json();
+      console.log("✅ Session accepted successfully:", result);
+
+      // Update local state
       setFacultySessions((prev: any[]) =>
         prev.map((s) => (s.id === id ? { ...s, inviteStatus: "Accepted" } : s))
       );
+
+      // Refresh sessions data
       fetchFacultySessions();
-    } catch (e) {
-      console.error(e);
+
+      alert("✅ Session accepted successfully!");
+    } catch (error: any) {
+      console.error("❌ Error accepting session:", error);
+      alert(`❌ Error accepting invitation: ${error.message}`);
     } finally {
       setRespondSubmitting(false);
     }
@@ -413,46 +524,80 @@ export default function FacultyDashboardPage() {
   const acceptEventInvite = async (id: string) => {
     try {
       setRespondSubmitting(true);
-      await respondToEvent(id, "ACCEPTED");
-    } catch (e) {
-      console.error("Error accepting event:", e);
+      console.log("🔄 Accepting event:", id);
+
+      if (respondToEvent) {
+        await respondToEvent(id, "ACCEPTED");
+        alert("✅ Event accepted successfully!");
+      } else {
+        throw new Error("Event response function not available");
+      }
+    } catch (error: any) {
+      console.error("❌ Error accepting event:", error);
+      alert(`❌ Error accepting event: ${error.message}`);
     } finally {
       setRespondSubmitting(false);
     }
   };
 
-  // Submit decline handler (unified)
+  // Submit decline handler with better error handling
   const submitDecline = async () => {
     if (!declineTargetId) return;
+
     try {
       setRespondSubmitting(true);
+      console.log("🔄 Declining:", {
+        id: declineTargetId,
+        type: declineTargetType,
+      });
 
       if (declineTargetType === "session") {
-        // Handle session decline (existing logic)
         const payload: any = {
           id: declineTargetId,
           inviteStatus: "Declined",
           rejectionReason: declineReason,
         };
-        if (declineReason === "SuggestedTopic")
+
+        if (declineReason === "SuggestedTopic" && suggestedTopic.trim())
           payload.suggestedTopic = suggestedTopic.trim();
+
         if (declineReason === "TimeConflict") {
           if (suggestedStart)
             payload.suggestedTimeStart = new Date(suggestedStart).toISOString();
           if (suggestedEnd)
             payload.suggestedTimeEnd = new Date(suggestedEnd).toISOString();
         }
+
         if (optionalQuery.trim()) payload.optionalQuery = optionalQuery.trim();
+
+        console.log("📤 Sending decline payload:", payload);
 
         const res = await fetch(`/api/sessions/respond`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
           body: JSON.stringify(payload),
         });
+
+        console.log("📡 Decline response status:", res.status);
+
         if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(j?.error || "Failed to decline.");
+          let errorMessage = "Failed to decline invitation";
+          try {
+            const errorData = await res.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+            console.error("❌ Server error:", errorData);
+          } catch (parseError) {
+            console.error("❌ Failed to parse error response:", parseError);
+            errorMessage = `HTTP ${res.status}: ${res.statusText}`;
+          }
+          throw new Error(errorMessage);
         }
+
+        const result = await res.json();
+        console.log("✅ Session declined successfully:", result);
 
         setFacultySessions((prev: any[]) =>
           prev.map((s) =>
@@ -470,12 +615,15 @@ export default function FacultyDashboardPage() {
           )
         );
         fetchFacultySessions();
+        alert("✅ Session declined successfully!");
       } else {
         // Handle event decline
         const additionalData: any = { rejectionReason: declineReason };
+
         if (declineReason === "SuggestedTopic" && suggestedTopic.trim()) {
           additionalData.suggestedTopic = suggestedTopic.trim();
         }
+
         if (declineReason === "TimeConflict") {
           if (suggestedStart)
             additionalData.suggestedTimeStart = new Date(
@@ -486,15 +634,24 @@ export default function FacultyDashboardPage() {
               suggestedEnd
             ).toISOString();
         }
+
         if (optionalQuery.trim())
           additionalData.optionalQuery = optionalQuery.trim();
 
-        await respondToEvent(declineTargetId, "DECLINED", additionalData);
+        console.log("📤 Declining event with data:", additionalData);
+
+        if (respondToEvent) {
+          await respondToEvent(declineTargetId, "DECLINED", additionalData);
+          alert("✅ Event declined successfully!");
+        } else {
+          throw new Error("Event response function not available");
+        }
       }
 
       setDeclineOpen(false);
-    } catch (e) {
-      console.error(e);
+    } catch (error: any) {
+      console.error("❌ Error declining:", error);
+      alert(`❌ Error declining: ${error.message}`);
     } finally {
       setRespondSubmitting(false);
     }
@@ -515,7 +672,7 @@ export default function FacultyDashboardPage() {
               size="sm"
               onClick={() => {
                 fetchFacultySessions();
-                refetchFacultyEvents();
+                refetchFacultyEvents?.();
               }}
               disabled={loadingFacultySessions || loadingFacultyEvents}
             >
@@ -541,27 +698,29 @@ export default function FacultyDashboardPage() {
           {/* Sessions Stats */}
           <div className="text-center p-3 bg-indigo-900/20 border border-indigo-700/30 rounded-lg">
             <div className="text-xl font-bold text-indigo-300">
-              {sessionsStats.total || 0}
+              {sessionsStats?.total ?? 0}
             </div>
             <div className="text-xs text-indigo-200">Total Sessions</div>
           </div>
           <div className="text-center p-3 bg-purple-900/20 border border-purple-700/30 rounded-lg">
             <div className="text-xl font-bold text-purple-300">
-              {facultyEvents.length}
+              {facultyEvents?.length ?? 0}
             </div>
             <div className="text-xs text-purple-200">Event Invitations</div>
           </div>
           <div className="text-center p-3 bg-emerald-900/20 border border-emerald-700/30 rounded-lg">
             <div className="text-xl font-bold text-emerald-300">
-              {(sessionsStats.accepted || 0) +
-                facultyEvents.filter((e) => e.status === "ACCEPTED").length}
+              {(sessionsStats?.accepted ?? 0) +
+                (facultyEvents?.filter((e: any) => e.status === "ACCEPTED")
+                  ?.length ?? 0)}
             </div>
             <div className="text-xs text-emerald-200">Total Accepted</div>
           </div>
           <div className="text-center p-3 bg-amber-900/20 border border-amber-700/30 rounded-lg">
             <div className="text-xl font-bold text-amber-300">
-              {(sessionsStats.pending || 0) +
-                facultyEvents.filter((e) => e.status === "PENDING").length}
+              {(sessionsStats?.pending ?? 0) +
+                (facultyEvents?.filter((e: any) => e.status === "PENDING")
+                  ?.length ?? 0)}
             </div>
             <div className="text-xs text-amber-200">Total Pending</div>
           </div>
@@ -579,7 +738,7 @@ export default function FacultyDashboardPage() {
         ) : (
           <div className="space-y-6">
             {/* Sessions Section */}
-            {facultySessions.length > 0 && (
+            {facultySessions?.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
                   <Presentation className="h-4 w-4 text-indigo-400" />
@@ -590,7 +749,7 @@ export default function FacultyDashboardPage() {
                     {facultySessions.length}
                   </Badge>
                 </div>
-                {facultySessions.slice(0, 3).map((session) => (
+                {facultySessions.slice(0, 3).map((session: any) => (
                   <div
                     key={session.id}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
@@ -610,7 +769,7 @@ export default function FacultyDashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="font-semibold text-slate-100 truncate">
-                            {session.title}
+                            {session.title || "Untitled Session"}
                           </h4>
                           <Badge
                             variant={
@@ -623,17 +782,18 @@ export default function FacultyDashboardPage() {
                                 : "outline"
                             }
                           >
-                            {session.inviteStatus}
+                            {session.inviteStatus || "Unknown"}
                           </Badge>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-300">
                           <div className="flex items-center">
                             <Calendar className="h-3 w-3 mr-1" />
-                            {session.formattedTime}
+                            {session.formattedTime || "Time TBD"}
                           </div>
                           <div className="flex items-center">
                             <MapPin className="h-3 w-3 mr-1" />
-                            {session.place} - {session.roomName}
+                            {session.place || "Location TBD"} -{" "}
+                            {session.roomName || "Room TBD"}
                           </div>
                         </div>
                         {session.inviteStatus === "Pending" && (
@@ -679,7 +839,7 @@ export default function FacultyDashboardPage() {
             )}
 
             {/* Events Section */}
-            {facultyEvents.length > 0 && (
+            {facultyEvents?.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 border-b border-slate-700 pb-2">
                   <CalendarDays className="h-4 w-4 text-purple-400" />
@@ -690,7 +850,7 @@ export default function FacultyDashboardPage() {
                     {facultyEvents.length}
                   </Badge>
                 </div>
-                {facultyEvents.slice(0, 3).map((event) => (
+                {facultyEvents.slice(0, 3).map((event: any) => (
                   <div
                     key={event.id}
                     className={`p-4 border rounded-lg transition-colors ${
@@ -707,7 +867,7 @@ export default function FacultyDashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                           <h4 className="font-semibold text-slate-100 truncate">
-                            {event.title}
+                            {event.title || "Untitled Event"}
                           </h4>
                           <Badge
                             variant={
@@ -720,25 +880,31 @@ export default function FacultyDashboardPage() {
                                 : "outline"
                             }
                           >
-                            {event.status}
+                            {event.status || "Unknown"}
                           </Badge>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-300 mb-2">
                           <div className="flex items-center">
                             <Calendar className="h-3 w-3 mr-1" />
-                            {format(new Date(event.startDate), "MMM dd, yyyy")}
+                            {event.startDate
+                              ? format(
+                                  new Date(event.startDate),
+                                  "MMM dd, yyyy"
+                                )
+                              : "Date TBD"}
                           </div>
                           <div className="flex items-center">
                             <MapPin className="h-3 w-3 mr-1" />
-                            {event.location} - {event.venue}
+                            {event.location || "Location TBD"} -{" "}
+                            {event.venue || "Venue TBD"}
                           </div>
                           <div className="flex items-center">
                             <Clock4 className="h-3 w-3 mr-1" />
-                            {event.duration}
+                            {event.duration || "Duration TBD"}
                           </div>
                           <div className="flex items-center">
                             <Users className="h-3 w-3 mr-1" />
-                            {event.sessionCount} sessions
+                            {event.sessionCount || 0} sessions
                           </div>
                         </div>
                         {event.description && (
@@ -809,9 +975,9 @@ export default function FacultyDashboardPage() {
             )}
 
             {/* View All Links */}
-            {(facultySessions.length > 3 || facultyEvents.length > 3) && (
+            {(facultySessions?.length > 3 || facultyEvents?.length > 3) && (
               <div className="flex gap-4 pt-4 border-t border-slate-800">
-                {facultySessions.length > 3 && (
+                {facultySessions?.length > 3 && (
                   <Button
                     variant="outline"
                     onClick={() => router.push("/faculty/sessions")}
@@ -821,7 +987,7 @@ export default function FacultyDashboardPage() {
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}
-                {facultyEvents.length > 3 && (
+                {facultyEvents?.length > 3 && (
                   <Button
                     variant="outline"
                     onClick={() => router.push("/faculty/events")}
@@ -835,32 +1001,33 @@ export default function FacultyDashboardPage() {
             )}
 
             {/* Empty State */}
-            {facultySessions.length === 0 && facultyEvents.length === 0 && (
-              <div className="text-center py-8 text-slate-400">
-                <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <h3 className="font-medium mb-2 text-slate-200">
-                  No sessions or events yet
-                </h3>
-                <p className="text-sm mb-4">
-                  Session and event invitations will appear here when organizers
-                  assign you
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push("/faculty/contact")}
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Contact Organizers
-                </Button>
-              </div>
-            )}
+            {(!facultySessions || facultySessions.length === 0) &&
+              (!facultyEvents || facultyEvents.length === 0) && (
+                <div className="text-center py-8 text-slate-400">
+                  <Calendar className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="font-medium mb-2 text-slate-200">
+                    No sessions or events yet
+                  </h3>
+                  <p className="text-sm mb-4">
+                    Session and event invitations will appear here when
+                    organizers assign you
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/faculty/contact")}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Contact Organizers
+                  </Button>
+                </div>
+              )}
           </div>
         )}
       </CardContent>
     </Card>
   );
 
-  // Rest of your existing handlers and component code...
+  // Loading state
   if (profileLoading || userSessionsLoading) {
     return (
       <FacultyLayout>
@@ -884,12 +1051,12 @@ export default function FacultyDashboardPage() {
       headerStats={[
         {
           label: "Sessions",
-          value: sessionsStats.total || 0,
+          value: sessionsStats?.total ?? 0,
           color: "bg-blue-500",
         },
         {
           label: "Events",
-          value: facultyEvents.length,
+          value: facultyEvents?.length ?? 0,
           color: "bg-purple-500",
         },
         {
@@ -935,7 +1102,7 @@ export default function FacultyDashboardPage() {
           </Alert>
         )}
 
-        {/* Updated Stats Grid */}
+        {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* Sessions Card */}
           <Card
@@ -948,21 +1115,21 @@ export default function FacultyDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {sessionsStats.total || 0}
+                {sessionsStats?.total ?? 0}
               </div>
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <div className="flex items-center space-x-4">
                   <span className="text-green-600">
-                    Accepted: {sessionsStats.accepted || 0}
+                    Accepted: {sessionsStats?.accepted ?? 0}
                   </span>
                   <span className="text-yellow-600">
-                    Pending: {sessionsStats.pending || 0}
+                    Pending: {sessionsStats?.pending ?? 0}
                   </span>
                 </div>
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <Activity className="h-3 w-3 mr-1 text-purple-500" />
-                {sessionsStats.upcoming || 0} upcoming
+                {sessionsStats?.upcoming ?? 0} upcoming
               </div>
             </CardContent>
           </Card>
@@ -979,19 +1146,20 @@ export default function FacultyDashboardPage() {
               <CalendarDays className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{facultyEvents.length}</div>
+              <div className="text-2xl font-bold">
+                {facultyEvents?.length ?? 0}
+              </div>
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <div className="flex items-center space-x-4">
                   <span className="text-green-600">
                     Accepted:{" "}
-                    {
-                      facultyEvents.filter((e) => e.status === "ACCEPTED")
-                        .length
-                    }
+                    {facultyEvents?.filter((e: any) => e.status === "ACCEPTED")
+                      ?.length ?? 0}
                   </span>
                   <span className="text-yellow-600">
                     Pending:{" "}
-                    {facultyEvents.filter((e) => e.status === "PENDING").length}
+                    {facultyEvents?.filter((e: any) => e.status === "PENDING")
+                      ?.length ?? 0}
                   </span>
                 </div>
               </div>
@@ -1002,7 +1170,7 @@ export default function FacultyDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Keep existing Accommodation & Travel and Documents cards as they are */}
+          {/* Accommodation & Travel Card */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={handleViewProfile}
@@ -1017,8 +1185,7 @@ export default function FacultyDashboardPage() {
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <Bed className="h-3 w-3 mr-1 text-purple-600" />
                 Accommodation:{" "}
-                {(profile?.data as any)?.accommodations &&
-                (profile?.data as any).accommodations.length > 0 ? (
+                {profileData?.accommodations?.length > 0 ? (
                   <span className="ml-1 text-green-600 font-medium">
                     Provided
                   </span>
@@ -1031,8 +1198,7 @@ export default function FacultyDashboardPage() {
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <Plane className="h-3 w-3 mr-1 text-blue-600" />
                 Travel Details:{" "}
-                {(profile?.data as any)?.travelDetails &&
-                (profile?.data as any).travelDetails.length > 0 ? (
+                {profileData?.travelDetails?.length > 0 ? (
                   <span className="ml-1 text-green-600 font-medium">
                     Provided
                   </span>
@@ -1045,6 +1211,7 @@ export default function FacultyDashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Documents Card */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={handlePresentations}
@@ -1059,7 +1226,7 @@ export default function FacultyDashboardPage() {
               <div className="text-2xl font-bold">{totalDocuments}</div>
               <div className="flex items-center text-xs text-muted-foreground">
                 <Upload className="h-3 w-3 mr-1 text-green-500" />
-                {(profile?.data as any)?.presentations?.length > 0
+                {profileData?.presentations?.length > 0
                   ? "Presentation uploaded"
                   : "Presentation pending"}
               </div>
@@ -1071,11 +1238,11 @@ export default function FacultyDashboardPage() {
           </Card>
         </div>
 
-        {/* Main Content Grid - Replace Sessions card with combined card */}
+        {/* Main Content Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           <SessionsAndEventsCard />
 
-          {/* Keep existing Faculty Tools Card exactly as it is */}
+          {/* Faculty Tools Card */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1084,7 +1251,7 @@ export default function FacultyDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* Keep all existing upload functionality */}
+              {/* Presentation Upload Section */}
               <div className="space-y-3">
                 <input
                   ref={presentationInputRef}
@@ -1334,6 +1501,7 @@ export default function FacultyDashboardPage() {
                 )}
               </div>
 
+              {/* Other Tool Buttons */}
               <Button
                 className="w-full justify-start"
                 variant="outline"
@@ -1399,125 +1567,345 @@ export default function FacultyDashboardPage() {
       />
 
       {/* Updated Decline Modal */}
+      {/* FIXED DARK THEME DECLINE MODAL */}
       {declineOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-lg border bg-white p-4 shadow-lg">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div
+            className="w-full max-w-lg mx-4 rounded-xl border shadow-2xl"
+            style={{
+              backgroundColor: "#111827",
+              borderColor: "#374151",
+              color: "#ffffff",
+            }}
+          >
+            {/* Header */}
+            <div
+              className="flex items-center justify-between p-6 border-b"
+              style={{ borderBottomColor: "#374151" }}
+            >
+              <h3 className="text-xl font-bold" style={{ color: "#ffffff" }}>
                 Decline {declineTargetType === "session" ? "Session" : "Event"}{" "}
                 Invitation
               </h3>
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
                 onClick={() => setDeclineOpen(false)}
+                disabled={respondSubmitting}
+                className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+                style={{ color: "#9ca3af" }}
               >
-                <X className="h-4 w-4" />
-              </Button>
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <div className="mt-4 space-y-3">
+            {/* Content */}
+            <div className="p-6 space-y-5">
+              {/* Reason Selection */}
               <div>
-                <div className="text-xs font-medium text-gray-700">
-                  Choose a reason
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button
-                    variant={
-                      declineReason === "NotInterested" ? "default" : "outline"
-                    }
-                    size="sm"
+                <label
+                  className="block text-sm font-semibold mb-3"
+                  style={{ color: "#d1d5db" }}
+                >
+                  Choose a reason for declining
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
                     onClick={() => setDeclineReason("NotInterested")}
+                    disabled={respondSubmitting}
+                    className="px-4 py-2 rounded-lg border font-medium transition-all duration-200"
+                    style={{
+                      backgroundColor:
+                        declineReason === "NotInterested"
+                          ? "#dc2626"
+                          : "transparent",
+                      borderColor:
+                        declineReason === "NotInterested"
+                          ? "#dc2626"
+                          : "#4b5563",
+                      color:
+                        declineReason === "NotInterested"
+                          ? "#ffffff"
+                          : "#9ca3af",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (declineReason !== "NotInterested") {
+                        e.currentTarget.style.backgroundColor = "#1f2937";
+                        e.currentTarget.style.color = "#ffffff";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (declineReason !== "NotInterested") {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "#9ca3af";
+                      }
+                    }}
                   >
                     Not Interested
-                  </Button>
-                  <Button
-                    variant={
-                      declineReason === "SuggestedTopic" ? "default" : "outline"
-                    }
-                    size="sm"
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setDeclineReason("SuggestedTopic")}
+                    disabled={respondSubmitting}
+                    className="px-4 py-2 rounded-lg border font-medium transition-all duration-200"
+                    style={{
+                      backgroundColor:
+                        declineReason === "SuggestedTopic"
+                          ? "#d97706"
+                          : "transparent",
+                      borderColor:
+                        declineReason === "SuggestedTopic"
+                          ? "#d97706"
+                          : "#4b5563",
+                      color:
+                        declineReason === "SuggestedTopic"
+                          ? "#ffffff"
+                          : "#9ca3af",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (declineReason !== "SuggestedTopic") {
+                        e.currentTarget.style.backgroundColor = "#1f2937";
+                        e.currentTarget.style.color = "#ffffff";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (declineReason !== "SuggestedTopic") {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "#9ca3af";
+                      }
+                    }}
                   >
                     Suggest a Topic
-                  </Button>
-                  <Button
-                    variant={
-                      declineReason === "TimeConflict" ? "default" : "outline"
-                    }
-                    size="sm"
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setDeclineReason("TimeConflict")}
+                    disabled={respondSubmitting}
+                    className="px-4 py-2 rounded-lg border font-medium transition-all duration-200"
+                    style={{
+                      backgroundColor:
+                        declineReason === "TimeConflict"
+                          ? "#2563eb"
+                          : "transparent",
+                      borderColor:
+                        declineReason === "TimeConflict"
+                          ? "#2563eb"
+                          : "#4b5563",
+                      color:
+                        declineReason === "TimeConflict"
+                          ? "#ffffff"
+                          : "#9ca3af",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (declineReason !== "TimeConflict") {
+                        e.currentTarget.style.backgroundColor = "#1f2937";
+                        e.currentTarget.style.color = "#ffffff";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (declineReason !== "TimeConflict") {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                        e.currentTarget.style.color = "#9ca3af";
+                      }
+                    }}
                   >
                     Time Conflict
-                  </Button>
+                  </button>
                 </div>
               </div>
 
+              {/* Suggested Topic Input */}
               {declineReason === "SuggestedTopic" && (
-                <div>
-                  <div className="text-xs font-medium text-gray-700">
+                <div className="space-y-2">
+                  <label
+                    className="block text-sm font-medium"
+                    style={{ color: "#d1d5db" }}
+                  >
                     Suggested Topic
-                  </div>
+                  </label>
                   <input
-                    className="mt-1 w-full rounded border p-2"
+                    type="text"
+                    className="w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                    style={{
+                      backgroundColor: "#1f2937",
+                      borderColor: "#374151",
+                      color: "#ffffff",
+                    }}
+                    placeholder="e.g., Emerging Trends in GenAI"
                     value={suggestedTopic}
                     onChange={(e) => setSuggestedTopic(e.target.value)}
-                    placeholder="e.g., Emerging Trends in GenAI"
+                    disabled={respondSubmitting}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "#d97706";
+                      e.currentTarget.style.boxShadow =
+                        "0 0 0 2px rgba(217, 119, 6, 0.2)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "#374151";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
                   />
                 </div>
               )}
 
+              {/* Time Conflict Inputs */}
               {declineReason === "TimeConflict" && (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs font-medium text-gray-700">
-                      Suggested Start
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label
+                      className="block text-sm font-medium"
+                      style={{ color: "#d1d5db" }}
+                    >
+                      Suggested Start Time
+                    </label>
                     <input
                       type="datetime-local"
-                      className="mt-1 w-full rounded border p-2"
+                      className="w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                      style={{
+                        backgroundColor: "#1f2937",
+                        borderColor: "#374151",
+                        color: "#ffffff",
+                      }}
                       value={suggestedStart}
                       onChange={(e) => setSuggestedStart(e.target.value)}
+                      disabled={respondSubmitting}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#2563eb";
+                        e.currentTarget.style.boxShadow =
+                          "0 0 0 2px rgba(37, 99, 235, 0.2)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "#374151";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
                     />
                   </div>
-                  <div>
-                    <div className="text-xs font-medium text-gray-700">
-                      Suggested End
-                    </div>
+                  <div className="space-y-2">
+                    <label
+                      className="block text-sm font-medium"
+                      style={{ color: "#d1d5db" }}
+                    >
+                      Suggested End Time
+                    </label>
                     <input
                       type="datetime-local"
-                      className="mt-1 w-full rounded border p-2"
+                      className="w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all"
+                      style={{
+                        backgroundColor: "#1f2937",
+                        borderColor: "#374151",
+                        color: "#ffffff",
+                      }}
                       value={suggestedEnd}
                       onChange={(e) => setSuggestedEnd(e.target.value)}
+                      disabled={respondSubmitting}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "#2563eb";
+                        e.currentTarget.style.boxShadow =
+                          "0 0 0 2px rgba(37, 99, 235, 0.2)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "#374151";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
                     />
                   </div>
                 </div>
               )}
 
-              <div>
-                <div className="text-xs font-medium text-gray-700">
-                  Optional message
-                </div>
+              {/* Optional Message */}
+              <div className="space-y-2">
+                <label
+                  className="block text-sm font-medium"
+                  style={{ color: "#d1d5db" }}
+                >
+                  Optional Message
+                </label>
                 <textarea
-                  className="mt-1 w-full rounded border p-2"
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-lg border focus:outline-none focus:ring-2 transition-all resize-none"
+                  style={{
+                    backgroundColor: "#1f2937",
+                    borderColor: "#374151",
+                    color: "#ffffff",
+                  }}
+                  placeholder="Add an optional message for the organizer..."
                   value={optionalQuery}
                   onChange={(e) => setOptionalQuery(e.target.value)}
-                  placeholder="Add an optional note for the organizer"
-                  rows={3}
+                  disabled={respondSubmitting}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "#4b5563";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 0 2px rgba(75, 85, 99, 0.2)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "#374151";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
                 />
               </div>
             </div>
 
-            <div className="mt-4 flex justify-end gap-2">
-              <Button
-                variant="outline"
+            {/* Actions */}
+            <div
+              className="flex justify-end gap-3 p-6 pt-4 border-t"
+              style={{ borderTopColor: "#374151" }}
+            >
+              <button
                 onClick={() => setDeclineOpen(false)}
                 disabled={respondSubmitting}
+                className="px-6 py-2 rounded-lg font-medium transition-colors"
+                style={{
+                  backgroundColor: "#374151",
+                  color: "#d1d5db",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#4b5563";
+                  e.currentTarget.style.color = "#ffffff";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "#374151";
+                  e.currentTarget.style.color = "#d1d5db";
+                }}
               >
                 Cancel
-              </Button>
-              <Button onClick={submitDecline} disabled={respondSubmitting}>
-                Submit Decline
-              </Button>
+              </button>
+
+              <button
+                onClick={submitDecline}
+                disabled={respondSubmitting}
+                className="px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                style={{
+                  backgroundColor: respondSubmitting ? "#7f1d1d" : "#dc2626",
+                  color: "#ffffff",
+                  opacity: respondSubmitting ? 0.7 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!respondSubmitting) {
+                    e.currentTarget.style.backgroundColor = "#b91c1c";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!respondSubmitting) {
+                    e.currentTarget.style.backgroundColor = "#dc2626";
+                  }
+                }}
+              >
+                {respondSubmitting ? (
+                  <>
+                    <div
+                      className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                      style={{
+                        borderColor: "#ffffff",
+                        borderTopColor: "transparent",
+                      }}
+                    />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Decline"
+                )}
+              </button>
             </div>
           </div>
         </div>

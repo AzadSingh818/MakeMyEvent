@@ -1,41 +1,10 @@
+// src/app/api/sessions/respond/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { getSessionById, updateSession } from "../../_store";
-
-const BodySchema = z.object({
-  id: z.string().min(1),
-  inviteStatus: z.enum(["Accepted", "Declined"]),
-  rejectionReason: z
-    .enum(["NotInterested", "SuggestedTopic", "TimeConflict"])
-    .optional(),
-  suggestedTopic: z.string().optional(),
-  suggestedTimeStart: z.string().optional(),
-  suggestedTimeEnd: z.string().optional(),
-  optionalQuery: z.string().optional(),
-});
+import { query } from "@/lib/database/connection";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch((e: any) => {
-      return NextResponse.json(
-        { success: false, error: "Invalid JSON", details: e?.message || "" },
-        { status: 400 }
-      );
-    });
-    if (body instanceof NextResponse) return body;
-
-    const parsed = BodySchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Validation failed",
-          issues: parsed.error.flatten(),
-        },
-        { status: 400 }
-      );
-    }
-
+    const body = await req.json();
     const {
       id,
       inviteStatus,
@@ -44,36 +13,87 @@ export async function POST(req: NextRequest) {
       suggestedTimeStart,
       suggestedTimeEnd,
       optionalQuery,
-    } = parsed.data;
+    } = body;
 
-    const existing = await getSessionById(id);
-    if (!existing) {
+    if (!id || !inviteStatus) {
       return NextResponse.json(
-        { success: false, error: "Session not found" },
-        { status: 404 }
+        { success: false, error: "Session ID and invite status are required" },
+        { status: 400 }
       );
     }
 
-    const updates: any = { inviteStatus };
-    if (inviteStatus === "Declined") {
-      updates.rejectionReason = rejectionReason;
-      updates.suggestedTopic = suggestedTopic || undefined;
-      updates.suggestedTimeStart = suggestedTimeStart || undefined;
-      updates.suggestedTimeEnd = suggestedTimeEnd || undefined;
-      updates.optionalQuery = optionalQuery || undefined;
-    } else {
-      updates.rejectionReason = undefined;
-      updates.suggestedTopic = undefined;
-      updates.suggestedTimeStart = undefined;
-      updates.suggestedTimeEnd = undefined;
-      updates.optionalQuery = undefined;
-    }
+    console.log("🔄 Updating session response:", {
+      id,
+      inviteStatus,
+      rejectionReason,
+    });
 
-    await updateSession(id, updates);
-    return NextResponse.json({ success: true });
-  } catch (e: any) {
+    // Start transaction
+    await query("BEGIN");
+
+    try {
+      // Update session metadata
+      let updateQuery = `
+        UPDATE session_metadata 
+        SET invite_status = $1, updated_at = NOW()
+      `;
+      let queryParams = [inviteStatus];
+      let paramIndex = 2;
+
+      if (rejectionReason) {
+        updateQuery += `, rejection_reason = $${paramIndex++}`;
+        queryParams.push(rejectionReason);
+      }
+
+      if (suggestedTopic) {
+        updateQuery += `, suggested_topic = $${paramIndex++}`;
+        queryParams.push(suggestedTopic);
+      }
+
+      if (suggestedTimeStart) {
+        updateQuery += `, suggested_time_start = $${paramIndex++}::timestamp`;
+        queryParams.push(suggestedTimeStart);
+      }
+
+      if (suggestedTimeEnd) {
+        updateQuery += `, suggested_time_end = $${paramIndex++}::timestamp`;
+        queryParams.push(suggestedTimeEnd);
+      }
+
+      if (optionalQuery) {
+        updateQuery += `, optional_query = $${paramIndex++}`;
+        queryParams.push(optionalQuery);
+      }
+
+      updateQuery += ` WHERE session_id = $${paramIndex}`;
+      queryParams.push(id);
+
+      const result = await query(updateQuery, queryParams);
+
+      if (result.rowCount === 0) {
+        throw new Error("Session not found or no changes made");
+      }
+
+      await query("COMMIT");
+
+      console.log("✅ Session response updated successfully:", id);
+
+      return NextResponse.json({
+        success: true,
+        message: "Session response updated successfully",
+      });
+    } catch (error) {
+      await query("ROLLBACK");
+      throw error;
+    }
+  } catch (error: any) {
+    console.error("❌ Error updating session response:", error);
     return NextResponse.json(
-      { success: false, error: "Server error", details: e?.message || "" },
+      {
+        success: false,
+        error: "Internal server error",
+        details: error?.message || "",
+      },
       { status: 500 }
     );
   }

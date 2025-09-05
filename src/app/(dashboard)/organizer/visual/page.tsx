@@ -6,19 +6,14 @@ import {
   Clock,
   MapPin,
   User,
-  Eye,
-  Users,
   ChevronLeft,
   ChevronRight,
   Plus,
-  Filter,
-  Search,
   Edit3,
   Save,
   X,
   Trash2,
   RefreshCw,
-  Building2,
   AlertTriangle,
 } from "lucide-react";
 import {
@@ -28,11 +23,13 @@ import {
   startOfWeek,
   endOfWeek,
   isSameDay,
+  parseISO,
+  isValid,
 } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-// Session Type (keeping existing interface)
+// Session Type
 export interface Session {
   id: string;
   title: string;
@@ -55,12 +52,12 @@ export interface Session {
   formattedStartTime?: string;
   formattedEndTime?: string;
   duration?: string;
-  eventId?: string; // Add eventId to sessions
+  eventId?: string;
 }
 
 type RoomLite = { id: string; name: string };
 
-// Updated Faculty type to match uploaded data structure
+// Updated Faculty type to match database structure
 type Faculty = {
   id: string;
   name: string;
@@ -73,7 +70,7 @@ type Faculty = {
   eventName: string;
 };
 
-// Event type for dropdown - Updated to match API response
+// Event type for dropdown
 type Event = {
   id: string;
   name: string;
@@ -92,7 +89,7 @@ type Event = {
     sessions: number;
     registrations: number;
   };
-  facultyCount?: number; // This will be calculated separately
+  facultyCount?: number;
 };
 
 type DraftSession = {
@@ -105,19 +102,77 @@ type DraftSession = {
   description?: string;
 };
 
-interface TimeSlot {
-  hour: number;
-  label: string;
-  sessions: Session[];
-}
+// FIXED: Utility function to parse time consistently (preserves original grid behavior)
+const parseTimeString = (timeStr: string) => {
+  if (!timeStr) return { hours: 0, minutes: 0, date: new Date() };
 
-interface DayColumn {
-  date: Date;
-  dayName: string;
-  dateNumber: string;
-  isToday: boolean;
-  timeSlots: TimeSlot[];
-}
+  try {
+    // Handle datetime-local format first (2023-09-05T16:30)
+    if (
+      timeStr.includes("T") &&
+      !timeStr.includes("Z") &&
+      timeStr.length <= 19
+    ) {
+      const [datePart, timePart] = timeStr.split("T");
+      const [hoursStr, minutesStr = "0"] = (timePart || "").split(":");
+      const hours = parseInt(hoursStr ?? "0", 10);
+      const minutes = parseInt(minutesStr ?? "0", 10);
+
+      // Create date from the date part only
+      if (!datePart) {
+        return { hours, minutes, date: new Date() };
+      }
+      const dateParts = datePart.split("-");
+      const year = parseInt(dateParts[0] ?? "0", 10);
+      const month = parseInt(dateParts[1] ?? "0", 10) - 1; // Month is 0-indexed
+      const day = parseInt(dateParts[2] ?? "0", 10);
+      const date = new Date(year, month, day);
+
+      return { hours, minutes, date };
+    } else {
+      // Handle ISO format but convert to local time for display
+      const date = new Date(timeStr);
+      if (isValid(date)) {
+        return {
+          hours: date.getHours(),
+          minutes: date.getMinutes(),
+          date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+        };
+      }
+    }
+  } catch (error) {
+    console.warn("Error parsing time:", timeStr, error);
+  }
+
+  return { hours: 0, minutes: 0, date: new Date() };
+};
+
+// FIXED: Function to format datetime-local input value
+const formatDateTimeLocal = (dateStr: string) => {
+  if (!dateStr) return "";
+
+  try {
+    // If already in datetime-local format, keep as-is
+    if (dateStr.includes("T") && !dateStr.includes("Z")) {
+      return dateStr.length === 16 ? dateStr : dateStr.slice(0, 16);
+    } else {
+      // Convert from ISO to datetime-local
+      const date = new Date(dateStr);
+      if (isValid(date)) {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const day = date.getDate().toString().padStart(2, "0");
+        const hours = date.getHours().toString().padStart(2, "0");
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+    }
+  } catch (error) {
+    console.warn("Error formatting datetime local:", dateStr, error);
+  }
+
+  return "";
+};
 
 interface SessionDetailsModalProps {
   isOpen: boolean;
@@ -130,7 +185,7 @@ interface SessionDetailsModalProps {
   onSessionDelete: (sessionId: string) => void;
 }
 
-// FIXED: Clean SessionDetailsModal component
+// Session Details Modal Component
 const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -172,13 +227,6 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
     }
   };
 
-  const toInputDateTime = (iso?: string) => {
-    if (!iso) return "";
-    const d = new Date(iso);
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return local.toISOString().slice(0, 16);
-  };
-
   const onEdit = (sessionId: string) => {
     const session = sessions.find((s) => s.id === sessionId);
     if (!session) return;
@@ -189,8 +237,8 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
         title: session.title ?? "",
         place: session.place ?? "",
         roomId: session.roomId,
-        startTime: toInputDateTime(session.startTime),
-        endTime: toInputDateTime(session.endTime),
+        startTime: formatDateTimeLocal(session.startTime),
+        endTime: formatDateTimeLocal(session.endTime),
         status: session.status,
         description: session.description ?? "",
       },
@@ -230,35 +278,25 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
     const body = draft[sessionId];
     if (!body) return;
 
-    let isoStartTime: string | null = null;
-    let isoEndTime: string | null = null;
+    // FIXED: Keep datetime-local format without converting to ISO
+    if (body.startTime && body.endTime) {
+      const startHour = parseInt(
+        body.startTime.split("T")[1]?.split(":")[0] || "0"
+      );
+      const endHour = parseInt(
+        body.endTime.split("T")[1]?.split(":")[0] || "0"
+      );
 
-    if (body.startTime && body.startTime.length === 16) {
-      isoStartTime = new Date(body.startTime).toISOString();
-    }
-    if (body.endTime && body.endTime.length === 16) {
-      isoEndTime = new Date(body.endTime).toISOString();
-    }
-
-    if (isoStartTime && isoEndTime) {
-      const start = new Date(isoStartTime);
-      const end = new Date(isoEndTime);
-      if (end <= start) {
+      if (endHour <= startHour) {
         alert("End time must be after start time");
-        return;
-      }
-      const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
-      if (durationMinutes < 15) {
-        alert("Session must be at least 15 minutes long");
         return;
       }
     }
 
     const payload = {
       ...body,
-      startTime: isoStartTime,
-      endTime: isoEndTime,
-      time: isoStartTime,
+      startTime: body.startTime,
+      endTime: body.endTime,
     };
 
     setSaving((s) => ({ ...s, [sessionId]: true }));
@@ -277,7 +315,7 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
       }
 
       const result = await res.json();
-      onSessionUpdate(sessionId, result);
+      onSessionUpdate(sessionId, result.data);
       onCancel(sessionId);
     } catch (e) {
       console.error("Session update error:", e);
@@ -548,11 +586,21 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                       <div className="flex items-center gap-3">
                         <Clock className="w-4 h-4 text-purple-400" />
                         <span>
-                          {session.startTime &&
-                            format(new Date(session.startTime), "HH:mm")}{" "}
+                          {parseTimeString(session.startTime)
+                            .hours.toString()
+                            .padStart(2, "0")}
+                          :
+                          {parseTimeString(session.startTime)
+                            .minutes.toString()
+                            .padStart(2, "0")}{" "}
                           -{" "}
-                          {session.endTime &&
-                            format(new Date(session.endTime), "HH:mm")}
+                          {parseTimeString(session.endTime)
+                            .hours.toString()
+                            .padStart(2, "0")}
+                          :
+                          {parseTimeString(session.endTime)
+                            .minutes.toString()
+                            .padStart(2, "0")}
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
@@ -655,6 +703,7 @@ interface CreateSessionModalProps {
   onCreate: () => void;
 }
 
+// Create Session Modal Component
 const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   isOpen,
   onClose,
@@ -685,9 +734,14 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
       const endDate = new Date(startDate);
       endDate.setHours(defaultHour + 1, 0, 0, 0);
 
+      // FIXED: Format as datetime-local string without timezone conversion
       const formatDateTime = (date: Date) => {
-        const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-        return d.toISOString().slice(0, 16);
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const day = date.getDate().toString().padStart(2, "0");
+        const hours = date.getHours().toString().padStart(2, "0");
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
       };
 
       setStartDateTime(formatDateTime(startDate));
@@ -744,16 +798,23 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
     setLoading(true);
 
     try {
-      const startTime = new Date(startDateTime);
-      const endTime = new Date(endDateTime);
+      // FIXED: Validate time using local time parsing
+      const startTimeLocal = parseTimeString(startDateTime);
+      const endTimeLocal = parseTimeString(endDateTime);
 
-      if (endTime <= startTime) {
+      if (
+        endTimeLocal.hours <= startTimeLocal.hours ||
+        (endTimeLocal.hours === startTimeLocal.hours &&
+          endTimeLocal.minutes <= startTimeLocal.minutes)
+      ) {
         alert("End time must be after start time");
         return;
       }
 
       const durationMinutes =
-        (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+        endTimeLocal.hours * 60 +
+        endTimeLocal.minutes -
+        (startTimeLocal.hours * 60 + startTimeLocal.minutes);
       if (durationMinutes < 15) {
         alert("Session must be at least 15 minutes long");
         return;
@@ -766,12 +827,21 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
       formData.append("place", place);
       formData.append("roomId", roomId);
       formData.append("description", description);
-      formData.append("startTime", startTime.toISOString());
-      formData.append("endTime", endTime.toISOString());
+
+      // FIXED: Send datetime-local strings directly without conversion
+      formData.append("startTime", startDateTime);
+      formData.append("endTime", endDateTime);
+
       formData.append("status", status);
       formData.append("inviteStatus", "Pending");
-      formData.append("travelStatus", "Pending");
-      formData.append("eventId", selectedEventId); // Add eventId to session
+      formData.append("eventId", selectedEventId);
+
+      console.log("📋 Creating session with local times:", {
+        startTime: startDateTime,
+        endTime: endDateTime,
+        startHour: startTimeLocal.hours,
+        endHour: endTimeLocal.hours,
+      });
 
       const response = await fetch("/api/sessions", {
         method: "POST",
@@ -785,14 +855,21 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
       }
 
       const result = await response.json();
-      console.log("Session created successfully:", result);
+      console.log("✅ Session created successfully:", result);
 
       resetForm();
       onCreate();
       onClose();
-      alert("Session created successfully!");
+
+      if (result.emailStatus === "sent") {
+        alert("Session created and invitation email sent successfully!");
+      } else {
+        alert(
+          "Session created successfully! Email notification may be delayed."
+        );
+      }
     } catch (error) {
-      console.error("Error creating session:", error);
+      console.error("❌ Error creating session:", error);
       alert("Failed to create session. Please try again.");
     } finally {
       setLoading(false);
@@ -860,8 +937,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 </select>
                 {events.length === 0 && (
                   <p className="text-xs text-yellow-400 mt-1">
-                    ⚠️ No events with faculty found. Please upload faculty lists
-                    first.
+                    ⚠️ No events found. Please ensure events are created and
+                    faculty lists are uploaded.
                   </p>
                 )}
               </div>
@@ -897,7 +974,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
               </select>
               {selectedEventId && availableFaculty.length === 0 && (
                 <p className="text-xs text-yellow-400 mt-1">
-                  ⚠️ No faculty available for this event.
+                  ⚠️ No faculty available for this event. Please upload faculty
+                  lists.
                 </p>
               )}
             </div>
@@ -917,7 +995,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                   className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
                   placeholder="faculty@university.edu"
                   required
-                  readOnly={!!facultyId} // Make readonly if faculty is selected
+                  readOnly={!!facultyId}
                 />
               </div>
 
@@ -1029,9 +1107,20 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                     {availableFaculty.find((f) => f.id === facultyId)?.name}
                   </div>
                   <div>
-                    <span className="font-medium">Department:</span>{" "}
-                    {availableFaculty.find((f) => f.id === facultyId)
-                      ?.department || "N/A"}
+                    <span className="font-medium">Time:</span>{" "}
+                    {startDateTime &&
+                      `${
+                        parseTimeString(startDateTime).hours
+                      }:${parseTimeString(startDateTime)
+                        .minutes.toString()
+                        .padStart(2, "0")}`}{" "}
+                    -{" "}
+                    {endDateTime &&
+                      `${parseTimeString(endDateTime).hours}:${parseTimeString(
+                        endDateTime
+                      )
+                        .minutes.toString()
+                        .padStart(2, "0")}`}
                   </div>
                   <div>
                     <span className="font-medium">Institution:</span>{" "}
@@ -1072,7 +1161,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   );
 };
 
-// Main Sessions Calendar Component - FIXED: Fetch events from database API
+// Main Sessions Calendar Component
 const SessionsCalendarView: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [rooms, setRooms] = useState<RoomLite[]>([]);
@@ -1097,26 +1186,24 @@ const SessionsCalendarView: React.FC = () => {
     undefined
   );
 
-  const POLL_INTERVAL = 3000;
+  const POLL_INTERVAL = 30000; // Reduced polling frequency
 
-  // FIXED: Load events from database API instead of localStorage
-  const loadEventsFromDatabase = useCallback(async () => {
+  // Load events and faculty data
+  const loadEventsAndFaculty = useCallback(async () => {
     try {
-      console.log('🔄 Loading events from database API...');
-      const eventsResponse = await fetch('/api/events', { 
-        cache: 'no-store',
-        headers: {
-          'Accept': 'application/json',
-        }
+      console.log("🔄 Loading events and faculty data...");
+
+      // Load events from database
+      const eventsResponse = await fetch("/api/events", {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
       });
 
+      let eventsList: Event[] = [];
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
-        console.log('📊 Events API response:', eventsData);
 
-        // Handle different API response formats
-        let eventsList = [];
-        if (eventsData.success && eventsData.data && eventsData.data.events) {
+        if (eventsData.success && eventsData.data?.events) {
           eventsList = eventsData.data.events;
         } else if (eventsData.events) {
           eventsList = eventsData.events;
@@ -1125,77 +1212,95 @@ const SessionsCalendarView: React.FC = () => {
         }
 
         console.log(`✅ Loaded ${eventsList.length} events from database`);
-        
-        // Map events to the format needed by the calendar
-        const mappedEvents: Event[] = eventsList.map((event: any) => ({
-          id: event.id,
-          name: event.name,
-          startDate: event.startDate,
-          endDate: event.endDate,
-          location: event.location,
-          status: event.status,
-          description: event.description,
-          eventType: event.eventType,
-          createdByUser: event.createdByUser,
-          _count: event._count,
-          facultyCount: 0 // Will be updated from localStorage faculty data
-        }));
-
-        return mappedEvents;
-      } else {
-        console.error('❌ Failed to fetch events:', eventsResponse.status);
-        return [];
       }
+
+      // Load faculty data from localStorage and database
+      const facultyResponse = await fetch("/api/faculties", {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+
+      let allFaculties: Faculty[] = [];
+      if (facultyResponse.ok) {
+        allFaculties = await facultyResponse.json();
+        console.log(`✅ Loaded ${allFaculties.length} faculties from database`);
+      }
+
+      // Also check localStorage for uploaded faculty lists
+      if (typeof window !== "undefined") {
+        const savedFacultyData = localStorage.getItem("eventFacultyData");
+        if (savedFacultyData) {
+          const eventFacultyData = JSON.parse(savedFacultyData);
+          const localFaculties = eventFacultyData.flatMap(
+            (eventData: any) =>
+              eventData.facultyList?.map((faculty: any) => ({
+                ...faculty,
+                eventId: eventData.eventId,
+                eventName: eventData.eventName,
+              })) || []
+          );
+
+          // Merge with database faculties, avoiding duplicates
+          localFaculties.forEach((localFaculty: Faculty) => {
+            if (!allFaculties.find((f) => f.email === localFaculty.email)) {
+              allFaculties.push(localFaculty);
+            }
+          });
+
+          console.log(
+            `✅ Added ${localFaculties.length} faculties from localStorage`
+          );
+        }
+      }
+
+      // FIXED: Group faculties by event safely
+      const facultyMapping: Record<string, Faculty[]> = {};
+      allFaculties.forEach((faculty) => {
+        if (!facultyMapping[faculty.eventId]) {
+          facultyMapping[faculty.eventId] = [];
+        }
+        (
+          facultyMapping[faculty.eventId] ??
+          (facultyMapping[faculty.eventId] = [])
+        ).push(faculty);
+      });
+
+      // Update events with faculty counts
+      const eventsWithFacultyCounts = eventsList.map((event: Event) => ({
+        ...event,
+        facultyCount: facultyMapping[event.id]?.length || 0,
+      }));
+
+      console.log("✅ Events and faculty data loaded successfully");
+      return {
+        events: eventsWithFacultyCounts,
+        facultiesByEvent: facultyMapping,
+      };
     } catch (error) {
-      console.error('❌ Error loading events from database:', error);
-      return [];
+      console.error("❌ Error loading events and faculty:", error);
+      return { events: [], facultiesByEvent: {} };
     }
   }, []);
 
-  // Load faculty data from localStorage (keeping this part as it works)
-  const loadFacultyFromLocalStorage = useCallback(() => {
-    try {
-      const savedFacultyData = localStorage.getItem("eventFacultyData");
-      if (savedFacultyData) {
-        const eventFacultyData = JSON.parse(savedFacultyData);
-
-        // Create faculty mapping by event
-        const facultyMapping: Record<string, Faculty[]> = {};
-        eventFacultyData.forEach((eventData: any) => {
-          facultyMapping[eventData.eventId] = eventData.facultyList || [];
-        });
-
-        console.log(
-          `👥 Loaded faculty data for ${Object.keys(facultyMapping).length} events`
-        );
-        console.log(
-          `📊 Total faculty: ${Object.values(facultyMapping).flat().length}`
-        );
-
-        return facultyMapping;
-      }
-    } catch (error) {
-      console.error("❌ Error loading faculty from localStorage:", error);
-    }
-    return {};
-  }, []);
-
-  // FIXED: Updated fetch function to use database for events
+  // Fetch all data
   const fetchSessions = useCallback(
     async (showLoading = true) => {
       try {
         if (showLoading) setLoading(true);
+        setError(null);
 
-        // Load data from multiple sources
-        const [sessionsRes, roomsRes, eventsFromDb, facultyFromStorage] = await Promise.all([
+        const [
+          sessionsRes,
+          roomsRes,
+          { events: eventsFromDb, facultiesByEvent: facultyMapping },
+        ] = await Promise.all([
           fetch("/api/sessions", { cache: "no-store" }),
           fetch("/api/rooms", { cache: "no-store" }),
-          loadEventsFromDatabase(), // FIXED: Load from database
-          loadFacultyFromLocalStorage() // Keep localStorage for faculty
+          loadEventsAndFaculty(),
         ]);
 
         if (!sessionsRes.ok || !roomsRes.ok) {
-          throw new Error("Failed to fetch sessions or rooms");
+          throw new Error("Failed to fetch data from server");
         }
 
         const sessionsData = await sessionsRes.json();
@@ -1211,46 +1316,40 @@ const SessionsCalendarView: React.FC = () => {
         if (Array.isArray(sessionsList)) {
           const enhancedSessions = sessionsList.map((session: any) => ({
             ...session,
-            roomName: roomsList.find((r: RoomLite) => r.id === session.roomId)
-              ?.name,
-          }));
-
-          // FIXED: Update events with faculty counts from localStorage
-          const eventsWithFacultyCounts = eventsFromDb.map((event: Event) => ({
-            ...event,
-            facultyCount: facultyFromStorage[event.id]?.length || 0
+            roomName:
+              roomsList.find((r: RoomLite) => r.id === session.roomId)?.name ||
+              session.roomName,
           }));
 
           setSessions(enhancedSessions);
           setRooms(roomsList);
-          setEvents(eventsWithFacultyCounts); // FIXED: Use database events
-          setFacultiesByEvent(facultyFromStorage);
+          setEvents(eventsFromDb);
+          setFacultiesByEvent(facultyMapping);
           setLastUpdateTime(new Date().toLocaleTimeString());
-          
-          console.log(`✅ Updated calendar with ${eventsWithFacultyCounts.length} events and ${enhancedSessions.length} sessions`);
+
+          console.log(
+            `✅ Calendar updated: ${enhancedSessions.length} sessions, ${eventsFromDb.length} events`
+          );
         } else {
-          setError(sessionsData?.error || "Failed to fetch sessions");
+          setError(sessionsData?.error || "Failed to load sessions");
         }
       } catch (err) {
-        setError("Error fetching sessions");
-        console.error("❌ Error:", err);
+        console.error("❌ Error fetching data:", err);
+        setError("Failed to load data. Please try again.");
       } finally {
         if (showLoading) setLoading(false);
       }
     },
-    [loadEventsFromDatabase, loadFacultyFromLocalStorage]
+    [loadEventsAndFaculty]
   );
 
-  // Listen for faculty data updates from localStorage
+  // Listen for faculty data updates
   useEffect(() => {
     const handleFacultyDataUpdate = () => {
-      console.log(
-        "🔄 Faculty data updated in localStorage, refreshing..."
-      );
-      fetchSessions(false); // Refresh without loading state
+      console.log("🔄 Faculty data updated, refreshing...");
+      fetchSessions(false);
     };
 
-    // Listen for storage events
     window.addEventListener("storage", handleFacultyDataUpdate);
     window.addEventListener("eventFacultyDataUpdated", handleFacultyDataUpdate);
 
@@ -1309,36 +1408,36 @@ const SessionsCalendarView: React.FC = () => {
     return days;
   }, [currentWeek]);
 
+  // FIXED: Get sessions for slot using local time parsing (like original)
   const getSessionsForSlot = (date: Date, hour: number) => {
     return sessions.filter((session) => {
       if (!session.startTime || !session.endTime) return false;
 
-      const sessionDate = new Date(session.startTime);
-      const sessionStart = sessionDate.getHours();
-      const sessionEnd = new Date(session.endTime).getHours();
+      const sessionTime = parseTimeString(session.startTime);
+      const sessionEndTime = parseTimeString(session.endTime);
 
-      return (
-        isSameDay(sessionDate, date) &&
-        hour >= sessionStart &&
-        hour < sessionEnd
-      );
+      // Check if same date
+      if (!isSameDay(sessionTime.date, date)) return false;
+
+      // Check if hour falls within session time range
+      return hour >= sessionTime.hours && hour < sessionEndTime.hours;
     });
   };
 
+  // FIXED: Get session style using local time positioning (preserves grid behavior)
   const getSessionStyle = (session: Session) => {
     if (!session.startTime || !session.endTime) return {};
 
-    const startTime = new Date(session.startTime);
-    const endTime = new Date(session.endTime);
+    const startTime = parseTimeString(session.startTime);
+    const endTime = parseTimeString(session.endTime);
 
-    const startHour = startTime.getHours();
-    const startMinute = startTime.getMinutes();
-    const endHour = endTime.getHours();
-    const endMinute = endTime.getMinutes();
-
-    const startPosition = (startHour * 60 + startMinute) / 60;
+    // Calculate position based on local time (like original)
+    const startPosition = (startTime.hours * 60 + startTime.minutes) / 60;
     const duration =
-      (endHour * 60 + endMinute - (startHour * 60 + startMinute)) / 60;
+      (endTime.hours * 60 +
+        endTime.minutes -
+        (startTime.hours * 60 + startTime.minutes)) /
+      60;
 
     return {
       top: `${startPosition * 60}px`,
@@ -1386,14 +1485,15 @@ const SessionsCalendarView: React.FC = () => {
   };
 
   const handleSessionClick = (session: Session) => {
-    const sessionDate = new Date(session.startTime);
+    const sessionTime = parseTimeString(session.startTime);
     setSelectedSessions([session]);
-    setSelectedDate(format(sessionDate, "EEEE, MMMM d, yyyy"));
+    setSelectedDate(format(sessionTime.date, "EEEE, MMMM d, yyyy"));
     setSelectedTimeSlot(
-      `${format(new Date(session.startTime), "h:mm a")} - ${format(
-        new Date(session.endTime),
-        "h:mm a"
-      )}`
+      `${sessionTime.hours}:${sessionTime.minutes
+        .toString()
+        .padStart(2, "0")} - ${
+        parseTimeString(session.endTime).hours
+      }:${parseTimeString(session.endTime).minutes.toString().padStart(2, "0")}`
     );
     setIsModalOpen(true);
   };
@@ -1465,7 +1565,7 @@ const SessionsCalendarView: React.FC = () => {
                 Sessions Calendar
               </h1>
               <p className="text-gray-400">
-                Real-time schedule overview • Last updated: {lastUpdateTime}
+                Database-connected schedule • Last updated: {lastUpdateTime}
                 <span className="text-blue-400 ml-2">
                   • {events.length} events • {totalAvailableFaculty} faculty
                   available
@@ -1477,7 +1577,7 @@ const SessionsCalendarView: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              Live Updates
+              Database Connected
             </div>
             <Button
               variant="outline"
@@ -1493,7 +1593,7 @@ const SessionsCalendarView: React.FC = () => {
               disabled={events.length === 0}
               title={
                 events.length === 0
-                  ? "No events available - please ensure EVENT_MANAGER has created events"
+                  ? "No events available - please create events or upload faculty lists"
                   : "Create new session"
               }
             >
@@ -1503,27 +1603,20 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         </div>
 
-        {/* FIXED: Updated status alert */}
+        {/* Status Alert */}
         {events.length === 0 && (
           <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
             <div className="flex items-center gap-2 text-yellow-300">
               <AlertTriangle className="h-4 w-4" />
               <span className="text-sm">
-                No events found. Please ensure the EVENT_MANAGER has created events, or upload faculty lists from Faculty Management.
+                No events found. Please create events in Event Management or
+                upload faculty lists.
               </span>
-              <Button
-                variant="link"
-                size="sm"
-                className="text-yellow-300 underline p-0 ml-2"
-                onClick={() => window.open("/organizer/faculty", "_blank")}
-              >
-                Upload Faculty
-              </Button>
             </div>
           </div>
         )}
 
-        {/* FIXED: Dynamic events summary */}
+        {/* Events Summary */}
         {events.length > 0 && (
           <div className="mb-4 flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
@@ -1532,7 +1625,7 @@ const SessionsCalendarView: React.FC = () => {
                 <strong>{events.length}</strong> active events
               </span>
             </div>
-            {events.slice(0, 3).map((event, index) => (
+            {events.slice(0, 3).map((event) => (
               <div key={event.id} className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   {event.name} ({event.facultyCount} faculty)
@@ -1585,6 +1678,7 @@ const SessionsCalendarView: React.FC = () => {
         </div>
       </div>
 
+      {/* FIXED: Calendar Grid with corrected time positioning */}
       <div className="flex overflow-hidden">
         <div className="bg-gray-900 border-r border-gray-800 w-20 flex-shrink-0">
           <div className="h-16 border-b border-gray-800"></div>
@@ -1647,10 +1741,12 @@ const SessionsCalendarView: React.FC = () => {
                     );
                   })}
 
+                  {/* FIXED: Session positioning with correct time parsing */}
                   {sessions
                     .filter((session) => {
                       if (!session.startTime) return false;
-                      return isSameDay(new Date(session.startTime), day.date);
+                      const sessionTime = parseTimeString(session.startTime);
+                      return isSameDay(sessionTime.date, day.date);
                     })
                     .map((session) => {
                       const style = getSessionStyle(session);

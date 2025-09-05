@@ -14,6 +14,10 @@ import {
   AlertTriangle,
   ExternalLink,
   X,
+  CheckCircle,
+  XCircle,
+  Users,
+  TrendingUp,
 } from "lucide-react";
 import { FacultyLayout } from "@/components/dashboard/layout";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,6 +28,15 @@ export default function FacultyAllSessionsPage() {
 
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // FIXED: Initialize with default values to prevent undefined errors
+  const [sessionsStats, setSessionsStats] = useState({
+    total: 0,
+    pending: 0,
+    accepted: 0,
+    declined: 0,
+  });
 
   // Respond state
   const [respondSubmitting, setRespondSubmitting] = useState(false);
@@ -37,26 +50,75 @@ export default function FacultyAllSessionsPage() {
   const [suggestedEnd, setSuggestedEnd] = useState("");
   const [optionalQuery, setOptionalQuery] = useState("");
 
+  // FIXED: Function to calculate stats from sessions
+  const calculateStats = (sessionsList: any[]) => {
+    const stats = {
+      total: sessionsList.length,
+      pending: sessionsList.filter((s) => s.inviteStatus === "Pending").length,
+      accepted: sessionsList.filter((s) => s.inviteStatus === "Accepted")
+        .length,
+      declined: sessionsList.filter((s) => s.inviteStatus === "Declined")
+        .length,
+    };
+    setSessionsStats(stats);
+    return stats;
+  };
+
   const fetchAll = async () => {
-    if (!user?.email) return;
+    if (!user?.email) {
+      setError("User email not found");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+
     try {
+      console.log("🔄 Fetching sessions for user:", user.email);
+
       const res = await fetch(
         `/api/faculty/sessions?email=${encodeURIComponent(user.email)}`,
-        { cache: "no-store" }
+        {
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
       );
-      if (!res.ok) throw new Error("Failed to load sessions");
-      const j = await res.json();
-      setSessions(j.data.sessions || []);
-    } catch (e) {
-      console.error(e);
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `HTTP ${res.status}: Failed to load sessions`
+        );
+      }
+
+      const data = await res.json();
+      console.log("✅ Sessions fetched:", data);
+
+      if (data.success && data.data?.sessions) {
+        const sessionsList = data.data.sessions;
+        setSessions(sessionsList);
+        calculateStats(sessionsList); // Calculate and set stats
+      } else {
+        setSessions([]);
+        calculateStats([]); // Set empty stats
+      }
+    } catch (e: any) {
+      console.error("❌ Error fetching sessions:", e);
+      setError(e.message || "Failed to load sessions");
+      setSessions([]);
+      calculateStats([]); // Set empty stats on error
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAll();
+    if (user?.email) {
+      fetchAll();
+    }
   }, [user?.email]);
 
   const openDecline = (id: string) => {
@@ -77,12 +139,23 @@ export default function FacultyAllSessionsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, inviteStatus: "Accepted" }),
       });
-      if (!res.ok) throw new Error("Failed to accept");
-      setSessions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, inviteStatus: "Accepted" } : s))
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to accept invitation");
+      }
+
+      // Update local state
+      const updatedSessions = sessions.map((s) =>
+        s.id === id ? { ...s, inviteStatus: "Accepted" } : s
       );
-    } catch (e) {
-      console.error(e);
+      setSessions(updatedSessions);
+      calculateStats(updatedSessions); // Recalculate stats
+
+      console.log("✅ Invitation accepted successfully");
+    } catch (e: any) {
+      console.error("❌ Error accepting invitation:", e);
+      alert(e.message || "Failed to accept invitation");
     } finally {
       setRespondSubmitting(false);
     }
@@ -90,6 +163,7 @@ export default function FacultyAllSessionsPage() {
 
   const submitDecline = async () => {
     if (!declineTargetId) return;
+
     try {
       setRespondSubmitting(true);
       const payload: any = {
@@ -97,81 +171,200 @@ export default function FacultyAllSessionsPage() {
         inviteStatus: "Declined",
         rejectionReason: declineReason,
       };
-      if (declineReason === "SuggestedTopic")
+
+      if (declineReason === "SuggestedTopic" && suggestedTopic.trim()) {
         payload.suggestedTopic = suggestedTopic.trim();
-      if (declineReason === "TimeConflict") {
-        if (suggestedStart)
-          payload.suggestedTimeStart = new Date(suggestedStart).toISOString();
-        if (suggestedEnd)
-          payload.suggestedTimeEnd = new Date(suggestedEnd).toISOString();
       }
-      if (optionalQuery.trim()) payload.optionalQuery = optionalQuery.trim();
+
+      if (declineReason === "TimeConflict") {
+        if (suggestedStart) {
+          payload.suggestedTimeStart = new Date(suggestedStart).toISOString();
+        }
+        if (suggestedEnd) {
+          payload.suggestedTimeEnd = new Date(suggestedEnd).toISOString();
+        }
+      }
+
+      if (optionalQuery.trim()) {
+        payload.optionalQuery = optionalQuery.trim();
+      }
 
       const res = await fetch(`/api/sessions/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) throw new Error("Failed to decline");
 
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === declineTargetId
-            ? {
-                ...s,
-                inviteStatus: "Declined",
-                rejectionReason: payload.rejectionReason,
-                suggestedTopic: payload.suggestedTopic,
-                suggestedTimeStart: payload.suggestedTimeStart,
-                suggestedTimeEnd: payload.suggestedTimeEnd,
-                optionalQuery: payload.optionalQuery,
-              }
-            : s
-        )
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to decline invitation");
+      }
+
+      // Update local state
+      const updatedSessions = sessions.map((s) =>
+        s.id === declineTargetId
+          ? {
+              ...s,
+              inviteStatus: "Declined",
+              rejectionReason: payload.rejectionReason,
+              suggestedTopic: payload.suggestedTopic,
+              suggestedTimeStart: payload.suggestedTimeStart,
+              suggestedTimeEnd: payload.suggestedTimeEnd,
+              optionalQuery: payload.optionalQuery,
+            }
+          : s
       );
+      setSessions(updatedSessions);
+      calculateStats(updatedSessions); // Recalculate stats
+
       setDeclineOpen(false);
-    } catch (e) {
-      console.error(e);
+      console.log("✅ Invitation declined successfully");
+    } catch (e: any) {
+      console.error("❌ Error declining invitation:", e);
+      alert(e.message || "Failed to decline invitation");
     } finally {
       setRespondSubmitting(false);
     }
   };
 
+  if (loading) {
+    return (
+      <FacultyLayout>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/faculty/dashboard")}
+              >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+              <h1 className="text-2xl font-semibold text-white">
+                All Sessions
+              </h1>
+            </div>
+          </div>
+
+          <Card className="border-slate-800 bg-slate-900/30">
+            <CardContent className="py-10 text-center text-slate-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              Loading your sessions...
+            </CardContent>
+          </Card>
+        </div>
+      </FacultyLayout>
+    );
+  }
+
   return (
     <FacultyLayout>
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => router.push("/faculty/dashboard")}
+              className="border-slate-700 text-slate-300 hover:bg-slate-800"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
-            <h1 className="text-2xl font-semibold">All Sessions</h1>
+            <h1 className="text-2xl font-semibold text-white">All Sessions</h1>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={fetchAll}
             disabled={loading}
+            className="border-slate-700 text-slate-300 hover:bg-slate-800"
           >
             Refresh
           </Button>
         </div>
 
-        {loading ? (
+        {/* FIXED: Stats Cards with Safe Access */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="border-slate-800 bg-slate-900/30">
-            <CardContent className="py-10 text-center text-slate-400">
-              Loading...
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-400">
+                    Total Sessions
+                  </p>
+                  <div className="text-2xl font-bold text-white">
+                    {sessionsStats?.total ?? 0} {/* FIXED: Safe access */}
+                  </div>
+                </div>
+                <Users className="h-4 w-4 text-slate-400" />
+              </div>
             </CardContent>
           </Card>
-        ) : sessions.length === 0 ? (
+
+          <Card className="border-slate-800 bg-slate-900/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Pending</p>
+                  <div className="text-2xl font-bold text-amber-400">
+                    {sessionsStats?.pending ?? 0} {/* FIXED: Safe access */}
+                  </div>
+                </div>
+                <Clock className="h-4 w-4 text-amber-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-800 bg-slate-900/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Accepted</p>
+                  <div className="text-2xl font-bold text-emerald-400">
+                    {sessionsStats?.accepted ?? 0} {/* FIXED: Safe access */}
+                  </div>
+                </div>
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-800 bg-slate-900/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Declined</p>
+                  <div className="text-2xl font-bold text-red-400">
+                    {sessionsStats?.declined ?? 0} {/* FIXED: Safe access */}
+                  </div>
+                </div>
+                <XCircle className="h-4 w-4 text-red-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {error && (
+          <Card className="border-red-800 bg-red-900/20">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-2 text-red-400">
+                <XCircle className="h-4 w-4" />
+                <span>{error}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!error && sessions.length === 0 ? (
           <Card className="border-slate-800 bg-slate-900/30">
             <CardContent className="py-10 text-center text-slate-400">
-              No sessions yet.
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-slate-600" />
+              <h3 className="text-lg font-medium mb-2">No sessions yet</h3>
+              <p className="text-sm">
+                You don't have any session invitations at the moment.
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -245,46 +438,80 @@ export default function FacultyAllSessionsPage() {
                         </p>
                       )}
 
+                      {session.eventName && (
+                        <div className="flex items-center mt-2">
+                          <span className="text-xs bg-blue-900/30 text-blue-300 px-2 py-1 rounded">
+                            Event: {session.eventName}
+                          </span>
+                        </div>
+                      )}
+
                       {session.inviteStatus === "Pending" && (
                         <div className="flex items-center gap-2 mt-3">
                           <AlertTriangle className="h-4 w-4 text-amber-400" />
                           <span className="text-sm text-amber-300 font-medium">
-                            Response required - Check your portal for actions
+                            Response required - Please accept or decline
                           </span>
                         </div>
                       )}
+
+                      {/* Show decline reasons if declined */}
+                      {session.inviteStatus === "Declined" &&
+                        session.rejectionReason && (
+                          <div className="mt-3 p-2 bg-red-900/30 border border-red-800 rounded">
+                            <p className="text-xs text-red-300">
+                              <strong>Reason:</strong> {session.rejectionReason}
+                            </p>
+                            {session.suggestedTopic && (
+                              <p className="text-xs text-red-300 mt-1">
+                                <strong>Suggested Topic:</strong>{" "}
+                                {session.suggestedTopic}
+                              </p>
+                            )}
+                            {session.optionalQuery && (
+                              <p className="text-xs text-red-300 mt-1">
+                                <strong>Comment:</strong>{" "}
+                                {session.optionalQuery}
+                              </p>
+                            )}
+                          </div>
+                        )}
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                      <ExternalLink className="h-4 w-4 text-slate-400" />
                       {session.inviteStatus === "Accepted" && (
-                        <Badge variant="outline" className="text-xs">
-                          Confirmed
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          <CheckCircle className="h-4 w-4 text-green-400" />
+                          <Badge
+                            variant="outline"
+                            className="text-xs border-green-600 text-green-300"
+                          >
+                            Confirmed
+                          </Badge>
+                        </div>
                       )}
-                      <div className="flex gap-2 mt-1">
-                        <Button
-                          size="sm"
-                          disabled={
-                            respondSubmitting ||
-                            session.inviteStatus === "Accepted"
-                          }
-                          onClick={() => acceptInvite(session.id)}
-                        >
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={
-                            respondSubmitting ||
-                            session.inviteStatus === "Declined"
-                          }
-                          onClick={() => openDecline(session.id)}
-                        >
-                          Decline
-                        </Button>
-                      </div>
+
+                      {session.inviteStatus === "Pending" && (
+                        <div className="flex gap-2 mt-1">
+                          <Button
+                            size="sm"
+                            disabled={respondSubmitting}
+                            onClick={() => acceptInvite(session.id)}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            {respondSubmitting ? "..." : "Accept"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={respondSubmitting}
+                            onClick={() => openDecline(session.id)}
+                            className="border-red-600 text-red-400 hover:bg-red-900/20"
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -408,8 +635,12 @@ export default function FacultyAllSessionsPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={submitDecline} disabled={respondSubmitting}>
-                Submit Decline
+              <Button
+                onClick={submitDecline}
+                disabled={respondSubmitting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {respondSubmitting ? "Submitting..." : "Submit Decline"}
               </Button>
             </div>
           </div>

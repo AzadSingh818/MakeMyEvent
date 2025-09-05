@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { FACULTIES } from "../../faculties/route";
-import { ROOMS } from "../../rooms/route";
+import {
+  getFaculties,
+  getRooms,
+  getAllSessions,
+} from "@/lib/database/session-queries";
 import { sendBulkInviteEmail } from "../../_utils/session-email";
-import { getSessions } from "../../_store"; // Add this import
 
 export async function POST(req: NextRequest) {
   try {
@@ -74,8 +76,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get faculty info
-    const faculty = FACULTIES.find((f) => f.id === facultyId);
+    // Get faculty info from database
+    const faculties = await getFaculties();
+    const faculty = faculties.find((f) => f.id === facultyId);
     if (!faculty) {
       return NextResponse.json(
         {
@@ -86,10 +89,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // **IMPORTANT FIX**: Get fresh sessions from store instead of using passed data
-    console.log("🔄 Fetching fresh sessions from store...");
-    const allStoredSessions = await getSessions();
-    console.log("📊 Total sessions in store:", allStoredSessions.length);
+    // Get fresh sessions from database
+    console.log("🔄 Fetching fresh sessions from database...");
+    const allStoredSessions = await getAllSessions();
+    console.log("📊 Total sessions in database:", allStoredSessions.length);
 
     // Match the session IDs to get fresh data
     const sessionIds = sessions.map((s) => s.id).filter(Boolean);
@@ -109,9 +112,11 @@ export async function POST(req: NextRequest) {
 
     // If no fresh sessions found, log error but still try with original data
     if (freshSessions.length === 0) {
-      console.warn("⚠️ No fresh sessions found in store, using original data");
       console.warn(
-        "📊 Available session IDs in store:",
+        "⚠️ No fresh sessions found in database, using original data"
+      );
+      console.warn(
+        "📊 Available session IDs in database:",
         allStoredSessions.map((s) => s.id)
       );
       console.warn("📊 Requested session IDs:", sessionIds);
@@ -120,18 +125,39 @@ export async function POST(req: NextRequest) {
     // Use fresh sessions if found, otherwise fall back to original data
     const sessionsToEmail = freshSessions.length > 0 ? freshSessions : sessions;
 
+    // Get rooms for enrichment
+    const rooms = await getRooms();
+
     // Enrich sessions with room names
     const enrichedSessions = sessionsToEmail.map((session, index) => {
-      const room = ROOMS.find((r) => r.id === session.roomId);
+      const room = rooms.find(
+        (r) => r.id === (session.hallId || session.roomId)
+      );
       console.log(
-        `🏠 Session ${index + 1} - Room ID: ${session.roomId}, Room Name: ${
-          room?.name || "Not found"
-        }`
+        `🏠 Session ${index + 1} - Room ID: ${
+          session.hallId || session.roomId
+        }, Room Name: ${room?.name || "Not found"}`
       );
 
       return {
-        ...session,
-        roomName: room?.name || session.roomId || `Room ${index + 1}`,
+        id: session.id,
+        title: session.title,
+        facultyId: session.facultyId || facultyId,
+        email: session.facultyEmail || session.email || email,
+        place: session.place,
+        roomId: session.hallId || session.roomId,
+        roomName:
+          session.roomName ||
+          room?.name ||
+          session.hallId ||
+          session.roomId ||
+          `Room ${index + 1}`,
+        description: session.description,
+        startTime: session.startTime,
+        endTime: session.endTime,
+        status: session.status || "Draft",
+        inviteStatus: session.inviteStatus || "Pending",
+        eventId: session.eventId,
       };
     });
 
