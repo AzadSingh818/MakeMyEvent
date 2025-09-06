@@ -1,5 +1,5 @@
 'use client'
-
+ 
 import { useState } from 'react'
 import { Button } from '@/components/ui'
 import { signOut } from 'next-auth/react'
@@ -16,7 +16,7 @@ import {
   LogOut,
   User,
   ChevronDown,
-  MessageSquare,
+  MessageSquare, 
   Calendar,
   Clock,
   Globe
@@ -35,6 +35,8 @@ interface NotificationItem {
 interface DashboardHeaderProps {
   userName?: string
   userRole?: string
+  organizerName?: string
+  eventManagerName?: string
   onMobileMenuClick?: () => void
   className?: string
 }
@@ -42,6 +44,8 @@ interface DashboardHeaderProps {
 export function DashboardHeader({ 
   userName = "John Doe", 
   userRole = "Organizer",
+  organizerName,
+  eventManagerName,
   onMobileMenuClick,
   className 
 }: DashboardHeaderProps) {
@@ -54,30 +58,30 @@ export function DashboardHeader({
 
   // Mock notifications
   const notifications: NotificationItem[] = [
-    {
-      id: '1',
-      title: 'Faculty Confirmation',
-      message: 'Dr. Sarah Johnson confirmed for Cardiology session',
-      time: '2 min ago',
-      type: 'success',
-      read: false
-    },
-    {
-      id: '2',
-      title: 'Session Reminder',
-      message: 'Neurology session starts in 2 hours',
-      time: '1 hour ago',
-      type: 'warning',
-      read: false
-    },
-    {
-      id: '3',
-      title: 'New Registration',
-      message: '25 new delegate registrations today',
-      time: '3 hours ago',
-      type: 'info',
-      read: true
-    }
+    // {
+    //   id: '1',
+    //   title: 'Faculty Confirmation',
+    //   message: 'Dr. Sarah Johnson confirmed for Cardiology session',
+    //   time: '2 min ago',
+    //   type: 'success',
+    //   read: false
+    // },
+    // {
+    //   id: '2',
+    //   title: 'Session Reminder',
+    //   message: 'Neurology session starts in 2 hours',
+    //   time: '1 hour ago',
+    //   type: 'warning',
+    //   read: false
+    // },
+    // {
+    //   id: '3',
+    //   title: 'New Registration',
+    //   message: '25 new delegate registrations today',
+    //   time: '3 hours ago',
+    //   type: 'info',
+    //   read: true
+    // }
   ]
 
   const unreadCount = notifications.filter(n => !n.read).length
@@ -126,7 +130,7 @@ export function DashboardHeader({
           </Button>
 
           {/* Search */}
-          <div className="relative hidden md:block">
+          {/* <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
               placeholder="Search events, faculty, sessions..."
@@ -134,7 +138,7 @@ export function DashboardHeader({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
+          </div> */}
         </div>
 
         {/* Right Section */}
@@ -146,10 +150,10 @@ export function DashboardHeader({
               <Calendar className="h-4 w-4 mr-2" />
               Schedule
             </Button> */}
-            <Button variant="ghost" size="sm">
+            {/* <Button variant="ghost" size="sm">
               <MessageSquare className="h-4 w-4 mr-2" />
               Messages
-            </Button>
+            </Button> */}
           </div>
 
           {/* Theme Toggle */}
@@ -218,7 +222,7 @@ export function DashboardHeader({
                     View All Notifications
                   </Button>
                 </div>
-              </div>
+              </div> 
             )}
           </div>
 

@@ -13,7 +13,7 @@ import { usePendingRegistrations, useRegistrationStats } from '@/hooks/use-regis
 import { useFacultyStats } from '@/hooks/use-faculty';
 import { useAuth, useDashboardStats } from '@/hooks/use-auth';
 import { Checkbox } from "@/components/ui/checkbox"
-
+ 
 import { 
   Calendar, 
   Clock, 
@@ -286,12 +286,12 @@ export default function EventManagerDashboardPage() {
               )}
             </CardContent>
           </Card>
-        <Card>
-            <CardHeader>
+        {/* <Card>
+            {/* <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* ✅ Fixed all Quick Action buttons */}
+              {/* ✅ Fixed all Quick Action buttons 
               <Button 
                 className="w-full justify-start" 
                 variant="outline"
@@ -346,7 +346,7 @@ export default function EventManagerDashboardPage() {
                 Manage Venues
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
           {/* Today's Sessions */}
           <Card>
             <CardHeader>
@@ -411,7 +411,7 @@ export default function EventManagerDashboardPage() {
           </Card>
 
           {/* Pending Tasks */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
@@ -450,10 +450,10 @@ export default function EventManagerDashboardPage() {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Statistics Overview */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
@@ -506,7 +506,7 @@ export default function EventManagerDashboardPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </EventManagerLayout>
