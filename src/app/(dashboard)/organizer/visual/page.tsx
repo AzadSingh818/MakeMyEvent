@@ -725,6 +725,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   const [endDateTime, setEndDateTime] = useState("");
   const [status, setStatus] = useState<"Draft" | "Confirmed">("Draft");
   const [loading, setLoading] = useState(false);
+  const [travelRequired, setTravelRequired] = useState("");
+  const [accommodationRequired, setAccommodationRequired] = useState("");
 
   useEffect(() => {
     if (isOpen && defaultDate && defaultHour !== undefined) {
@@ -835,12 +837,16 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
       formData.append("status", status);
       formData.append("inviteStatus", "Pending");
       formData.append("eventId", selectedEventId);
+      formData.append("travel", travelRequired);
+      formData.append("accommodation", accommodationRequired);
 
       console.log("📋 Creating session with local times:", {
         startTime: startDateTime,
         endTime: endDateTime,
         startHour: startTimeLocal.hours,
         endHour: endTimeLocal.hours,
+        travelRequired: travelRequired,        // ✅ Add this log
+        accommodationRequired: accommodationRequired, // ✅ Add this log
       });
 
       const response = await fetch("/api/sessions", {
@@ -1032,7 +1038,47 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 ))}
               </select>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Travel *
+                </label>
+                <select
+                  name="travel" // ✅ ADD THIS - Critical for FormData
+                  value={travelRequired}
+                  onChange={(e) => {
+                    console.log("Travel selected:", e.target.value); // ✅ Debug log
+                    setTravelRequired(e.target.value);
+                  }}
+                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  required
+                >
+                  <option value="">Provide Travel</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Accommodation *
+                </label>
+                <select
+                  name="accommodation" // ✅ ADD THIS - Critical for FormData
+                  value={accommodationRequired}
+                  onChange={(e) => {
+                    console.log("Accommodation selected:", e.target.value); // ✅ Debug log
+                    setAccommodationRequired(e.target.value);
+                  }}
+                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  required
+                >
+                  <option value="">Provide Accommodation</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">

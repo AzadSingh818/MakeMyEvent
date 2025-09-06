@@ -182,7 +182,13 @@ export async function POST(req: NextRequest) {
         | "Pending"
         | "Accepted"
         | "Declined") || "Pending";
+    // ✅ NEW: Extract travel and accommodation
+    const travel = formData.get("travel")?.toString();
+    const accommodation = formData.get("accommodation")?.toString();
 
+    // Convert to boolean values
+    const travelRequired = travel === "yes";
+    const accommodationRequired = accommodation === "yes";
     console.log("📋 Creating session with data:", {
       title,
       facultyId,
@@ -193,6 +199,8 @@ export async function POST(req: NextRequest) {
       endTime,
       eventId,
       status,
+      travel: travelRequired,           // ✅ Add this
+      accommodation: accommodationRequired, // ✅ Add this
     });
 
     // Check if this is a conflict-only request (same as original)
@@ -318,6 +326,8 @@ export async function POST(req: NextRequest) {
       place,
       status,
       inviteStatus,
+      travel: travelRequired,           // ✅ Add this
+      accommodation: accommodationRequired, // ✅ Add this
     };
 
     console.log("🚀 Creating session with event integration:", sessionData);

@@ -17,6 +17,8 @@ export interface EventSessionData {
   place?: string;
   status: "Draft" | "Confirmed";
   inviteStatus?: "Pending" | "Accepted" | "Declined";
+  travel?: boolean;        // ✅ Add this
+  accommodation?: boolean; // ✅ Add this
 }
 
 export interface SessionWithEventInfo {
@@ -132,7 +134,9 @@ export async function createSessionWithEvent(
         sessionData.facultyId ||
         sessionData.facultyEmail ||
         sessionData.place ||
-        sessionData.status
+        sessionData.status ||
+        sessionData.travel !== undefined ||
+        sessionData.accommodation !== undefined
       ) {
         // Ensure session_metadata table exists with proper timestamp columns
         await query(`
@@ -150,6 +154,8 @@ export async function createSessionWithEvent(
             suggested_time_end TIMESTAMP,
             optional_query TEXT,
             travel_status VARCHAR(50) DEFAULT 'Pending',
+            travel BOOLEAN DEFAULT FALSE,           -- ✅ Add this
+            accommodation BOOLEAN DEFAULT FALSE,    -- ✅ Add this
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
@@ -157,8 +163,8 @@ export async function createSessionWithEvent(
 
         await query(
           `INSERT INTO session_metadata (
-            session_id, faculty_id, faculty_email, place, status, invite_status, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())`,
+            session_id, faculty_id, faculty_email, place, status, invite_status, travel, accommodation, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
           [
             sessionData.sessionId,
             sessionData.facultyId || null,
@@ -166,6 +172,8 @@ export async function createSessionWithEvent(
             sessionData.place || null,
             sessionData.status || "Draft",
             sessionData.inviteStatus || "Pending",
+            sessionData.travel || false,        // ✅ Add this
+            sessionData.accommodation || false, // ✅ Add this
           ]
         );
 

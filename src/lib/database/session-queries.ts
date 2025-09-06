@@ -38,6 +38,8 @@ export interface DatabaseSession {
   suggestedTimeStart?: string;
   suggestedTimeEnd?: string;
   optionalQuery?: string;
+  travel?: boolean;        // ✅ Add this
+  accommodation?: boolean; // ✅ Add this
   createdAt?: string;
   updatedAt?: string;
   roomName?: string;
@@ -170,6 +172,8 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
         sm.suggested_time_start as "suggestedTimeStart",
         sm.suggested_time_end as "suggestedTimeEnd",
         sm.optional_query as "optionalQuery",
+        sm.travel as "travel",
+        sm.accommodation as "accommodation",
         cs.created_at as "createdAt",
         cs.updated_at as "updatedAt",
         h.name as "roomName",
@@ -201,6 +205,8 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
       suggestedTimeStart: row.suggestedTimeStart,
       suggestedTimeEnd: row.suggestedTimeEnd,
       optionalQuery: row.optionalQuery,
+      travel: row.travel,           // ✅ Add this
+      accommodation: row.accommodation, // ✅ Add this
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       roomName: row.roomName,
@@ -240,6 +246,8 @@ export async function getSessionById(
         sm.suggested_time_start as "suggestedTimeStart",
         sm.suggested_time_end as "suggestedTimeEnd",
         sm.optional_query as "optionalQuery",
+        sm.travel as "travel",
+        sm.accommodation as "accommodation",
         cs.created_at as "createdAt",
         cs.updated_at as "updatedAt",
         h.name as "roomName",
