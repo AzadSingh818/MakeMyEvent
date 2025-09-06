@@ -59,11 +59,11 @@ interface SidebarProps {
     | "ORGANIZER"
     | "EVENT_MANAGER"
     | "FACULTY"
-    | "DELEGATE"
-    | "HALL_COORDINATOR"
-    | "SPONSOR"
-    | "VOLUNTEER"
-    | "VENDOR";
+    // | "DELEGATE"
+    // | "HALL_COORDINATOR"
+    // | "SPONSOR"
+    // | "VOLUNTEER"
+    // | "VENDOR";
   userName?: string;
   userEmail?: string;
   userAvatar?: string;
@@ -95,18 +95,14 @@ const getNavigationItems = (
           icon: Eye,
         },
         {
-          label: "Events",
+          label: "Events", 
           href: "/organizer/events",
           icon: Calendar,
-          children: [
-            { label: "All Events", href: "/organizer/events", icon: Calendar },
-          ],
         },
         {
           label: "Faculty Management",
-          href: "/organizer/faculty",
+          href: "",
           icon: Users,
-          badge: "12",
           children: [
             { label: "All Faculty", href: "/organizer/faculty", icon: Users },
             {
@@ -118,7 +114,7 @@ const getNavigationItems = (
         },
         {
           label: "Sessions",
-          href: "/organizer/sessions",
+          href: "",
           icon: Monitor,
           children: [
             {
@@ -133,26 +129,26 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Attendance",
-          href: "/organizer/attendance",
-          icon: QrCode,
-          children: [
-            {
-              label: "Overview",
-              href: "/organizer/attendance",
-              icon: BarChart3,
-            },
-            {
-              label: "Reports",
-              href: "/organizer/attendance/reports",
-              icon: Download,
-            },
-          ],
-        },
+        // {
+        //   label: "Attendance",
+        //   href: "/organizer/attendance",
+        //   icon: QrCode,
+        //   children: [
+        //     {
+        //       label: "Overview",
+        //       href: "/organizer/attendance",
+        //       icon: BarChart3,
+        //     },
+        //     {
+        //       label: "Reports",
+        //       href: "/organizer/attendance/reports",
+        //       icon: Download,
+        //     },
+        //   ],
+        // },
         {
           label: "Hospitality",
-          href: "/organizer/hospitality",
+          href: "",
           icon: Hotel,
           children: [
             {
@@ -172,31 +168,31 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Communication",
-          href: "/organizer/communication",
-          icon: MessageSquare,
-          children: [
-            {
-              label: "Email",
-              href: "/organizer/communication/email",
-              icon: Bell,
-            },
-            {
-              label: "WhatsApp",
-              href: "/organizer/communication/whatsapp",
-              icon: MessageSquare,
-            },
-            {
-              label: "Templates",
-              href: "/organizer/communication/templates",
-              icon: FileText,
-            },
-          ],
-        },
+        // {
+        //   label: "Communication",
+        //   href: "/organizer/communication",
+        //   icon: MessageSquare,
+        //   children: [
+        //     {
+        //       label: "Email",
+        //       href: "/organizer/communication/email",
+        //       icon: Bell,
+        //     },
+        //     {
+        //       label: "WhatsApp",
+        //       href: "/organizer/communication/whatsapp",
+        //       icon: MessageSquare,
+        //     },
+        //     {
+        //       label: "Templates",
+        //       href: "/organizer/communication/templates",
+        //       icon: FileText,
+        //     },
+        //   ],
+        // },
         {
           label: "Certificates",
-          href: "/organizer/certificates",
+          href: "",
           icon: Award,
           children: [
             {
@@ -218,7 +214,7 @@ const getNavigationItems = (
         },
         {
           label: "Reports",
-          href: "/organizer/reports",
+          href: "",
           icon: BarChart3,
           children: [
             {
@@ -242,7 +238,7 @@ const getNavigationItems = (
         },
         {
           label: "Events",
-          href: "/event-manager/events",
+          href: "",
           icon: Calendar,
           children: [
             {
@@ -264,9 +260,8 @@ const getNavigationItems = (
         },
         {
           label: "Faculty",
-          href: "/event-manager/faculty",
+          href: "",
           icon: Users,
-          badge: "8",
           children: [
             {
               label: "All Faculty",
@@ -278,16 +273,16 @@ const getNavigationItems = (
               href: "/event-manager/faculty/invite",
               icon: UserPlus,
             },
-            {
-              label: "Faculty Sessions",
-              href: "/event-manager/faculty/sessions",
-              icon: Monitor,
-            },
+            // {
+            //   label: "Faculty Sessions",
+            //   href: "/event-manager/faculty/sessions",
+            //   icon: Monitor,
+            // },
           ],
         },
         {
           label: "Sessions",
-          href: "/event-manager/sessions",
+          href: "",
           icon: Monitor,
           children: [
             {
@@ -309,9 +304,8 @@ const getNavigationItems = (
         },
         {
           label: "Approvals",
-          href: "/event-manager/approvals",
+          href: "",
           icon: UserCheck,
-          badge: "23",
           children: [
             {
               label: "Pending Requests",
@@ -332,7 +326,7 @@ const getNavigationItems = (
         },
         {
           label: "Venues",
-          href: "/event-manager/venues",
+          href: "",
           icon: MapPin,
           children: [
             {
@@ -352,31 +346,31 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Certificates",
-          href: "/event-manager/certificates",
-          icon: Award,
-          children: [
-            {
-              label: "Generate",
-              href: "/event-manager/certificates/generate",
-              icon: Award,
-            },
-            {
-              label: "Templates",
-              href: "/event-manager/certificates/templates",
-              icon: FileText,
-            },
-            {
-              label: "Download",
-              href: "/event-manager/certificates/download",
-              icon: Download,
-            },
-          ],
-        },
+        // {
+        //   label: "Certificates",
+        //   href: "/event-manager/certificates",
+        //   icon: Award,
+        //   children: [
+        //     {
+        //       label: "Generate",
+        //       href: "/event-manager/certificates/generate",
+        //       icon: Award,
+        //     },
+        //     {
+        //       label: "Templates",
+        //       href: "/event-manager/certificates/templates",
+        //       icon: FileText,
+        //     },
+        //     {
+        //       label: "Download",
+        //       href: "/event-manager/certificates/download",
+        //       icon: Download,
+        //     },
+        //   ],
+        // },
         {
           label: "Reports",
-          href: "/event-manager/reports",
+          href: "",
           icon: BarChart3,
           children: [
             {
@@ -399,6 +393,11 @@ const getNavigationItems = (
       ],
       FACULTY: [
         {
+          label: "Dashboard",
+          href: "/faculty",
+          icon: Monitor,
+        },
+        {
           label: "My Profile",
           href: "/faculty/profile",
           icon: Users,
@@ -407,7 +406,6 @@ const getNavigationItems = (
           label: "My Sessions",
           href: "/faculty/sessions",
           icon: Monitor,
-          badge: "0",
         },
         {
           label: "View/Edit Documents",
@@ -433,168 +431,168 @@ const getNavigationItems = (
           icon: Award,
         },
       ],
-      DELEGATE: [
-        {
-          label: "My Registration",
-          href: "/delegate/registration",
-          icon: UserCheck,
-        },
-        {
-          label: "Event Schedule",
-          href: "/delegate/schedule",
-          icon: Calendar,
-        },
-        {
-          label: "Sessions",
-          href: "/delegate/sessions",
-          icon: Monitor,
-        },
-        {
-          label: "Attendance",
-          href: "/delegate/attendance",
-          icon: QrCode,
-        },
-        {
-          label: "Certificates",
-          href: "/delegate/certificates",
-          icon: Award,
-        },
-        {
-          label: "Feedback",
-          href: "/delegate/feedback",
-          icon: MessageSquare,
-        },
-      ],
-      HALL_COORDINATOR: [
-        {
-          label: "My Halls",
-          href: "/hall-coordinator/halls",
-          icon: MapPin,
-          badge: "2",
-        },
-        {
-          label: "Today's Sessions",
-          href: "/hall-coordinator/sessions",
-          icon: Clock,
-          badge: "6",
-        },
-        {
-          label: "Attendance",
-          href: "/hall-coordinator/attendance",
-          icon: QrCode,
-          children: [
-            {
-              label: "Mark Attendance",
-              href: "/hall-coordinator/attendance/mark",
-              icon: QrCode,
-            },
-            {
-              label: "View Records",
-              href: "/hall-coordinator/attendance/records",
-              icon: Eye,
-            },
-          ],
-        },
-        {
-          label: "Faculty Contact",
-          href: "/hall-coordinator/faculty",
-          icon: Users,
-        },
-        {
-          label: "Issues",
-          href: "/hall-coordinator/issues",
-          icon: MessageSquare,
-          badge: "1",
-        },
-        {
-          label: "Live Updates",
-          href: "/hall-coordinator/updates",
-          icon: Bell,
-        },
-      ],
-      SPONSOR: [
-        {
-          label: "Sponsorship Details",
-          href: "/sponsor/details",
-          icon: Building,
-        },
-        {
-          label: "Events",
-          href: "/sponsor/events",
-          icon: Calendar,
-        },
-        {
-          label: "Visibility",
-          href: "/sponsor/visibility",
-          icon: Eye,
-        },
-        {
-          label: "Materials",
-          href: "/sponsor/materials",
-          icon: FileText,
-        },
-        {
-          label: "Reports",
-          href: "/sponsor/reports",
-          icon: BarChart3,
-        },
-      ],
-      VOLUNTEER: [
-        {
-          label: "My Tasks",
-          href: "/volunteer/tasks",
-          icon: Briefcase,
-          badge: "5",
-        },
-        {
-          label: "Schedule",
-          href: "/volunteer/schedule",
-          icon: Calendar,
-        },
-        {
-          label: "Check-in",
-          href: "/volunteer/checkin",
-          icon: UserCheck,
-        },
-        {
-          label: "Communication",
-          href: "/volunteer/communication",
-          icon: MessageSquare,
-        },
-        {
-          label: "Resources",
-          href: "/volunteer/resources",
-          icon: FileText,
-        },
-      ],
-      VENDOR: [
-        {
-          label: "Services",
-          href: "/vendor/services",
-          icon: ShoppingBag,
-        },
-        {
-          label: "Bookings",
-          href: "/vendor/bookings",
-          icon: Calendar,
-          badge: "12",
-        },
-        {
-          label: "Deliveries",
-          href: "/vendor/deliveries",
-          icon: Briefcase,
-        },
-        {
-          label: "Payments",
-          href: "/vendor/payments",
-          icon: BarChart3,
-        },
-        {
-          label: "Support",
-          href: "/vendor/support",
-          icon: HelpCircle,
-        },
-      ],
+      // DELEGATE: [
+      //   {
+      //     label: "My Registration",
+      //     href: "/delegate/registration",
+      //     icon: UserCheck,
+      //   },
+      //   {
+      //     label: "Event Schedule",
+      //     href: "/delegate/schedule",
+      //     icon: Calendar,
+      //   },
+      //   {
+      //     label: "Sessions",
+      //     href: "/delegate/sessions",
+      //     icon: Monitor,
+      //   },
+      //   {
+      //     label: "Attendance",
+      //     href: "/delegate/attendance",
+      //     icon: QrCode,
+      //   },
+      //   {
+      //     label: "Certificates",
+      //     href: "/delegate/certificates",
+      //     icon: Award,
+      //   },
+      //   {
+      //     label: "Feedback",
+      //     href: "/delegate/feedback",
+      //     icon: MessageSquare,
+      //   },
+      // ],
+      // HALL_COORDINATOR: [
+      //   {
+      //     label: "My Halls",
+      //     href: "/hall-coordinator/halls",
+      //     icon: MapPin,
+      //     badge: "2",
+      //   },
+      //   {
+      //     label: "Today's Sessions",
+      //     href: "/hall-coordinator/sessions",
+      //     icon: Clock,
+      //     badge: "6",
+      //   },
+      //   {
+      //     label: "Attendance",
+      //     href: "/hall-coordinator/attendance",
+      //     icon: QrCode,
+      //     children: [
+      //       {
+      //         label: "Mark Attendance",
+      //         href: "/hall-coordinator/attendance/mark",
+      //         icon: QrCode,
+      //       },
+      //       {
+      //         label: "View Records",
+      //         href: "/hall-coordinator/attendance/records",
+      //         icon: Eye,
+      //       },
+      //     ],
+      //   },
+      //   {
+      //     label: "Faculty Contact",
+      //     href: "/hall-coordinator/faculty",
+      //     icon: Users,
+      //   },
+      //   {
+      //     label: "Issues",
+      //     href: "/hall-coordinator/issues",
+      //     icon: MessageSquare,
+      //     badge: "1",
+      //   },
+      //   {
+      //     label: "Live Updates",
+      //     href: "/hall-coordinator/updates",
+      //     icon: Bell,
+      //   },
+      // ],
+      // SPONSOR: [
+      //   {
+      //     label: "Sponsorship Details",
+      //     href: "/sponsor/details",
+      //     icon: Building,
+      //   },
+      //   {
+      //     label: "Events",
+      //     href: "/sponsor/events",
+      //     icon: Calendar,
+      //   },
+      //   {
+      //     label: "Visibility",
+      //     href: "/sponsor/visibility",
+      //     icon: Eye,
+      //   },
+      //   {
+      //     label: "Materials",
+      //     href: "/sponsor/materials",
+      //     icon: FileText,
+      //   },
+      //   {
+      //     label: "Reports",
+      //     href: "/sponsor/reports",
+      //     icon: BarChart3,
+      //   },
+      // ],
+      // VOLUNTEER: [
+      //   {
+      //     label: "My Tasks",
+      //     href: "/volunteer/tasks",
+      //     icon: Briefcase,
+      //     badge: "5",
+      //   },
+      //   {
+      //     label: "Schedule",
+      //     href: "/volunteer/schedule",
+      //     icon: Calendar,
+      //   },
+      //   {
+      //     label: "Check-in",
+      //     href: "/volunteer/checkin",
+      //     icon: UserCheck,
+      //   },
+      //   {
+      //     label: "Communication",
+      //     href: "/volunteer/communication",
+      //     icon: MessageSquare,
+      //   },
+      //   {
+      //     label: "Resources",
+      //     href: "/volunteer/resources",
+      //     icon: FileText,
+      //   },
+      // ],
+      // VENDOR: [
+      //   {
+      //     label: "Services",
+      //     href: "/vendor/services",
+      //     icon: ShoppingBag,
+      //   },
+      //   {
+      //     label: "Bookings",
+      //     href: "/vendor/bookings",
+      //     icon: Calendar,
+      //     badge: "12",
+      //   },
+      //   {
+      //     label: "Deliveries",
+      //     href: "/vendor/deliveries",
+      //     icon: Briefcase,
+      //   },
+      //   {
+      //     label: "Payments",
+      //     href: "/vendor/payments",
+      //     icon: BarChart3,
+      //   },
+      //   {
+      //     label: "Support",
+      //     href: "/vendor/support",
+      //     icon: HelpCircle,
+      //   },
+      //],
     };
 
   return [...commonItems, ...roleSpecificItems[role]];
@@ -609,7 +607,7 @@ export function NavigationSidebar({
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
   const router = useRouter();
-  const [isCertificatesModalOpen, setIsCertificatesModalOpen] = useState(false);
+  // const [isCertificatesModalOpen, setIsCertificatesModalOpen] = useState(false);
 
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
   const { data: session } = useSession();
@@ -658,11 +656,11 @@ export function NavigationSidebar({
       return;
     }
 
-    if (item.label === "Certificates") {
-      e.preventDefault();
-      setIsCertificatesModalOpen(true);
-      return;
-    }
+    // if (item.label === "Certificates") {
+    //   e.preventDefault();
+    //   setIsCertificatesModalOpen(true);
+    //   return;
+    // }
 
     if (hasChildren && !isCollapsed && !hasHref) {
       e.preventDefault();
@@ -802,20 +800,6 @@ export function NavigationSidebar({
           );
         })}
       </nav>
-      <Dialog
-        open={isCertificatesModalOpen}
-        onOpenChange={setIsCertificatesModalOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Certificates</DialogTitle>
-            <DialogDescription>No certificates issued</DialogDescription>
-          </DialogHeader>
-          <Button onClick={() => setIsCertificatesModalOpen(false)}>
-            Close
-          </Button>
-        </DialogContent>
-      </Dialog>
 
       {facultyId && (
         <FacultyDocumentsModal

@@ -94,7 +94,7 @@ export default function OrganizerDashboardPage() {
   const handleViewAllEvents = () => router.push("/organizer/events");
   const handleManageFaculty = () => router.push("/organizer/faculty");
   const handleViewSessions = () => router.push("/organizer/sessions");
-  const handleViewRegistrations = () => router.push("/organizer/registrations");
+  const handleViewRegistrations = () => router.push("/organizer/sessions");
   const handleViewReports = () => router.push("/organizer/reports");
   const handleCommunication = () => router.push("/organizer/communication");
   const handleCertificates = () => router.push("/organizer/certificates");
@@ -151,7 +151,10 @@ export default function OrganizerDashboardPage() {
   }
 
   return (
-    <OrganizerLayout>
+    <OrganizerLayout
+    // userName={userName}
+    // userEmail={userEmail}
+    >
       <div className="space-y-6">
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
@@ -429,7 +432,7 @@ export default function OrganizerDashboardPage() {
           </Card>
 
           {/* Quick Actions Panel */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5" />
@@ -455,7 +458,7 @@ export default function OrganizerDashboardPage() {
                 Invite Faculty
               </Button> */}
 
-              <Button
+              {/* <Button
                 className="w-full justify-start"
                 variant="outline"
                 onClick={handleCommunication}
@@ -500,7 +503,7 @@ export default function OrganizerDashboardPage() {
                 Analytics & Reports
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Today's Schedule */}
           <Card>
@@ -592,7 +595,7 @@ export default function OrganizerDashboardPage() {
           </Card>
 
           {/* Pending Tasks & Notifications */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="h-5 w-5" />
@@ -670,10 +673,10 @@ export default function OrganizerDashboardPage() {
                   </div>
                 )}
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Advanced Analytics Preview */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5" />
@@ -747,7 +750,7 @@ export default function OrganizerDashboardPage() {
                   </div>
                 </div>
                 <div>
-                  {/* <div className="text-lg font-bold text-green-600">{activeFaculty}</div> */}
+                  {/* <div className="text-lg font-bold text-green-600">{activeFaculty}</div> 
                   <div className="text-xs text-muted-foreground">
                     Active Faculty
                   </div>
@@ -772,7 +775,7 @@ export default function OrganizerDashboardPage() {
                 View Detailed Analytics
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </OrganizerLayout>
