@@ -13,7 +13,7 @@ import {
   TrendingUp, 
   Activity,
   PieChart,
-  Download,
+  Download, 
   RefreshCw,
   Filter,
   Eye
@@ -403,7 +403,7 @@ export default function AnalyticsPage() {
       </Card>
 
       {/* Quick Actions */}
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
@@ -430,7 +430,7 @@ export default function AnalyticsPage() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 }
