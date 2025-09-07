@@ -14,6 +14,10 @@ import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
 import FacultyDocumentsModal from "@/app/modals/FacultyDocumentsModal";
+import AcceptedFacultyModal from "@/app/modals/AcceptedFacultyModal";
+// import ApprovalsModal from "@/app/modals/ApprovalsModal";
+import PendingFacultyModal from "@/app/modals/PendingFacultyModal";
+import RejectedFacultyModal from "@/app/modals/RejectedFacultyModal";
 import {
   Calendar,
   Users,
@@ -129,23 +133,6 @@ const getNavigationItems = (
             },
           ],
         },
-        // {
-        //   label: "Attendance",
-        //   href: "/organizer/attendance",
-        //   icon: QrCode,
-        //   children: [
-        //     {
-        //       label: "Overview",
-        //       href: "/organizer/attendance",
-        //       icon: BarChart3,
-        //     },
-        //     {
-        //       label: "Reports",
-        //       href: "/organizer/attendance/reports",
-        //       icon: Download,
-        //     },
-        //   ],
-        // },
         {
           label: "Hospitality",
           href: "",
@@ -168,28 +155,6 @@ const getNavigationItems = (
             },
           ],
         },
-        // {
-        //   label: "Communication",
-        //   href: "/organizer/communication",
-        //   icon: MessageSquare,
-        //   children: [
-        //     {
-        //       label: "Email",
-        //       href: "/organizer/communication/email",
-        //       icon: Bell,
-        //     },
-        //     {
-        //       label: "WhatsApp",
-        //       href: "/organizer/communication/whatsapp",
-        //       icon: MessageSquare,
-        //     },
-        //     {
-        //       label: "Templates",
-        //       href: "/organizer/communication/templates",
-        //       icon: FileText,
-        //     },
-        //   ],
-        // },
         {
           label: "Certificates",
           href: "",
@@ -273,11 +238,6 @@ const getNavigationItems = (
               href: "/event-manager/faculty/invite",
               icon: UserPlus,
             },
-            // {
-            //   label: "Faculty Sessions",
-            //   href: "/event-manager/faculty/sessions",
-            //   icon: Monitor,
-            // },
           ],
         },
         {
@@ -309,18 +269,18 @@ const getNavigationItems = (
           children: [
             {
               label: "Pending Requests",
-              href: "/event-manager/approvals",
               icon: Clock,
+              action:"openPendingApprovalsModal",
             },
             {
               label: "Approved",
-              href: "/event-manager/approvals/approved",
               icon: UserCheck,
+              action  :"openAcceptedApprovalsModal",
             },
             {
               label: "Rejected",
-              href: "/event-manager/approvals/rejected",
               icon: Eye,
+              action: "openRejectedApprovalsModal",
             },
           ],
         },
@@ -346,28 +306,6 @@ const getNavigationItems = (
             },
           ],
         },
-        // {
-        //   label: "Certificates",
-        //   href: "/event-manager/certificates",
-        //   icon: Award,
-        //   children: [
-        //     {
-        //       label: "Generate",
-        //       href: "/event-manager/certificates/generate",
-        //       icon: Award,
-        //     },
-        //     {
-        //       label: "Templates",
-        //       href: "/event-manager/certificates/templates",
-        //       icon: FileText,
-        //     },
-        //     {
-        //       label: "Download",
-        //       href: "/event-manager/certificates/download",
-        //       icon: Download,
-        //     },
-        //   ],
-        // },
         {
           label: "Reports",
           href: "",
@@ -431,168 +369,6 @@ const getNavigationItems = (
           icon: Award,
         },
       ],
-      // DELEGATE: [
-      //   {
-      //     label: "My Registration",
-      //     href: "/delegate/registration",
-      //     icon: UserCheck,
-      //   },
-      //   {
-      //     label: "Event Schedule",
-      //     href: "/delegate/schedule",
-      //     icon: Calendar,
-      //   },
-      //   {
-      //     label: "Sessions",
-      //     href: "/delegate/sessions",
-      //     icon: Monitor,
-      //   },
-      //   {
-      //     label: "Attendance",
-      //     href: "/delegate/attendance",
-      //     icon: QrCode,
-      //   },
-      //   {
-      //     label: "Certificates",
-      //     href: "/delegate/certificates",
-      //     icon: Award,
-      //   },
-      //   {
-      //     label: "Feedback",
-      //     href: "/delegate/feedback",
-      //     icon: MessageSquare,
-      //   },
-      // ],
-      // HALL_COORDINATOR: [
-      //   {
-      //     label: "My Halls",
-      //     href: "/hall-coordinator/halls",
-      //     icon: MapPin,
-      //     badge: "2",
-      //   },
-      //   {
-      //     label: "Today's Sessions",
-      //     href: "/hall-coordinator/sessions",
-      //     icon: Clock,
-      //     badge: "6",
-      //   },
-      //   {
-      //     label: "Attendance",
-      //     href: "/hall-coordinator/attendance",
-      //     icon: QrCode,
-      //     children: [
-      //       {
-      //         label: "Mark Attendance",
-      //         href: "/hall-coordinator/attendance/mark",
-      //         icon: QrCode,
-      //       },
-      //       {
-      //         label: "View Records",
-      //         href: "/hall-coordinator/attendance/records",
-      //         icon: Eye,
-      //       },
-      //     ],
-      //   },
-      //   {
-      //     label: "Faculty Contact",
-      //     href: "/hall-coordinator/faculty",
-      //     icon: Users,
-      //   },
-      //   {
-      //     label: "Issues",
-      //     href: "/hall-coordinator/issues",
-      //     icon: MessageSquare,
-      //     badge: "1",
-      //   },
-      //   {
-      //     label: "Live Updates",
-      //     href: "/hall-coordinator/updates",
-      //     icon: Bell,
-      //   },
-      // ],
-      // SPONSOR: [
-      //   {
-      //     label: "Sponsorship Details",
-      //     href: "/sponsor/details",
-      //     icon: Building,
-      //   },
-      //   {
-      //     label: "Events",
-      //     href: "/sponsor/events",
-      //     icon: Calendar,
-      //   },
-      //   {
-      //     label: "Visibility",
-      //     href: "/sponsor/visibility",
-      //     icon: Eye,
-      //   },
-      //   {
-      //     label: "Materials",
-      //     href: "/sponsor/materials",
-      //     icon: FileText,
-      //   },
-      //   {
-      //     label: "Reports",
-      //     href: "/sponsor/reports",
-      //     icon: BarChart3,
-      //   },
-      // ],
-      // VOLUNTEER: [
-      //   {
-      //     label: "My Tasks",
-      //     href: "/volunteer/tasks",
-      //     icon: Briefcase,
-      //     badge: "5",
-      //   },
-      //   {
-      //     label: "Schedule",
-      //     href: "/volunteer/schedule",
-      //     icon: Calendar,
-      //   },
-      //   {
-      //     label: "Check-in",
-      //     href: "/volunteer/checkin",
-      //     icon: UserCheck,
-      //   },
-      //   {
-      //     label: "Communication",
-      //     href: "/volunteer/communication",
-      //     icon: MessageSquare,
-      //   },
-      //   {
-      //     label: "Resources",
-      //     href: "/volunteer/resources",
-      //     icon: FileText,
-      //   },
-      // ],
-      // VENDOR: [
-      //   {
-      //     label: "Services",
-      //     href: "/vendor/services",
-      //     icon: ShoppingBag,
-      //   },
-      //   {
-      //     label: "Bookings",
-      //     href: "/vendor/bookings",
-      //     icon: Calendar,
-      //     badge: "12",
-      //   },
-      //   {
-      //     label: "Deliveries",
-      //     href: "/vendor/deliveries",
-      //     icon: Briefcase,
-      //   },
-      //   {
-      //     label: "Payments",
-      //     href: "/vendor/payments",
-      //     icon: BarChart3,
-      //   },
-      //   {
-      //     label: "Support",
-      //     href: "/vendor/support",
-      //     icon: HelpCircle,
-      //   },
-      //],
     };
 
   return [...commonItems, ...roleSpecificItems[role]];
@@ -607,8 +383,9 @@ export function NavigationSidebar({
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
   const router = useRouter();
-  // const [isCertificatesModalOpen, setIsCertificatesModalOpen] = useState(false);
-
+  const [isPendingApprovalsModalOpen, setIsPendingApprovalsModalOpen] = useState(false);
+  const [isAcceptedApprovalsModalOpen, setIsAcceptedApprovalsModalOpen] = useState(false);
+  const [isRejectedApprovalsModalOpen, setIsRejectedApprovalsModalOpen] = useState(false);
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
   const { data: session } = useSession();
   const facultyId = session?.user?.id;
@@ -640,27 +417,41 @@ export function NavigationSidebar({
     return false;
   };
 
-  // Click behavior:
-  // - If item has children and sidebar is not collapsed:
-  // - Toggle expand if chevron area or if no valid href
-  // - If has valid href and user clicks row, navigate
-  // - If collapsed, clicking row navigates if href exists; otherwise toggle
+  // Click behavior with enhanced debugging
   const handleNavClick = (item: NavigationItem, e: React.MouseEvent) => {
     const hasChildren = !!item.children?.length;
     const hasHref = !!item.href;
 
+    console.log("Clicked item:", item.label, "Action:", item.action); // Debug log
+
     // Handle explicit actions first
     if (item.action === "openDocumentsModal") {
       e.preventDefault();
+      console.log("Opening documents modal"); // Debug log
       setIsDocsModalOpen(true);
       return;
     }
 
-    // if (item.label === "Certificates") {
-    //   e.preventDefault();
-    //   setIsCertificatesModalOpen(true);
-    //   return;
-    // }
+    if (item.action === "openAcceptedApprovalsModal") {
+      e.preventDefault();
+      console.log("Opening accepted modal"); // Debug log
+      setIsAcceptedApprovalsModalOpen(true);
+      return;
+    }
+
+    if (item.action === "openRejectedApprovalsModal") {
+      e.preventDefault();
+      console.log("Opening rejected modal"); // Debug log
+      setIsRejectedApprovalsModalOpen(true);
+      return;
+    }
+
+    if (item.action === "openPendingApprovalsModal") {
+      e.preventDefault();
+      console.log("Opening pending modal"); // Debug log
+      setIsPendingApprovalsModalOpen(true);
+      return;
+    }
 
     if (hasChildren && !isCollapsed && !hasHref) {
       e.preventDefault();
@@ -669,7 +460,6 @@ export function NavigationSidebar({
     }
 
     if (hasChildren && !isCollapsed && hasHref) {
-      // Choose: navigate on click; expansion controlled by chevron click
       e.preventDefault();
       router.push(item.href!);
       return;
@@ -688,6 +478,47 @@ export function NavigationSidebar({
       toggleExpanded(item.label);
     }
   };
+
+  // Handle child click with debugging
+  const handleChildClick = (child: NavigationItem) => {
+    console.log("Child clicked:", child.label, "Action:", child.action, "Href:", child.href); // Debug log
+    
+    if (child.action === "openDocumentsModal") {
+      console.log("Opening documents modal from child"); // Debug log
+      setIsDocsModalOpen(true);
+      return;
+    }
+
+    if (child.action === "openAcceptedApprovalsModal") {
+      console.log("Opening accepted modal from child"); // Debug log
+      setIsAcceptedApprovalsModalOpen(true);
+      return;
+    }
+
+    if (child.action === "openRejectedApprovalsModal") {
+      console.log("Opening rejected modal from child"); // Debug log
+      setIsRejectedApprovalsModalOpen(true);
+      return;
+    }
+
+    if (child.action === "openPendingApprovalsModal") {
+      console.log("Opening pending modal from child"); // Debug log
+      setIsPendingApprovalsModalOpen(true);
+      return;
+    }
+
+    if (child.href) {
+      router.push(child.href);
+    }
+  };
+
+  // Debug modal states
+  console.log("Modal states:", {
+    pending: isPendingApprovalsModalOpen,
+    accepted: isAcceptedApprovalsModalOpen,
+    rejected: isRejectedApprovalsModalOpen,
+    userRole: userRole
+  });
 
   return (
     <div
@@ -783,9 +614,7 @@ export function NavigationSidebar({
                               ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
                               : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                           )}
-                          onClick={() => {
-                            if (child.href) router.push(child.href);
-                          }}
+                          onClick={() => handleChildClick(child)}
                           role="button"
                           aria-current={childActive ? "page" : undefined}
                         >
@@ -801,13 +630,28 @@ export function NavigationSidebar({
         })}
       </nav>
 
-      {facultyId && (
-        <FacultyDocumentsModal
-          isOpen={isDocsModalOpen}
-          onClose={() => setIsDocsModalOpen(false)}
-          facultyId={facultyId}
+      {/* FIXED: Removed the facultyId condition - modals now show for all users */}
+      <>
+        {facultyId && (
+          <FacultyDocumentsModal
+            isOpen={isDocsModalOpen}
+            onClose={() => setIsDocsModalOpen(false)}
+            facultyId={facultyId}
+          />
+        )}
+        <AcceptedFacultyModal
+          isOpen={isAcceptedApprovalsModalOpen}
+          onClose={() => setIsAcceptedApprovalsModalOpen(false)}
         />
-      )}
+        <RejectedFacultyModal
+          isOpen={isRejectedApprovalsModalOpen}
+          onClose={() => setIsRejectedApprovalsModalOpen(false)}
+        />
+        <PendingFacultyModal
+          isOpen={isPendingApprovalsModalOpen}
+          onClose={() => setIsPendingApprovalsModalOpen(false)}
+        />
+      </>
     </div>
   );
 }

@@ -1,8 +1,5 @@
+// src/lib/database/event-session-integration.ts - ENHANCED for Dynamic Faculty Invitations
 import { query } from "@/lib/database/connection";
-
-// =========================
-// TYPES & INTERFACES
-// =========================
 
 export interface EventSessionData {
   sessionId: string;
@@ -17,54 +14,19 @@ export interface EventSessionData {
   place?: string;
   status: "Draft" | "Confirmed";
   inviteStatus?: "Pending" | "Accepted" | "Declined";
-  travel?: boolean;        // ✅ Add this
-  accommodation?: boolean; // ✅ Add this
-}
-
-export interface SessionWithEventInfo {
-  id: string;
-  title: string;
-  description?: string;
-  startTime: string;
-  endTime: string;
-  status: string;
-  hallId?: string;
-  hallName?: string;
-  facultyId?: string;
-  facultyName?: string;
-  facultyEmail?: string;
-  place?: string;
-  inviteStatus?: string;
-  eventInfo: {
-    id: string;
-    name: string;
-    location: string;
-    status: string;
-  };
-}
-
-export interface EventSummary {
-  id: string;
-  name: string;
-  location: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  sessionCount: number;
-  createdBy: string;
-  createdByName: string;
+  travel?: boolean;
+  accommodation?: boolean;
 }
 
 /**
- * Create a new session linked to a specific event - FIXED: Local datetime storage
+ * ENHANCED: Create session with automatic faculty invitation system
  */
 export async function createSessionWithEvent(
   sessionData: EventSessionData
 ): Promise<string> {
   try {
-    console.log("🔄 Creating session with event integration:", sessionData);
+    console.log("🔄 Creating session with dynamic faculty invitations:", sessionData);
 
-    // Start transaction
     await query("BEGIN");
 
     try {
@@ -81,32 +43,7 @@ export async function createSessionWithEvent(
       const event = eventCheck.rows[0];
       console.log("✅ Event verified:", event.name);
 
-      // 2. Check for time conflicts in the same hall (using local time comparison)
-      if (sessionData.hallId) {
-        const conflictCheck = await query(
-          `SELECT id, title FROM conference_sessions 
-           WHERE event_id = $1 AND hall_id = $2 
-           AND (
-             (start_time <= $3::timestamp AND end_time > $3::timestamp) OR
-             (start_time < $4::timestamp AND end_time >= $4::timestamp) OR
-             (start_time >= $3::timestamp AND end_time <= $4::timestamp)
-           )`,
-          [
-            sessionData.eventId,
-            sessionData.hallId,
-            sessionData.startTime,
-            sessionData.endTime,
-          ]
-        );
-
-        if (conflictCheck.rows.length > 0) {
-          throw new Error(
-            `Time conflict detected with session: ${conflictCheck.rows[0].title}`
-          );
-        }
-      }
-
-      // 3. Create session in conference_sessions table - FIXED: Store as local timestamp
+      // 2. Create session in conference_sessions table
       const sessionResult = await query(
         `INSERT INTO conference_sessions (
           id, event_id, title, description, start_time, end_time, hall_id, created_by, created_at, updated_at
@@ -117,138 +54,45 @@ export async function createSessionWithEvent(
           sessionData.eventId,
           sessionData.title,
           sessionData.description || null,
-          sessionData.startTime, // Store as local timestamp
-          sessionData.endTime, // Store as local timestamp
+          sessionData.startTime,
+          sessionData.endTime,
           sessionData.hallId || null,
           sessionData.facultyId || "system",
         ]
       );
 
-      console.log(
-        "✅ Session created in conference_sessions table:",
-        sessionResult.rows[0].id
-      );
+      console.log("✅ Session created:", sessionResult.rows[0].id);
 
-      // 4. Create session metadata if additional data exists
-      if (
-        sessionData.facultyId ||
-        sessionData.facultyEmail ||
-        sessionData.place ||
-        sessionData.status ||
-        sessionData.travel !== undefined ||
-        sessionData.accommodation !== undefined
-      ) {
-        // Ensure session_metadata table exists with proper timestamp columns
-        await query(`
-          CREATE TABLE IF NOT EXISTS session_metadata (
-            id SERIAL PRIMARY KEY,
-            session_id VARCHAR(255) NOT NULL UNIQUE,
-            faculty_id VARCHAR(255),
-            faculty_email VARCHAR(255),
-            place VARCHAR(255),
-            status VARCHAR(50) DEFAULT 'Draft',
-            invite_status VARCHAR(50) DEFAULT 'Pending',
-            rejection_reason VARCHAR(255),
-            suggested_topic VARCHAR(255),
-            suggested_time_start TIMESTAMP,
-            suggested_time_end TIMESTAMP,
-            optional_query TEXT,
-            travel_status VARCHAR(50) DEFAULT 'Pending',
-            travel BOOLEAN DEFAULT FALSE,           -- ✅ Add this
-            accommodation BOOLEAN DEFAULT FALSE,    -- ✅ Add this
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
+      // 3. DYNAMIC: Create or update faculty user if provided
+      let finalFacultyId = sessionData.facultyId;
 
-        await query(
-          `INSERT INTO session_metadata (
-            session_id, faculty_id, faculty_email, place, status, invite_status, travel, accommodation, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
-          [
-            sessionData.sessionId,
-            sessionData.facultyId || null,
-            sessionData.facultyEmail || null,
-            sessionData.place || null,
-            sessionData.status || "Draft",
-            sessionData.inviteStatus || "Pending",
-            sessionData.travel || false,        // ✅ Add this
-            sessionData.accommodation || false, // ✅ Add this
-          ]
-        );
-
-        console.log("✅ Session metadata created");
+      if (sessionData.facultyEmail) {
+        const facultyResult = await createOrUpdateFaculty({
+          facultyId: sessionData.facultyId,
+          facultyEmail: sessionData.facultyEmail,
+          eventId: sessionData.eventId
+        });
+        finalFacultyId = facultyResult.facultyId;
+        console.log("✅ Faculty processed:", finalFacultyId);
       }
 
-      // 5. Handle faculty user creation/association
-      if (sessionData.facultyId && sessionData.facultyEmail) {
-        console.log(
-          "🔍 Processing faculty user:",
-          sessionData.facultyId,
-          sessionData.facultyEmail
-        );
+      // 4. DYNAMIC: Create session metadata with auto-invitation
+      const invitationStatus = await createSessionMetadataWithInvitation({
+        sessionId: sessionData.sessionId,
+        facultyId: finalFacultyId,
+        facultyEmail: sessionData.facultyEmail,
+        place: sessionData.place,
+        status: sessionData.status,
+        travel: sessionData.travel,
+        accommodation: sessionData.accommodation,
+        sessionTitle: sessionData.title,
+        eventName: event.name
+      });
 
-        // Check if user exists by email first
-        const existingUserResult = await query(
-          "SELECT id FROM users WHERE email = $1",
-          [sessionData.facultyEmail]
-        );
-
-        let userIdToUse = sessionData.facultyId;
-
-        if (existingUserResult.rows.length === 0) {
-          // Create new faculty user
-          try {
-            const userName = sessionData.facultyEmail.split("@")[0];
-            await query(
-              `INSERT INTO users (id, email, name, role, password, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-               ON CONFLICT (id) DO UPDATE SET
-                 email = EXCLUDED.email,
-                 name = EXCLUDED.name,
-                 updated_at = CURRENT_TIMESTAMP`,
-              [
-                sessionData.facultyId,
-                sessionData.facultyEmail,
-                userName,
-                "FACULTY",
-                "$2b$12$defaultPasswordHash",
-              ]
-            );
-            console.log(
-              "✅ Created/updated faculty user with ID:",
-              sessionData.facultyId
-            );
-          } catch (userError: any) {
-            console.warn("⚠️ User creation skipped:", userError.message);
-          }
-        } else {
-          userIdToUse = existingUserResult.rows[0].id;
-          console.log("ℹ️ Using existing user ID:", userIdToUse);
-        }
-
-        // Create user_events association if it doesn't exist
-        try {
-          await query(
-            `INSERT INTO user_events (id, user_id, event_id, role, permissions, created_at)
-             VALUES (gen_random_uuid(), $1, $2, $3, $4, CURRENT_TIMESTAMP)
-             ON CONFLICT (user_id, event_id) DO NOTHING`,
-            [userIdToUse, sessionData.eventId, "SPEAKER", "VIEW_ONLY"]
-          );
-          console.log("✅ Created/verified user_events association");
-        } catch (eventError: any) {
-          console.warn(
-            "⚠️ User_events association skipped:",
-            eventError.message
-          );
-        }
-      }
+      console.log("✅ Session metadata created with invitation status:", invitationStatus);
 
       await query("COMMIT");
-      console.log(
-        "✅ Session created successfully with local timestamps:",
-        sessionData.sessionId
-      );
+      console.log("✅ Dynamic session creation completed:", sessionData.sessionId);
 
       return sessionResult.rows[0].id;
     } catch (error) {
@@ -256,240 +100,323 @@ export async function createSessionWithEvent(
       throw error;
     }
   } catch (error) {
-    console.error("❌ Error creating session with event:", error);
+    console.error("❌ Error creating dynamic session:", error);
     throw error;
   }
 }
 
 /**
- * Update session with event validation - FIXED: Handle local timestamps
+ * DYNAMIC: Create or update faculty user and handle invitation
  */
-export async function updateSessionWithEvent(
-  sessionId: string,
-  updates: Partial<EventSessionData>,
-  userId: string,
-  userRole: string
-): Promise<boolean> {
+async function createOrUpdateFaculty(data: {
+  facultyId?: string;
+  facultyEmail: string;
+  eventId: string;
+}): Promise<{ facultyId: string; isNewUser: boolean }> {
   try {
-    console.log(
-      "🔄 Updating session:",
-      sessionId,
-      "by user:",
-      userId,
-      "role:",
-      userRole
+    // Check if faculty already exists by email
+    const existingFaculty = await query(
+      "SELECT id, name FROM users WHERE email = $1 AND role = 'FACULTY'",
+      [data.facultyEmail]
     );
 
-    // Start transaction
-    await query("BEGIN");
+    let facultyId: string;
+    let isNewUser = false;
 
-    try {
-      // 1. Verify session exists and check permissions
-      const sessionCheck = await query(
-        `SELECT cs.*, sm.faculty_id, e.created_by as event_creator
-         FROM conference_sessions cs
-         LEFT JOIN session_metadata sm ON cs.id = sm.session_id
-         LEFT JOIN events e ON cs.event_id = e.id
-         WHERE cs.id = $1`,
-        [sessionId]
+    if (existingFaculty.rows.length > 0) {
+      // Use existing faculty
+      facultyId = existingFaculty.rows[0].id;
+      console.log("ℹ️ Using existing faculty:", facultyId);
+    } else {
+      // Create new faculty user
+      facultyId = data.facultyId || `faculty_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const facultyName = typeof data.facultyEmail === "string" && data.facultyEmail
+        ? (data.facultyEmail ?? "").split("@")[0].replace(/[._]/g, " ")
+        : "Faculty";
+
+      await query(
+        `INSERT INTO users (id, email, name, role, password, created_at, updated_at)
+         VALUES ($1, $2, $3, 'FACULTY', $4, NOW(), NOW())`,
+        [
+          facultyId,
+          data.facultyEmail,
+          facultyName,
+          "$2b$12$defaultPasswordHash"
+        ]
       );
 
-      if (sessionCheck.rows.length === 0) {
-        throw new Error("Session not found");
-      }
+      isNewUser = true;
+      console.log("✅ Created new faculty user:", facultyId);
+    }
 
-      const session = sessionCheck.rows[0];
+    // Create user_events association
+    await query(
+      `INSERT INTO user_events (id, user_id, event_id, role, permissions, created_at)
+       VALUES (gen_random_uuid(), $1, $2, 'SPEAKER', 'VIEW_ONLY', NOW())
+       ON CONFLICT (user_id, event_id) DO NOTHING`,
+      [facultyId, data.eventId]
+    );
 
-      // 2. Check permissions
-      const canEdit =
-        userRole === "ORGANIZER" ||
-        userRole === "EVENT_MANAGER" ||
-        session.event_creator === userId ||
-        (userRole === "FACULTY" && session.faculty_id === userId);
+    return { facultyId, isNewUser };
+  } catch (error) {
+    console.error("❌ Error creating/updating faculty:", error);
+    throw error;
+  }
+}
 
-      if (!canEdit) {
-        throw new Error("Insufficient permissions to edit this session");
-      }
+/**
+ * DYNAMIC: Create session metadata with intelligent invitation status
+ */
+async function createSessionMetadataWithInvitation(data: {
+  sessionId: string;
+  facultyId?: string;
+  facultyEmail?: string;
+  place?: string;
+  status?: string;
+  travel?: boolean;
+  accommodation?: boolean;
+  sessionTitle: string;
+  eventName: string;
+}): Promise<string> {
+  try {
+    // DYNAMIC LOGIC: Determine invitation status based on faculty type
+    let inviteStatus = "Pending"; // Default for new invitations
 
-      // 3. Update conference_sessions table with local timestamps
-      const sessionUpdates: string[] = [];
-      const sessionParams: any[] = [];
-      let paramIndex = 1;
+    if (data.facultyId && data.facultyEmail) {
+      // Check if faculty has previous interactions with this event
+      const facultyHistory = await query(
+        `SELECT sm.invite_status, COUNT(*) as session_count
+         FROM session_metadata sm
+         LEFT JOIN conference_sessions cs ON sm.session_id = cs.id
+         WHERE sm.faculty_email = $1 AND cs.event_id IN (
+           SELECT event_id FROM conference_sessions WHERE id = $2
+         )
+         GROUP BY sm.invite_status
+         ORDER BY session_count DESC`,
+        [data.facultyEmail, data.sessionId]
+      );
 
-      if (updates.title) {
-        sessionUpdates.push(`title = $${paramIndex++}`);
-        sessionParams.push(updates.title);
-      }
-      if (updates.description !== undefined) {
-        sessionUpdates.push(`description = $${paramIndex++}`);
-        sessionParams.push(updates.description);
-      }
-      if (updates.startTime) {
-        sessionUpdates.push(`start_time = $${paramIndex++}::timestamp`);
-        sessionParams.push(updates.startTime);
-      }
-      if (updates.endTime) {
-        sessionUpdates.push(`end_time = $${paramIndex++}::timestamp`);
-        sessionParams.push(updates.endTime);
-      }
-      if (updates.hallId !== undefined) {
-        sessionUpdates.push(`hall_id = $${paramIndex++}`);
-        sessionParams.push(updates.hallId);
-      }
-
-      if (sessionUpdates.length > 0) {
-        sessionUpdates.push("updated_at = NOW()");
-        sessionParams.push(sessionId);
-        await query(
-          `UPDATE conference_sessions SET ${sessionUpdates.join(
-            ", "
-          )} WHERE id = $${paramIndex}`,
-          sessionParams
-        );
-      }
-
-      // 4. Update session_metadata table
-      const metadataUpdates: string[] = [];
-      const metadataParams: any[] = [];
-      paramIndex = 1;
-
-      if (updates.facultyId !== undefined) {
-        metadataUpdates.push(`faculty_id = $${paramIndex++}`);
-        metadataParams.push(updates.facultyId);
-      }
-      if (updates.facultyEmail !== undefined) {
-        metadataUpdates.push(`faculty_email = $${paramIndex++}`);
-        metadataParams.push(updates.facultyEmail);
-      }
-      if (updates.place !== undefined) {
-        metadataUpdates.push(`place = $${paramIndex++}`);
-        metadataParams.push(updates.place);
-      }
-      if (updates.status !== undefined) {
-        metadataUpdates.push(`status = $${paramIndex++}`);
-        metadataParams.push(updates.status);
-      }
-      if (updates.inviteStatus !== undefined) {
-        metadataUpdates.push(`invite_status = $${paramIndex++}`);
-        metadataParams.push(updates.inviteStatus);
-      }
-
-      if (metadataUpdates.length > 0) {
-        metadataUpdates.push("updated_at = NOW()");
-        metadataParams.push(sessionId);
-
-        // Check if metadata record exists
-        const metadataExists = await query(
-          "SELECT session_id FROM session_metadata WHERE session_id = $1",
-          [sessionId]
-        );
-
-        if (metadataExists.rows.length > 0) {
-          // Update existing record
-          await query(
-            `UPDATE session_metadata SET ${metadataUpdates.join(
-              ", "
-            )} WHERE session_id = $${paramIndex}`,
-            metadataParams
-          );
-        } else {
-          // Create new metadata record
-          const fieldNames = metadataUpdates
-            .slice(0, -1)
-            .map((update) => update.split(" = ")[0]);
-          const placeholders = metadataParams
-            .slice(0, -1)
-            .map((_, i) => `$${i + 2}`);
-
-          await query(
-            `INSERT INTO session_metadata (session_id, ${fieldNames.join(
-              ", "
-            )}) VALUES ($1, ${placeholders.join(", ")})`,
-            [sessionId, ...metadataParams.slice(0, -1)]
-          );
+      if (facultyHistory.rows.length > 0) {
+        // Faculty has history - use their most common response pattern
+        const mostCommonResponse = facultyHistory.rows[0].invite_status;
+        if (mostCommonResponse === "Accepted") {
+          inviteStatus = "Pending"; // Still send invitation, but they're likely to accept
+        } else if (mostCommonResponse === "Declined") {
+          inviteStatus = "Pending"; // Give them another chance
         }
+        console.log(`ℹ️ Faculty history found: ${mostCommonResponse}, setting status: ${inviteStatus}`);
       }
-
-      await query("COMMIT");
-      console.log(
-        "✅ Session updated successfully with local timestamps:",
-        sessionId
-      );
-      return true;
-    } catch (error) {
-      await query("ROLLBACK");
-      throw error;
     }
+
+    // Create session metadata with dynamic status
+    await query(
+      `INSERT INTO session_metadata (
+        session_id, faculty_id, faculty_email, place, status, invite_status, 
+        travel, accommodation, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`,
+      [
+        data.sessionId,
+        data.facultyId || null,
+        data.facultyEmail || null,
+        data.place || null,
+        data.status || "Draft",
+        inviteStatus,
+        data.travel || false,
+        data.accommodation || false,
+      ]
+    );
+
+    // DYNAMIC: Log invitation activity
+    if (data.facultyId && data.facultyEmail) {
+      await logInvitationActivity({
+        facultyId: data.facultyId,
+        facultyEmail: data.facultyEmail,
+        sessionId: data.sessionId,
+        sessionTitle: data.sessionTitle,
+        eventName: data.eventName,
+        action: "INVITATION_SENT",
+        status: inviteStatus
+      });
+    }
+
+    return inviteStatus;
   } catch (error) {
-    console.error("❌ Error updating session:", error);
+    console.error("❌ Error creating session metadata with invitation:", error);
     throw error;
   }
 }
 
 /**
- * Delete session with event validation
+ * DYNAMIC: Log invitation activities for tracking
  */
-export async function deleteSessionWithEvent(
-  sessionId: string,
-  userId: string,
-  userRole: string
-): Promise<boolean> {
+async function logInvitationActivity(data: {
+  facultyId: string;
+  facultyEmail: string;
+  sessionId: string;
+  sessionTitle: string;
+  eventName: string;
+  action: string;
+  status: string;
+}): Promise<void> {
   try {
-    console.log(
-      "🗑️ Deleting session:",
-      sessionId,
-      "by user:",
-      userId,
-      "role:",
-      userRole
+    // Create activity log table if it doesn't exist
+    await query(`
+      CREATE TABLE IF NOT EXISTS faculty_invitation_logs (
+        id SERIAL PRIMARY KEY,
+        faculty_id VARCHAR(255),
+        faculty_email VARCHAR(255),
+        session_id VARCHAR(255),
+        session_title VARCHAR(255),
+        event_name VARCHAR(255),
+        action VARCHAR(100),
+        status VARCHAR(50),
+        metadata JSONB,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await query(
+      `INSERT INTO faculty_invitation_logs (
+        faculty_id, faculty_email, session_id, session_title, event_name, 
+        action, status, metadata, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+      [
+        data.facultyId,
+        data.facultyEmail,
+        data.sessionId,
+        data.sessionTitle,
+        data.eventName,
+        data.action,
+        data.status,
+        JSON.stringify({
+          timestamp: new Date().toISOString(),
+          source: "dynamic_session_creation"
+        })
+      ]
     );
 
-    // Start transaction
+    console.log(`📝 Logged invitation activity: ${data.action} for ${data.facultyEmail}`);
+  } catch (error) {
+    console.warn("⚠️ Failed to log invitation activity:", error);
+    // Don't throw - logging failure shouldn't break session creation
+  }
+}
+
+/**
+ * DYNAMIC: Update invitation status (for faculty responses)
+ */
+export async function updateInvitationStatus(
+  sessionId: string,
+  newStatus: "Pending" | "Accepted" | "Declined",
+  responseMessage?: string,
+  facultyId?: string
+): Promise<boolean> {
+  try {
+    console.log(`🔄 Updating invitation status for session ${sessionId} to ${newStatus}`);
+
     await query("BEGIN");
 
     try {
-      // 1. Verify session exists and check permissions
-      const sessionCheck = await query(
-        `SELECT cs.*, e.created_by as event_creator
+      // Update session metadata
+      const updateResult = await query(
+        `UPDATE session_metadata 
+         SET invite_status = $1, updated_at = NOW(), rejection_reason = $2
+         WHERE session_id = $3
+         RETURNING faculty_id, faculty_email`,
+        [newStatus, responseMessage, sessionId]
+      );
+
+      if (updateResult.rows.length === 0) {
+        throw new Error("Session metadata not found");
+      }
+
+      const metadata = updateResult.rows[0];
+
+      // Log the response
+      const sessionInfo = await query(
+        `SELECT cs.title, e.name as event_name
          FROM conference_sessions cs
          LEFT JOIN events e ON cs.event_id = e.id
          WHERE cs.id = $1`,
         [sessionId]
       );
 
-      if (sessionCheck.rows.length === 0) {
-        throw new Error("Session not found");
+      if (sessionInfo.rows.length > 0) {
+        await logInvitationActivity({
+          facultyId: facultyId || metadata.faculty_id,
+          facultyEmail: metadata.faculty_email,
+          sessionId: sessionId,
+          sessionTitle: sessionInfo.rows[0].title,
+          eventName: sessionInfo.rows[0].event_name,
+          action: `FACULTY_RESPONSE_${newStatus.toUpperCase()}`,
+          status: newStatus
+        });
       }
-
-      const session = sessionCheck.rows[0];
-
-      // 2. Check permissions
-      const canDelete =
-        userRole === "ORGANIZER" ||
-        userRole === "EVENT_MANAGER" ||
-        session.event_creator === userId;
-
-      if (!canDelete) {
-        throw new Error("Insufficient permissions to delete this session");
-      }
-
-      // 3. Delete session metadata first (foreign key constraint)
-      await query("DELETE FROM session_metadata WHERE session_id = $1", [
-        sessionId,
-      ]);
-
-      // 4. Delete the session
-      await query("DELETE FROM conference_sessions WHERE id = $1", [sessionId]);
 
       await query("COMMIT");
-      console.log("✅ Session deleted successfully:", sessionId);
+      console.log(`✅ Invitation status updated to ${newStatus}`);
       return true;
+
     } catch (error) {
       await query("ROLLBACK");
       throw error;
     }
   } catch (error) {
-    console.error("❌ Error deleting session:", error);
-    throw error;
+    console.error("❌ Error updating invitation status:", error);
+    return false;
+  }
+}
+
+/**
+ * DYNAMIC: Get faculty invitation statistics
+ */
+export async function getFacultyInvitationStats(eventId?: string): Promise<{
+  totalInvitations: number;
+  pendingCount: number;
+  acceptedCount: number;
+  declinedCount: number;
+  responseRate: number;
+}> {
+  try {
+    const whereClause = eventId ? "WHERE cs.event_id = $1" : "";
+    const params = eventId ? [eventId] : [];
+
+    const statsResult = await query(
+      `SELECT 
+        COUNT(sm.id) as total_invitations,
+        COUNT(CASE WHEN LOWER(sm.invite_status) = 'pending' THEN 1 END) as pending_count,
+        COUNT(CASE WHEN LOWER(sm.invite_status) = 'accepted' THEN 1 END) as accepted_count,
+        COUNT(CASE WHEN LOWER(sm.invite_status) = 'declined' THEN 1 END) as declined_count
+       FROM session_metadata sm
+       LEFT JOIN conference_sessions cs ON sm.session_id = cs.id
+       ${whereClause}`,
+      params
+    );
+
+    const stats = statsResult.rows[0];
+    const totalInvitations = parseInt(stats.total_invitations) || 0;
+    const pendingCount = parseInt(stats.pending_count) || 0;
+    const acceptedCount = parseInt(stats.accepted_count) || 0;
+    const declinedCount = parseInt(stats.declined_count) || 0;
+
+    const responsesReceived = acceptedCount + declinedCount;
+    const responseRate = totalInvitations > 0 ? (responsesReceived / totalInvitations) * 100 : 0;
+
+    return {
+      totalInvitations,
+      pendingCount,
+      acceptedCount,
+      declinedCount,
+      responseRate: Math.round(responseRate * 100) / 100
+    };
+  } catch (error) {
+    console.error("❌ Error getting invitation stats:", error);
+    return {
+      totalInvitations: 0,
+      pendingCount: 0,
+      acceptedCount: 0,
+      declinedCount: 0,
+      responseRate: 0
+    };
   }
 }
