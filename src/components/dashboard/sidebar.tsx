@@ -13,7 +13,13 @@ import {
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui";
+
 import FacultyDocumentsModal from "@/app/modals/FacultyDocumentsModal";
+import UploadDocumentsModal from "@/app/modals/UploadDocumentsModal";
+import FeedbackModal from "@/app/modals/Feedback";
+import ContactSupportModal from "@/app/modals/contact-support";
+import TravelInfoModal from "@/app/modals/TravelInfoModal";
+import AccommodationInfoModal from "@/app/modals/AccommodationInfoModal";
 import AcceptedFacultyModal from "@/app/modals/AcceptedFacultyModal";
 // import ApprovalsModal from "@/app/modals/ApprovalsModal";
 import PendingFacultyModal from "@/app/modals/PendingFacultyModal";
@@ -47,6 +53,7 @@ import {
   Briefcase,
   ShoppingBag,
   Edit2,
+  Phone,
 } from "lucide-react";
 
 interface NavigationItem {
@@ -59,15 +66,12 @@ interface NavigationItem {
 }
 
 interface SidebarProps {
-  userRole:
-    | "ORGANIZER"
-    | "EVENT_MANAGER"
-    | "FACULTY"
-    // | "DELEGATE"
-    // | "HALL_COORDINATOR"
-    // | "SPONSOR"
-    // | "VOLUNTEER"
-    // | "VENDOR";
+  userRole: "ORGANIZER" | "EVENT_MANAGER" | "FACULTY";
+  // | "DELEGATE"
+  // | "HALL_COORDINATOR"
+  // | "SPONSOR"
+  // | "VOLUNTEER"
+  // | "VENDOR";
   userName?: string;
   userEmail?: string;
   userAvatar?: string;
@@ -99,7 +103,7 @@ const getNavigationItems = (
           icon: Eye,
         },
         {
-          label: "Events", 
+          label: "Events",
           href: "/organizer/events",
           icon: Calendar,
         },
@@ -270,12 +274,12 @@ const getNavigationItems = (
             {
               label: "Pending Requests",
               icon: Clock,
-              action:"openPendingApprovalsModal",
+              action: "openPendingApprovalsModal",
             },
             {
               label: "Approved",
               icon: UserCheck,
-              action  :"openAcceptedApprovalsModal",
+              action: "openAcceptedApprovalsModal",
             },
             {
               label: "Rejected",
@@ -346,20 +350,35 @@ const getNavigationItems = (
           icon: Monitor,
         },
         {
-          label: "View/Edit Documents",
+          label: "Documents",
           icon: FileText,
-          action: "openDocumentsModal",
+          children: [
+            {
+              label: "Upload Documents",
+              icon: Upload,
+              action: "uploadDocumentsModal",
+            },
+            {
+              label: "View/Edit Documents",
+              icon: Upload,
+              action: "openDocumentsModal",
+            },
+          ],
         },
         {
           label: "Travel & Stay",
-          href: "/faculty/travel",
+          href: "",
           icon: Plane,
           children: [
-            { label: "Travel Details", href: "/faculty/travel", icon: Plane },
+            {
+              label: "Travel Details",
+              icon: Plane,
+              action: "openTravelDetailsModal",
+            },
             {
               label: "Accommodation",
-              href: "/faculty/travel/accommodation",
               icon: Hotel,
+              action: "openAccommodationModal",
             },
           ],
         },
@@ -367,6 +386,16 @@ const getNavigationItems = (
           label: "Certificates",
           href: "/faculty/certificates",
           icon: Award,
+        },
+        {
+          label: "Submit Feedback",
+          icon: MessageSquare,
+          action: "openFeedbackModal",
+        },
+        {
+          label: "Contact Support",
+          icon: Phone,
+          action: "openSupportModal",
         },
       ],
     };
@@ -383,10 +412,22 @@ export function NavigationSidebar({
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
   const router = useRouter();
-  const [isPendingApprovalsModalOpen, setIsPendingApprovalsModalOpen] = useState(false);
-  const [isAcceptedApprovalsModalOpen, setIsAcceptedApprovalsModalOpen] = useState(false);
-  const [isRejectedApprovalsModalOpen, setIsRejectedApprovalsModalOpen] = useState(false);
+
+  const [isPendingApprovalsModalOpen, setIsPendingApprovalsModalOpen] =
+    useState(false);
+  const [isAcceptedApprovalsModalOpen, setIsAcceptedApprovalsModalOpen] =
+    useState(false);
+  const [isRejectedApprovalsModalOpen, setIsRejectedApprovalsModalOpen] =
+    useState(false);
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [isUploadDocumentsModalOpen, setIsUploadDocumentsModalOpen] =
+    useState(false);
+  const [isAccommodationModalOpen, setIsAccommodationModalOpen] =
+    useState(false);
+  const [isTravelDetailsModalOpen, setIsTravelDetailsModalOpen] =
+    useState(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const { data: session } = useSession();
   const facultyId = session?.user?.id;
 
@@ -429,6 +470,31 @@ export function NavigationSidebar({
       e.preventDefault();
       console.log("Opening documents modal"); // Debug log
       setIsDocsModalOpen(true);
+      return;
+    }
+    if (item.action === "uploadDocumentsModal") {
+      e.preventDefault();
+      setIsUploadDocumentsModalOpen(true);
+      return;
+    }
+    if (item.action === "openFeedbackModal") {
+      e.preventDefault();
+      setIsFeedbackModalOpen(true);
+      return;
+    }
+    if (item.action === "openSupportModal") {
+      e.preventDefault();
+      setIsSupportModalOpen(true);
+      return;
+    }
+    if (item.action === "openTravelDetailsModal") {
+      e.preventDefault();
+      setIsTravelDetailsModalOpen(true);
+      return;
+    }
+    if (item.action === "openAccommodationModal") {
+      e.preventDefault();
+      setIsAccommodationModalOpen(true);
       return;
     }
 
@@ -481,8 +547,15 @@ export function NavigationSidebar({
 
   // Handle child click with debugging
   const handleChildClick = (child: NavigationItem) => {
-    console.log("Child clicked:", child.label, "Action:", child.action, "Href:", child.href); // Debug log
-    
+    console.log(
+      "Child clicked:",
+      child.label,
+      "Action:",
+      child.action,
+      "Href:",
+      child.href
+    ); // Debug log
+
     if (child.action === "openDocumentsModal") {
       console.log("Opening documents modal from child"); // Debug log
       setIsDocsModalOpen(true);
@@ -517,7 +590,7 @@ export function NavigationSidebar({
     pending: isPendingApprovalsModalOpen,
     accepted: isAcceptedApprovalsModalOpen,
     rejected: isRejectedApprovalsModalOpen,
-    userRole: userRole
+    userRole: userRole,
   });
 
   return (
@@ -629,13 +702,18 @@ export function NavigationSidebar({
           );
         })}
       </nav>
-
-      {/* FIXED: Removed the facultyId condition - modals now show for all users */}
       <>
         {facultyId && (
           <FacultyDocumentsModal
             isOpen={isDocsModalOpen}
             onClose={() => setIsDocsModalOpen(false)}
+            facultyId={facultyId}
+          />
+        )}
+        {facultyId && (
+          <UploadDocumentsModal
+            isOpen={isUploadDocumentsModalOpen}
+            onClose={() => setIsUploadDocumentsModalOpen(false)}
             facultyId={facultyId}
           />
         )}
@@ -650,6 +728,23 @@ export function NavigationSidebar({
         <PendingFacultyModal
           isOpen={isPendingApprovalsModalOpen}
           onClose={() => setIsPendingApprovalsModalOpen(false)}
+        />
+        <FeedbackModal
+          open={isFeedbackModalOpen}
+          onClose={() => setIsFeedbackModalOpen(false)}
+        />
+        <ContactSupportModal
+          open={isSupportModalOpen}
+          onClose={() => setIsSupportModalOpen(false)}
+        />
+        <TravelInfoModal
+          open={isTravelDetailsModalOpen}
+          onClose={() => setIsTravelDetailsModalOpen(false)}
+          facultyId={facultyId}
+        />
+        <AccommodationInfoModal
+          open={isAccommodationModalOpen}
+          onClose={() => setIsAccommodationModalOpen(false)}
         />
       </>
     </div>
