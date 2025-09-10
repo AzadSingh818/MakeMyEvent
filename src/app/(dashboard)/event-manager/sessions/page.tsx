@@ -683,7 +683,16 @@ export default function SessionsPage() {
                       View
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => handleEditSession(session)}
+                      onClick={() =>
+                        handleEditSession({
+                          ...session,
+                          _count: session._count || {
+                            speakers: 0,
+                            presentations: 0,
+                            attendanceRecords: 0,
+                          },
+                        })
+                      }
                     >
                       <EditIcon className="h-4 w-4 mr-2" />
                       Edit
@@ -715,21 +724,21 @@ export default function SessionsPage() {
                   </div>
                 )}
 
-                {session.speakers.length > 0 && (
+                {(session.speakers ?? []).length > 0 && (
                   <div className="flex items-center gap-2">
                     <UsersIcon className="h-4 w-4 text-gray-500" />
                     <span className="truncate">
-                      {session.speakers.map((s) => s.user.name).join(", ")}
+                      {(session.speakers ?? []).map((s) => s.user.name).join(", ")}
                     </span>
                   </div>
                 )}
 
                 <div className="flex items-center justify-between pt-2">
                   <div className="text-xs text-gray-600">
-                    {session._count.attendanceRecords} attendees
+                    {(session._count?.attendanceRecords ?? 0)} attendees
                   </div>
                   <div className="text-xs text-gray-600">
-                    {session._count.speakers} speakers
+                    {(session._count?.speakers ?? 0)} speakers
                   </div>
                 </div>
               </div>
@@ -917,7 +926,21 @@ export default function SessionsPage() {
           </DialogHeader>
           <SessionForm
             eventId={selectedEvent}
-            session={selectedSession}
+            session={
+              selectedSession
+                ? {
+                    ...selectedSession,
+                    startTime:
+                      typeof selectedSession.startTime === "string"
+                        ? new Date(selectedSession.startTime)
+                        : selectedSession.startTime,
+                    endTime:
+                      typeof selectedSession.endTime === "string"
+                        ? new Date(selectedSession.endTime)
+                        : selectedSession.endTime,
+                  }
+                : null
+            }
             halls={halls}
             onSuccess={(session) => {
               setShowSessionForm(false);
