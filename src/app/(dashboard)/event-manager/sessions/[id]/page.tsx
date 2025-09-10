@@ -88,7 +88,9 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator
-} from 'components/ui/breadcrumb';
+} from '@/components/breadcrumb';
+// Or update the path to the correct location if your breadcrumb component is elsewhere, e.g.:
+// } from '@/components/ui/Breadcrumb';
 import { cn } from '@/lib/utils';
 import { useSessions } from '@/hooks/use-sessions';
 import { SessionForm } from '@/components/sessions/session-form';
