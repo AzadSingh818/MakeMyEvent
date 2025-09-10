@@ -39,7 +39,8 @@ pool.on('release', () => {
 })
 
 // Export the pool
-export { pool as db }
+const db = pool;
+export { db }
 
 /**
  * Execute a query with better error handling
@@ -153,3 +154,11 @@ if (process.env.NODE_ENV !== 'test') {
     console.warn('⚠️ Initial database connection test failed - will retry on first query')
   })
 }  
+// Add this export at the end of the file
+export const prisma = {
+  query,
+  db,
+  transaction,
+  testConnection,
+  closeConnections
+};

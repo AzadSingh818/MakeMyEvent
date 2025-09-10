@@ -218,6 +218,40 @@ async function createOrUpdateFaculty(data: {
 /**
  * DYNAMIC: Create session metadata with intelligent invitation status
  */
+// Add this function to src/lib/database/event-session-integration.ts
+export async function updateSessionWithEvent(
+  sessionId: string, 
+  updates: any
+): Promise<boolean> {
+  try {
+    console.log(`Updating session with event integration: ${sessionId}`);
+    
+    const result = await query(
+      `UPDATE conference_sessions 
+       SET title = COALESCE($2, title), 
+           description = COALESCE($3, description),
+           start_time = COALESCE($4, start_time),
+           end_time = COALESCE($5, end_time),
+           hall_id = COALESCE($6, hall_id),
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id`,
+      [
+        sessionId,
+        updates.title,
+        updates.description, 
+        updates.startTime,
+        updates.endTime,
+        updates.hallId
+      ]
+    );
+
+    return (result.rowCount ?? 0) > 0;
+  } catch (error) {
+    console.error("Error updating session with event integration:", error);
+    return false;
+  }
+}
 async function createSessionMetadataWithInvitation(data: {
   sessionId: string;
   facultyId?: string;
