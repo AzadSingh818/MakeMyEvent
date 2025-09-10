@@ -78,15 +78,17 @@ import {
   DialogTrigger,
   Tooltip,
   TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  TooltipProvider
+} from '@/components/ui';
+
+import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator
-} from '@/components/ui';
+} from '../../../../../components/ui/breadcrumb';
 import { cn } from '@/lib/utils';
 import { useSessions } from '@/hooks/use-sessions';
 import { SessionForm } from '@/components/sessions/session-form';
