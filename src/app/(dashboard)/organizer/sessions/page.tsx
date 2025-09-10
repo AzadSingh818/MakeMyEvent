@@ -365,11 +365,14 @@ const AllSessions: React.FC = () => {
   };
 
   const onChangeDraft = (id: string, field: keyof DraftSession, value: string) => {
-    setDraft((d) => ({
-      ...d,
-      [id]: { ...d[id], [field]: value },
-    }));
-  };
+  setDraft((d) => ({
+    ...d,
+    [id]: { 
+      ...d[id], 
+      [field]: value 
+    } as DraftSession,
+  }));
+};
 
   const onSave = async (id: string) => {
     const body = draft[id];
@@ -983,10 +986,10 @@ const AllSessions: React.FC = () => {
             <DialogTitle>Create New Session</DialogTitle>
           </DialogHeader>
           <SessionForm
-            session={preselectedEventId ? { eventId: preselectedEventId } : undefined}
+            eventId={preselectedEventId || ""}
+            session={undefined}
             onSuccess={handleSessionCreated}
-            onCancel={handleCloseCreateModal}
-          />
+            onCancel={handleCloseCreateModal} halls={[]}          />
         </DialogContent>
       </Dialog>
     </OrganizerLayout>
