@@ -635,7 +635,14 @@ export default function SessionsPage() {
   const GridView = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {filteredSessions.map((session) => {
-        const status = getSessionStatus(session);
+        const status = getSessionStatus({
+          ...session,
+          _count: session._count || {
+            speakers: 0,
+            presentations: 0,
+            attendanceRecords: 0
+          },
+        });
         const statusInfo =
           SESSION_STATUS[status as keyof typeof SESSION_STATUS];
         const StatusIcon = statusInfo.icon;
