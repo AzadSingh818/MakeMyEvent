@@ -1,4 +1,4 @@
-// src/components/ui/index.ts - FIXED: Removed duplicate Separator export
+// src/components/ui/index.ts - COMPLETE EXPORT FILE
 // Export all UI components from a single file for easier imports
 
 // Form Components
@@ -55,11 +55,55 @@ export {
 
 // Navigation Components
 export {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbEllipsis,
+} from './breadcrumb'
+
+export {
   Tabs,
   TabsList,
   TabsTrigger,
   TabsContent,
 } from './tabs'
+
+// Dropdown Components
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuGroup,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+} from './dropdown-menu'
+
+// Avatar Components
+export {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+} from './avatar'
+
+// Tooltip Components
+export {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from './tooltip'
 
 // Progress Components
 export { Progress } from './progress'
