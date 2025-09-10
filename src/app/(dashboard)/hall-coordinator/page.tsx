@@ -631,7 +631,7 @@ export default function HallCoordinatorDashboardPage() {
                     size="sm" 
                     variant="outline"
                     onClick={() => handleQuickIssue(myHalls?.data?.[0]?.id || '', 'LOW')}
-                    disabled={!quickIssueText.trim() || createIssue.isLoading}
+                    disabled={!quickIssueText.trim() || createIssue.isPending}
                     className="flex-1"
                   >
                     <Flag className="h-3 w-3 mr-1" />
@@ -641,7 +641,7 @@ export default function HallCoordinatorDashboardPage() {
                     size="sm" 
                     variant="outline"
                     onClick={() => handleQuickIssue(myHalls?.data?.[0]?.id || '', 'MEDIUM')}
-                    disabled={!quickIssueText.trim() || createIssue.isLoading}
+                    disabled={!quickIssueText.trim() || createIssue.isPending}
                     className="flex-1"
                   >
                     <AlertCircle className="h-3 w-3 mr-1" />
@@ -651,7 +651,7 @@ export default function HallCoordinatorDashboardPage() {
                     size="sm" 
                     variant="destructive"
                     onClick={() => handleQuickIssue(myHalls?.data?.[0]?.id || '', 'HIGH')}
-                    disabled={!quickIssueText.trim() || createIssue.isLoading}
+                    disabled={!quickIssueText.trim() || createIssue.isPending}
                     className="flex-1"
                   >
                     <AlertTriangle className="h-3 w-3 mr-1" />
