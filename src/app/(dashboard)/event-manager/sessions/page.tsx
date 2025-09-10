@@ -76,15 +76,24 @@ interface Session {
   id: string;
   title: string;
   description?: string;
-  startTime: Date;
-  endTime: Date;
+  startTime: Date | string;
+  endTime: Date | string;
   sessionType: string;
   hallId?: string;
   maxParticipants?: number;
   isBreak?: boolean;
-  speakers: Array<{
-    user: { name: string; institution?: string };
-    role: string;
+  speakers?: Array<{
+    id: string;
+    userId: string;
+    role: "SPEAKER" | "MODERATOR" | "CHAIRPERSON" | string;
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      designation?: string;
+      institution?: string;
+      profileImage?: string;
+    };
   }>;
   hall?: {
     id: string;
