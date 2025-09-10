@@ -18,7 +18,7 @@ import {
   Upload,
   FileText,
   MapPin,
-  Activity,
+  Activity, 
   ExternalLink,
   ArrowRight,
   Mail,
@@ -1243,7 +1243,7 @@ export default function FacultyDashboardPage() {
           <SessionsAndEventsCard />
 
           {/* Faculty Tools Card */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5" />
@@ -1251,7 +1251,7 @@ export default function FacultyDashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              {/* Presentation Upload Section */}
+              {/* Presentation Upload Section 
               <div className="space-y-3">
                 <input
                   ref={presentationInputRef}
@@ -1332,7 +1332,7 @@ export default function FacultyDashboardPage() {
                 )}
               </div>
 
-              {/* CV Upload Section */}
+              {/* CV Upload Section 
               <div className="space-y-3">
                 <input
                   ref={cvInputRef}
@@ -1412,7 +1412,7 @@ export default function FacultyDashboardPage() {
                   </div>
                 )}
 
-                {/* Success and Error Messages */}
+                {/* Success and Error Messages 
                 {uploadSuccess.length > 0 && (
                   <Alert className="border-green-200 bg-green-50">
                     <Check className="h-4 w-4" />
@@ -1463,7 +1463,7 @@ export default function FacultyDashboardPage() {
                       </div>
                     </AlertDescription>
                   </Alert>
-                )}
+                )} 
 
                 {cvUploadSuccess && (
                   <Alert className="border-green-200 bg-green-50 mt-2">
@@ -1501,7 +1501,7 @@ export default function FacultyDashboardPage() {
                 )}
               </div>
 
-              {/* Other Tool Buttons */}
+              {/* Other Tool Buttons 
               <Button
                 className="w-full justify-start"
                 variant="outline"
@@ -1543,7 +1543,7 @@ export default function FacultyDashboardPage() {
                 Contact Support
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
 
