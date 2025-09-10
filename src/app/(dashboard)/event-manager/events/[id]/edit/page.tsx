@@ -385,9 +385,9 @@ export default function EventEditPage() {
                   Add
                 </Button>
               </div>
-              {watch('tags') && watch('tags').length > 0 && (
+              {(watch('tags') ?? []).length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {watch('tags').map((tag, index) => (
+                  {(watch('tags') ?? []).map((tag, index) => (
                     <Badge key={index} variant="secondary" className="gap-1">
                       {tag}
                       <button

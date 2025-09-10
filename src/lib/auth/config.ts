@@ -358,3 +358,5 @@ declare module "next-auth/jwt" {
     name?: string;
   }
 }
+// Add this export at the bottom of the file
+export const authConfig = authOptions;

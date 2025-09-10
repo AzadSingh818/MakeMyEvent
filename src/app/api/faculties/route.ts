@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFaculties } from "@/lib/database/session-queries";
+export const FACULTIES = [];
 
 export async function GET() {
   try {
