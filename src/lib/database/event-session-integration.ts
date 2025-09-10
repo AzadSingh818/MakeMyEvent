@@ -182,7 +182,7 @@ async function createOrUpdateFaculty(data: {
       // Create new faculty user
       facultyId = data.facultyId || `faculty_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const facultyName = typeof data.facultyEmail === "string" && data.facultyEmail
-        ? (data.facultyEmail ?? "").split("@")[0].replace(/[._]/g, " ")
+        ? ((data.facultyEmail ?? "").split("@")[0] ?? "").replace(/[._]/g, " ")
         : "Faculty";
 
       await query(

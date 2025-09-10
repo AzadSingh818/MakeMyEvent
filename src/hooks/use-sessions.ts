@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 
 // Types
 interface Session {
+  expectedAttendees: number;
   id: string;
   eventId: string;
   title: string;

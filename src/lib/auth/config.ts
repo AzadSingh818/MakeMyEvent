@@ -193,7 +193,7 @@ export const authOptions: NextAuthOptions = {
             const oldRole = token.role;
             token.role = freshUser.role;
             token.email = freshUser.email;
-            token.name = freshUser.name;
+            token.name = freshUser.name ?? undefined;
             
             if (oldRole !== freshUser.role) {
               console.log(`🔄 Role updated in JWT: ${oldRole} → ${freshUser.role}`);
@@ -337,8 +337,8 @@ export async function getUserBySession(
 declare module "next-auth" {
   interface Session {
     user: {
-      id: string;
-      role: UserRole;
+      id?: string;
+      role?: UserRole;
       email: string;
       name?: string | null;
       image?: string | null;
@@ -346,14 +346,14 @@ declare module "next-auth" {
   }
 
   interface User {
-    role: UserRole;
+    role?: UserRole;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    role: UserRole;
-    id: string;
+    role?: UserRole;
+    id?: string;
     email: string;
     name?: string;
   }

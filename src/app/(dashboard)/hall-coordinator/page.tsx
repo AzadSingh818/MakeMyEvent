@@ -12,7 +12,6 @@ import { useRouter } from 'next/navigation';
 import { useTodaysSessions, useOngoingSessions, useUpcomingSessions } from '@/hooks/use-sessions';
 import { useSessionAttendance, useMarkAttendance, useRealtimeAttendanceCount } from '@/hooks/use-attendance';
 import { useMyHalls, useHallIssues, useCreateIssue } from '@/hooks/use-halls';
-import { useFacultyBySession } from '@/hooks/use-faculty';
 import { useAuth, useNotifications } from '@/hooks/use-auth';
 
 import { 
@@ -105,8 +104,7 @@ export default function HallCoordinatorDashboardPage() {
     markAttendance.mutate({
       sessionId,
       userId,
-      method: 'MANUAL',
-      markedBy: user?.id
+      method: 'MANUAL'
     });
   };
 
@@ -118,33 +116,33 @@ export default function HallCoordinatorDashboardPage() {
         title: `Quick Report: ${quickIssueText.slice(0, 50)}`,
         description: quickIssueText,
         priority,
-        reportedBy: user?.id
+        type: 'TECHNICAL'
       });
       setQuickIssueText('');
     }
   };
 
   // Filter sessions for assigned halls
-  const myHallIds = myHalls?.data?.halls?.map(h => h.id) || [];
+  const myHallIds = myHalls?.data?.map(h => h.id) || [];
   const myTodaysSessions = todaysSessions?.data?.sessions?.filter(s => 
-    myHallIds.includes(s.hallId)
+    myHallIds.includes(s.hallId || '')
   ) || [];
-  const myOngoingSessions = ongoingSessions?.data?.sessions?.filter(s => 
-    myHallIds.includes(s.hallId)
+  const myOngoingSessions = ongoingSessions?.data?.sessions?.filter((s: { hallId: any; }) => 
+    myHallIds.includes(s.hallId || '')
   ) || [];
   const myUpcomingSessions = upcomingSessions?.data?.sessions?.filter(s => 
-    myHallIds.includes(s.hallId)
+    myHallIds.includes(s.hallId || '')
   ) || [];
 
   // Calculate statistics
-  const totalHalls = myHalls?.data?.halls?.length || 0;
+  const totalHalls = myHalls?.data?.length || 0;
   const totalSessionsToday = myTodaysSessions.length;
   const ongoingSessionsCount = myOngoingSessions.length;
   const upcomingSessionsCount = myUpcomingSessions.length;
   const completedSessions = myTodaysSessions.filter(s => new Date(s.endTime) < new Date()).length;
-  const openIssues = hallIssues?.data?.issues?.filter(i => i.status === 'OPEN').length || 0;
-  const urgentIssues = hallIssues?.data?.issues?.filter(i => i.priority === 'HIGH' && i.status === 'OPEN').length || 0;
-  const unreadNotifications = notifications?.data?.notifications?.filter(n => !n.readAt).length || 0;
+  const openIssues = hallIssues?.data?.filter(i => i.status === 'OPEN').length || 0;
+  const urgentIssues = hallIssues?.data?.filter(i => i.priority === 'HIGH' && i.status === 'OPEN').length || 0;
+  const unreadNotifications = notifications?.data?.notifications?.filter((n: { readAt: any; }) => !n.readAt).length || 0;
 
   if (hallsLoading || todaysLoading) {
     return (
@@ -236,7 +234,7 @@ export default function HallCoordinatorDashboardPage() {
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <div className="flex items-center space-x-4">
                   <span className="text-green-600">Active: {totalHalls}</span>
-                  <span className="text-blue-600">Capacity: {myHalls?.data?.halls?.reduce((acc, h) => acc + h.capacity, 0) || 0}</span>
+                  <span className="text-blue-600">Capacity: {myHalls?.data?.reduce((acc, h) => acc + h.capacity, 0) || 0}</span>
                 </div>
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
@@ -275,7 +273,7 @@ export default function HallCoordinatorDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {sessionAttendance?.data?.attendanceCount || 0}
+                {sessionAttendance?.data?.attendanceRecords?.length || 0}
               </div>
               <div className="flex items-center text-xs text-muted-foreground mt-1">
                 <UserCheck className="h-3 w-3 mr-1" />
@@ -348,7 +346,7 @@ export default function HallCoordinatorDashboardPage() {
               ) : myTodaysSessions.length > 0 ? (
                 <div className="space-y-4">
                   {myTodaysSessions.slice(0, 4).map((session) => {
-                    const isOngoing = myOngoingSessions.some(s => s.id === session.id);
+                    const isOngoing = myOngoingSessions.some((s: { id: string; }) => s.id === session.id);
                     const isUpcoming = new Date(session.startTime) > new Date();
                     const isCompleted = new Date(session.endTime) < new Date();
                     
@@ -535,12 +533,12 @@ export default function HallCoordinatorDashboardPage() {
                     </div>
                   ))}
                 </div>
-              ) : myHalls?.data?.halls?.length > 0 ? (
+              ) : (myHalls?.data?.length ?? 0) > 0 ? (
                 <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {myHalls.data.halls.map((hall) => {
+                  {myHalls?.data?.map((hall) => {
                     const hallSessions = myTodaysSessions.filter(s => s.hallId === hall.id);
-                    const currentSession = myOngoingSessions.find(s => s.hallId === hall.id);
-                    const hallIssuesCount = hallIssues?.data?.issues?.filter(i => 
+                    const currentSession = myOngoingSessions.find((s: { hallId: string; }) => s.hallId === hall.id);
+                    const hallIssuesCount = hallIssues?.data?.filter(i => 
                       i.hallId === hall.id && i.status === 'OPEN'
                     ).length || 0;
                     
@@ -632,7 +630,7 @@ export default function HallCoordinatorDashboardPage() {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => handleQuickIssue(myHalls?.data?.halls?.[0]?.id || '', 'LOW')}
+                    onClick={() => handleQuickIssue(myHalls?.data?.[0]?.id || '', 'LOW')}
                     disabled={!quickIssueText.trim() || createIssue.isLoading}
                     className="flex-1"
                   >
@@ -642,7 +640,7 @@ export default function HallCoordinatorDashboardPage() {
                   <Button 
                     size="sm" 
                     variant="outline"
-                    onClick={() => handleQuickIssue(myHalls?.data?.halls?.[0]?.id || '', 'MEDIUM')}
+                    onClick={() => handleQuickIssue(myHalls?.data?.[0]?.id || '', 'MEDIUM')}
                     disabled={!quickIssueText.trim() || createIssue.isLoading}
                     className="flex-1"
                   >
@@ -652,7 +650,7 @@ export default function HallCoordinatorDashboardPage() {
                   <Button 
                     size="sm" 
                     variant="destructive"
-                    onClick={() => handleQuickIssue(myHalls?.data?.halls?.[0]?.id || '', 'HIGH')}
+                    onClick={() => handleQuickIssue(myHalls?.data?.[0]?.id || '', 'HIGH')}
                     disabled={!quickIssueText.trim() || createIssue.isLoading}
                     className="flex-1"
                   >
@@ -666,7 +664,7 @@ export default function HallCoordinatorDashboardPage() {
               <div className="pt-2 border-t">
                 <h6 className="text-sm font-medium mb-2">Recent Reports</h6>
                 <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {hallIssues?.data?.issues?.slice(0, 3).map((issue) => (
+                  {hallIssues?.data?.slice(0, 3).map((issue) => (
                     <div key={issue.id} className="flex items-center justify-between p-2 bg-gray-50 rounded text-xs">
                       <div>
                         <span className="font-medium">{issue.title}</span>
@@ -754,12 +752,21 @@ export default function HallCoordinatorDashboardPage() {
               <div className="pt-2 border-t space-y-2">
                 <div className="flex justify-between text-xs">
                   <span>Total Attendees Today:</span>
-                  <span className="font-medium">{sessionAttendance?.data?.totalAttendees || 0}</span>
+                  <span className="font-medium">{sessionAttendance?.data?.attendanceRecords?.length || 0}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span>Average Session Capacity:</span>
                   <span className="font-medium">
-                    {Math.round((sessionAttendance?.data?.averageCapacity || 0) * 100)}%
+                    {(() => {
+                      // Calculate average capacity utilization for today's sessions
+                      if (!myTodaysSessions.length) return '0%';
+                      // Sum expected attendees for all sessions
+                      const totalExpected = myTodaysSessions.reduce((acc, s) => acc + (s.expectedAttendees || 0), 0);
+                      // Sum actual check-ins for all sessions
+                      const totalCheckedIn = myTodaysSessions.reduce((acc, s) => acc + (attendanceCount?.[s.id] || 0), 0);
+                      if (!totalExpected) return '0%';
+                      return `${Math.round((totalCheckedIn / totalExpected) * 100)}%`;
+                    })()}
                   </span>
                 </div>
                 <div className="flex justify-between text-xs">

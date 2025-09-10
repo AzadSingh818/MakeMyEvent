@@ -739,9 +739,7 @@ export function NavigationSidebar({
         />
         <TravelInfoModal
           open={isTravelDetailsModalOpen}
-          onClose={() => setIsTravelDetailsModalOpen(false)}
-          facultyId={facultyId}
-        />
+          onClose={() => setIsTravelDetailsModalOpen(false)} mode={"self-arranged"}        />
         <AccommodationInfoModal
           open={isAccommodationModalOpen}
           onClose={() => setIsAccommodationModalOpen(false)}

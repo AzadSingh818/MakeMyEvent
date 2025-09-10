@@ -5,6 +5,8 @@ import { toast } from 'react-hot-toast';
 
 // Types
 interface Hall {
+  equipment: any;
+  equipment: any;
   id: string;
   name: string;
   location: string;
@@ -231,7 +233,7 @@ const hallsApi = {
 // React Query Hooks
 
 // Get coordinator's halls
-export function useMyHalls() {
+export function useMyHalls(id: string | undefined) {
   const { data: session } = useSession();
   
   return useQuery({
