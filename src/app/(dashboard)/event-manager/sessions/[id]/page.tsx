@@ -88,7 +88,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator
-} from '../../../../../components/ui/breadcrumb';
+} from 'components/ui/breadcrumb';
 import { cn } from '@/lib/utils';
 import { useSessions } from '@/hooks/use-sessions';
 import { SessionForm } from '@/components/sessions/session-form';
