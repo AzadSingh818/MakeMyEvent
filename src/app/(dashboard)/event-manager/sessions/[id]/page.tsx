@@ -88,7 +88,7 @@ import {
   BreadcrumbSeparator
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
-import { useSession } from '@/hooks/use-sessions';
+import { useSessions } from '@/hooks/use-sessions';
 import { SessionForm } from '@/components/sessions/session-form';
 
 // Types
