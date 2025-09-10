@@ -245,7 +245,11 @@ export default function FacultyManagementPage() {
     const rowKeys = Object.keys(row);
     for (const key of rowKeys) {
       const lowerKey = key.toLowerCase();
-      if (lowerKey.includes("name") && row[key] && String(row[key]).trim() !== "") {
+      if (
+        lowerKey.includes("name") &&
+        row[key] &&
+        String(row[key]).trim() !== ""
+      ) {
         return String(row[key]).trim();
       }
     }
@@ -266,7 +270,9 @@ export default function FacultyManagementPage() {
     }
 
     throw new Error(
-      `Missing name at row ${index + 2}. Please ensure your Excel file has a column with names.`
+      `Missing name at row ${
+        index + 2
+      }. Please ensure your Excel file has a column with names.`
     );
   };
 
@@ -342,7 +348,9 @@ export default function FacultyManagementPage() {
     }
 
     throw new Error(
-      `Missing or invalid email at row ${index + 2}. Please ensure your Excel file has a column with valid email addresses.`
+      `Missing or invalid email at row ${
+        index + 2
+      }. Please ensure your Excel file has a column with valid email addresses.`
     );
   };
 
@@ -388,7 +396,13 @@ export default function FacultyManagementPage() {
           }
 
           const firstSheetName = sheetNames[0];
+          if (!firstSheetName) {
+            throw new Error("No worksheets found in the uploaded file");
+          }
           const worksheet = workbook.Sheets[firstSheetName];
+          if (!worksheet) {
+            throw new Error("Worksheet not found in the uploaded file");
+          }
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
           if (!Array.isArray(jsonData) || jsonData.length === 0) {
@@ -510,7 +524,9 @@ export default function FacultyManagementPage() {
       let addedCount = uniqueMembers.length;
 
       if (existingEventData) {
-        const existingEmails = existingEventData.facultyList.map((f) => f.email);
+        const existingEmails = existingEventData.facultyList.map(
+          (f) => f.email
+        );
         const newMembers = uniqueMembers.filter(
           (member) => !existingEmails.includes(member.email)
         );
@@ -554,14 +570,18 @@ export default function FacultyManagementPage() {
 
       const skippedCount = uniqueMembers.length - addedCount;
       setSuccessMessage(
-        `Successfully uploaded ${addedCount} faculty members for "${selectedEvent.name}"!${
+        `Successfully uploaded ${addedCount} faculty members for "${
+          selectedEvent.name
+        }"!${
           skippedCount > 0 ? ` ${skippedCount} duplicates were skipped.` : ""
         } Total: ${finalFacultyList.length} faculty members.`
       );
     } catch (error) {
       console.error("Upload error:", error);
       setErrorMessage(
-        `Upload failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Upload failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     } finally {
       setUploading(false);
@@ -781,7 +801,8 @@ export default function FacultyManagementPage() {
 
                     {selectedEventId && (
                       <p className="text-xs text-blue-600 mt-1">
-                        Selected: {events.find((e) => e.id === selectedEventId)?.name}
+                        Selected:{" "}
+                        {events.find((e) => e.id === selectedEventId)?.name}
                       </p>
                     )}
                   </div>
@@ -1081,41 +1102,49 @@ export default function FacultyManagementPage() {
                                   Faculty Preview:
                                 </h5>
                                 <div className="space-y-2">
-                                  {eventData.facultyList.slice(0, 3).map((faculty, index) => (
-                                    <div
-                                      key={faculty.id}
-                                      className="flex justify-between items-center py-1"
-                                    >
-                                      <div className="flex items-center">
-                                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                                          <span className="text-xs text-blue-600 font-medium">
-                                            {index + 1}
+                                  {eventData.facultyList
+                                    .slice(0, 3)
+                                    .map((faculty, index) => (
+                                      <div
+                                        key={faculty.id}
+                                        className="flex justify-between items-center py-1"
+                                      >
+                                        <div className="flex items-center">
+                                          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
+                                            <span className="text-xs text-blue-600 font-medium">
+                                              {index + 1}
+                                            </span>
+                                          </div>
+                                          <span className="font-medium text-sm">
+                                            {faculty.name}
                                           </span>
                                         </div>
-                                        <span className="font-medium text-sm">
-                                          {faculty.name}
-                                        </span>
+                                        <div className="flex items-center space-x-2">
+                                          <span className="text-gray-500 text-xs">
+                                            {faculty.email}
+                                          </span>
+                                          {faculty.department && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-xs"
+                                            >
+                                              {faculty.department}
+                                            </Badge>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div className="flex items-center space-x-2">
-                                        <span className="text-gray-500 text-xs">
-                                          {faculty.email}
-                                        </span>
-                                        {faculty.department && (
-                                          <Badge variant="outline" className="text-xs">
-                                            {faculty.department}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
+                                    ))}
                                   {eventData.facultyList.length > 3 && (
                                     <div className="text-xs text-gray-500 text-center pt-2 border-t border-gray-200 font-medium">
-                                      ... and {eventData.facultyList.length - 3} more faculty members
+                                      ... and {eventData.facultyList.length - 3}{" "}
+                                      more faculty members
                                       <Button
                                         variant="link"
                                         size="sm"
                                         onClick={() =>
-                                          toggleEventExpansion(eventData.eventId)
+                                          toggleEventExpansion(
+                                            eventData.eventId
+                                          )
                                         }
                                         className="ml-2 h-auto p-0 text-blue-600"
                                       >
@@ -1143,19 +1172,25 @@ export default function FacultyManagementPage() {
                         <div className="flex flex-col items-center space-y-3 text-sm text-gray-400">
                           <div className="flex items-center">
                             <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                              <span className="text-xs text-blue-600 font-bold">1</span>
+                              <span className="text-xs text-blue-600 font-bold">
+                                1
+                              </span>
                             </div>
                             Select an event from your list
                           </div>
                           <div className="flex items-center">
                             <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                              <span className="text-xs text-blue-600 font-bold">2</span>
+                              <span className="text-xs text-blue-600 font-bold">
+                                2
+                              </span>
                             </div>
                             Upload Excel file with faculty details
                           </div>
                           <div className="flex items-center">
                             <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-2">
-                              <span className="text-xs text-blue-600 font-bold">3</span>
+                              <span className="text-xs text-blue-600 font-bold">
+                                3
+                              </span>
                             </div>
                             Faculty data will be available across the system
                           </div>
@@ -1182,7 +1217,9 @@ export default function FacultyManagementPage() {
                               0
                             )}
                           </div>
-                          <div className="text-sm text-gray-600">Total Faculty</div>
+                          <div className="text-sm text-gray-600">
+                            Total Faculty
+                          </div>
                         </div>
                         <div className="text-center p-3 bg-white rounded-lg border">
                           <div className="text-2xl font-bold text-purple-600">
@@ -1201,7 +1238,9 @@ export default function FacultyManagementPage() {
                               ) / eventFacultyData.length || 0
                             )}
                           </div>
-                          <div className="text-sm text-gray-600">Avg per Event</div>
+                          <div className="text-sm text-gray-600">
+                            Avg per Event
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -1215,4 +1254,3 @@ export default function FacultyManagementPage() {
     </EventManagerLayout>
   );
 }
-
