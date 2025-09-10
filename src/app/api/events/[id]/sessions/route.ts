@@ -48,7 +48,7 @@ export async function GET(
     // FIXED: Allow EVENT_MANAGER and ORGANIZER roles to access all sessions
     const hasAccess = 
       event.created_by === session.user.id ||
-      ['EVENT_MANAGER', 'ORGANIZER'].includes(session.user.role) ||
+      ['EVENT_MANAGER', 'ORGANIZER'].includes(session.user.role || '') ||
       accessCheck.rows[0].event_role;
 
     if (!hasAccess) {
@@ -258,7 +258,7 @@ export async function POST(
     const event = accessCheck.rows[0];
     const canCreate = 
       event.created_by === session.user.id ||
-      ['EVENT_MANAGER', 'ORGANIZER'].includes(session.user.role) ||
+      ['EVENT_MANAGER', 'ORGANIZER'].includes(session.user.role || '') ||
       (accessCheck.rows[0].permissions && 
        (accessCheck.rows[0].permissions.includes('WRITE') || 
         accessCheck.rows[0].permissions.includes('FULL_ACCESS')));

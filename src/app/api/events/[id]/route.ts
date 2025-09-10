@@ -97,7 +97,7 @@ export async function GET(
     const hasPermission = 
       permissionCheck.rows.length > 0 || 
       isEventCreator ||
-      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role);
+      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '');
     
     console.log('🔐 Permission check result:', {
       hasUserEventPermission: permissionCheck.rows.length > 0,
@@ -368,7 +368,7 @@ export async function PUT(
       (permissionCheck.rows.length > 0 && 
        (userPermissions.includes('WRITE') || userPermissions.includes('FULL_ACCESS'))) ||
       isEventCreator ||
-      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role);
+      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '');
 
     if (!hasWriteAccess) {
       return NextResponse.json(
@@ -525,7 +525,7 @@ export async function DELETE(
     const event = eventCheck.rows[0];
     const canDelete = 
       event.created_by === session.user.id ||
-      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role);
+      ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '');
 
     if (!canDelete) {
       return NextResponse.json(

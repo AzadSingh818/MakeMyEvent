@@ -464,7 +464,7 @@ export function useRegistrationStats(eventId?: string) {
   return useQuery({
     queryKey: ['registration-stats', eventId],
     queryFn: () => registrationsApi.getRegistrationStats(eventId),
-    enabled: !!session?.user && ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role),
+    enabled: !!session?.user && ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || ''),
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
   });

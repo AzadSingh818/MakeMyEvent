@@ -304,7 +304,13 @@ export default function FacultyManagementPage() {
           }
 
           const firstSheetName = sheetNames[0];
+          if (!firstSheetName) {
+            throw new Error("Excel file has no valid worksheet name.");
+          }
           const worksheet = workbook.Sheets[firstSheetName];
+          if (!worksheet) {
+            throw new Error("Worksheet not found in the Excel file.");
+          }
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
           if (!Array.isArray(jsonData) || jsonData.length === 0) {

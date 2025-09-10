@@ -258,7 +258,7 @@ export default function FacultyDashboardPage() {
       const uploadPromises = presentationFiles.map(async (file, index) => {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("facultyId", user.id);
+        formData.append("facultyId", user.id ?? "");
         formData.append("title", file.name.split(".")[0] || file.name);
         formData.append("sessionId", "");
 
