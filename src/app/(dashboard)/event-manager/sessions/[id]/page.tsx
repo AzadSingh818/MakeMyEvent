@@ -223,9 +223,9 @@ export default function SessionDetailsPage() {
   const [activeTab, setActiveTab] = useState('overview');
 
   // Hooks
-  const { data: sessionData, isLoading, error, refetch } = useSession(sessionId);
+  const { data: sessionData, isLoading, error, refetch } = useSessionData(sessionId);
   
-  const session = sessionData?.data as SessionDetails;
+  const session = sessionData?.data as unknown as SessionDetails;
 
   // Get session status
   const getSessionStatus = () => {
