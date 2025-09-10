@@ -490,3 +490,8 @@ export function createApiHandler(config: MiddlewareConfig = {}) {
     };
   };
 }
+// Add these exports to src/lib/api/middleware.ts:
+export const withRateLimit = createRateLimit;
+export const withAuth = requireAuth;
+export const ApiError = errorResponse;
+export const validateBody = validateSchema;

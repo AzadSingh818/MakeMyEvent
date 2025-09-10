@@ -118,7 +118,7 @@ export default function DelegateDashboardPage() {
   const attendanceRate = myAttendance?.data?.attendanceRate || 0;
   const attendedSessions = myAttendance?.data?.attendedSessions || 0;
   const totalSessions = myAttendance?.data?.totalSessions || 0;
-  const unreadNotifications = notifications?.data?.notifications?.filter(n => !n.readAt).length || 0;
+  const unreadNotifications = notifications?.data?.notifications?.filter((n: { readAt: any; }) => !n.readAt).length || 0;
 
   // Available events to register for
   const availableEvents = events?.data?.events?.filter(event => 
@@ -374,7 +374,7 @@ export default function DelegateDashboardPage() {
                         <Button 
                           size="sm" 
                           onClick={() => handleRegisterForEvent(event.id)}
-                          disabled={createRegistration.isLoading}
+                          disabled={createRegistration.status === 'pending'}
                         >
                           <Plus className="h-3 w-3 mr-1" />
                           Register
@@ -509,7 +509,7 @@ export default function DelegateDashboardPage() {
                         <MapPin className="h-3 w-3 ml-2 mr-1" />
                         {session.hall?.name || 'Venue TBA'}
                       </div>
-                      {session.speakers?.length > 0 && (
+                      {session.speakers?.length && session.speakers.length > 0 && (
                         <div className="flex items-center text-xs text-muted-foreground mt-1">
                           <Users className="h-3 w-3 mr-1" />
                           {session.speakers.slice(0, 2).map(speaker => speaker.user.name).join(', ')}

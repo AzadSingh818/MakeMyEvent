@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 
 // Types
 interface Registration {
+  certificateIssued: unknown;
   id: string;
   userId: string;
   eventId: string;
@@ -65,6 +66,7 @@ interface Registration {
 
 interface CreateRegistrationData {
   eventId: string;
+  userId?: string;
   registrationData: {
     participantType?: 'DELEGATE' | 'SPEAKER' | 'SPONSOR' | 'VOLUNTEER';
     institution?: string;
