@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 
 // Types
 interface Event {
+  creator: any;
   id: string;
   name: string;
   description?: string;

@@ -92,18 +92,17 @@ export default function EventDetailsPage() {
   const { data: facultyData, isLoading: facultyLoading } = useEventFaculty(eventId);
 
   // ✅ FIXED: Correct data extraction from API response
-  const event = eventResponse?.data?.event;  // ← Fixed: event is nested in data.event
-  const sessions = eventResponse?.data?.sessions || sessionsData?.data?.sessions || [];
-  const registrations = eventResponse?.data?.registrations || registrationsData?.data?.registrations || [];
-  const faculty = eventResponse?.data?.faculty || facultyData?.data?.faculty || [];
-  const stats = eventResponse?.data?.stats || {};
+  const event = eventResponse?.data; // ← Fixed: event is nested in data.event
+  const sessions = sessionsData?.data?.sessions || [];
+const registrations = registrationsData?.data?.registrations || [];
+const faculty = facultyData?.data?.faculty || [];
 
   // ✅ FIXED: Use stats from API or calculate fallback
-  const totalSessions = stats.totalSessions || sessions.length;
-  const totalRegistrations = stats.totalRegistrations || registrations.length;
+  const totalSessions = sessionsData?.data?.stats?.totalSessions || sessions.length;
+  const totalRegistrations = registrationsData?.data?.stats?.totalRegistrations || registrations.length;
   const approvedRegistrations = registrations.filter((r: any) => r.status === 'APPROVED').length;
   const pendingRegistrations = registrations.filter((r: any) => r.status === 'PENDING').length;
-  const totalFaculty = stats.totalFaculty || faculty.length;
+  const totalFaculty = facultyData?.data?.stats?.totalFaculty || faculty.length;
   const confirmedFaculty = faculty.filter((f: any) => f.status === 'CONFIRMED').length;
 
   // ✅ FIXED: Safe event status calculations
@@ -258,12 +257,18 @@ export default function EventDetailsPage() {
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                       {/* ✅ FIXED: Now using real data from API */}
-                      <span>{formatSafeDateRange(event.startDate, event.endDate)}</span>
+                      <span>{formatSafeDateRange(
+                        typeof event.startDate === 'string' ? event.startDate : event.startDate?.toISOString(),
+                        typeof event.endDate === 'string' ? event.endDate : event.endDate?.toISOString()
+                      )}</span>
                     </div>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
                       {/* ✅ FIXED: Now using real data from API */}
-                      <span>{formatSafeTimeRange(event.startDate, event.endDate)}</span>
+                      <span>{formatSafeTimeRange(
+                        typeof event.startDate === 'string' ? event.startDate : event.startDate?.toISOString(),
+                        typeof event.endDate === 'string' ? event.endDate : event.endDate?.toISOString()
+                      )}</span>
                     </div>
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
