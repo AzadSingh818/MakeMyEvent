@@ -1,3 +1,54 @@
+/**
+ * DYNAMIC: Delete a session with event integration logic
+ */
+export async function deleteSessionWithEvent(
+  sessionId: string,
+  userId?: string,
+  userRole?: string
+): Promise<boolean> {
+  try {
+    console.log(`🗑️ Deleting session with event integration: ${sessionId}, by user: ${userId}, role: ${userRole}`);
+    await query("BEGIN");
+    try {
+      // Delete session metadata first (if exists)
+      await query(
+        `DELETE FROM session_metadata WHERE session_id = $1`,
+        [sessionId]
+      );
+
+      // Delete the session itself
+      const result = await query(
+        `DELETE FROM conference_sessions WHERE id = $1 RETURNING id`,
+        [sessionId]
+      );
+
+      // Optionally, log the deletion (for audit)
+      if (userId) {
+        await query(
+          `INSERT INTO faculty_invitation_logs (
+            faculty_id, session_id, action, status, metadata, created_at
+          ) VALUES ($1, $2, $3, $4, $5, NOW())`,
+          [
+            userId,
+            sessionId,
+            "SESSION_DELETED",
+            "Deleted",
+            JSON.stringify({ userRole }),
+          ]
+        );
+      }
+
+      await query("COMMIT");
+      return (typeof result.rowCount === "number" ? result.rowCount : 0) > 0;
+    } catch (error) {
+      await query("ROLLBACK");
+      throw error;
+    }
+  } catch (error) {
+    console.error("❌ Error deleting session with event integration:", error);
+    return false;
+  }
+}
 // src/lib/database/event-session-integration.ts - ENHANCED for Dynamic Faculty Invitations
 import { query } from "@/lib/database/connection";
 
