@@ -181,23 +181,23 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Reports",
-          href: "",
-          icon: BarChart3,
-          children: [
-            {
-              label: "Analytics",
-              href: "/organizer/reports/analytics",
-              icon: BarChart3,
-            },
-            {
-              label: "Export Data",
-              href: "/organizer/reports/export",
-              icon: Download,
-            },
-          ],
-        },
+        // {
+        //   label: "Reports",
+        //   href: "",
+        //   icon: BarChart3,
+        //   children: [
+        //     {
+        //       label: "Analytics",
+        //       href: "/organizer/reports/analytics",
+        //       icon: BarChart3,
+        //     },
+        //     {
+        //       label: "Export Data",
+        //       href: "/organizer/reports/export",
+        //       icon: Download,
+        //     },
+        //   ],
+        // },
       ],
       EVENT_MANAGER: [
         {
@@ -310,28 +310,28 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Reports",
-          href: "",
-          icon: BarChart3,
-          children: [
-            {
-              label: "Event Reports",
-              href: "/event-manager/reports",
-              icon: BarChart3,
-            },
-            {
-              label: "Analytics",
-              href: "/event-manager/reports/analytics",
-              icon: BarChart3,
-            },
-            {
-              label: "Export Data",
-              href: "/event-manager/reports/export",
-              icon: Download,
-            },
-          ],
-        },
+        // {
+        //   label: "Reports",
+        //   href: "",
+        //   icon: BarChart3,
+        //   children: [
+        //     {
+        //       label: "Event Reports",
+        //       href: "/event-manager/reports",
+        //       icon: BarChart3,
+        //     },
+        //     {
+        //       label: "Analytics",
+        //       href: "/event-manager/reports/analytics",
+        //       icon: BarChart3,
+        //     },
+        //     {
+        //       label: "Export Data",
+        //       href: "/event-manager/reports/export",
+        //       icon: Download,
+        //     },
+        //   ],
+        // },
       ],
       FACULTY: [
         {
@@ -356,7 +356,7 @@ const getNavigationItems = (
             {
               label: "Upload Documents",
               icon: Upload,
-              action: "uploadDocumentsModal",
+              action: "openUploadDocumentsModal", // FIXED: Changed from "uploadDocumentsModal"
             },
             {
               label: "View/Edit Documents",
@@ -472,28 +472,34 @@ export function NavigationSidebar({
       setIsDocsModalOpen(true);
       return;
     }
-    if (item.action === "uploadDocumentsModal") {
+    // FIXED: Updated action name to match
+    if (item.action === "openUploadDocumentsModal") {
       e.preventDefault();
+      console.log("Opening upload documents modal"); // Debug log
       setIsUploadDocumentsModalOpen(true);
       return;
     }
     if (item.action === "openFeedbackModal") {
       e.preventDefault();
+      console.log("Opening feedback modal"); // Debug log
       setIsFeedbackModalOpen(true);
       return;
     }
     if (item.action === "openSupportModal") {
       e.preventDefault();
+      console.log("Opening support modal"); // Debug log
       setIsSupportModalOpen(true);
       return;
     }
     if (item.action === "openTravelDetailsModal") {
       e.preventDefault();
+      console.log("Opening travel details modal"); // Debug log
       setIsTravelDetailsModalOpen(true);
       return;
     }
     if (item.action === "openAccommodationModal") {
       e.preventDefault();
+      console.log("Opening accommodation modal"); // Debug log
       setIsAccommodationModalOpen(true);
       return;
     }
@@ -562,6 +568,37 @@ export function NavigationSidebar({
       return;
     }
 
+    // FIXED: Updated action name to match
+    if (child.action === "openUploadDocumentsModal") {
+      console.log("Opening upload documents modal from child"); // Debug log
+      setIsUploadDocumentsModalOpen(true);
+      return;
+    }
+
+    if (child.action === "openFeedbackModal") {
+      console.log("Opening feedback modal from child"); // Debug log
+      setIsFeedbackModalOpen(true);
+      return;
+    }
+
+    if (child.action === "openSupportModal") {
+      console.log("Opening support modal from child"); // Debug log
+      setIsSupportModalOpen(true);
+      return;
+    }
+
+    if (child.action === "openTravelDetailsModal") {
+      console.log("Opening travel details modal from child"); // Debug log
+      setIsTravelDetailsModalOpen(true);
+      return;
+    }
+
+    if (child.action === "openAccommodationModal") {
+      console.log("Opening accommodation modal from child"); // Debug log
+      setIsAccommodationModalOpen(true);
+      return;
+    }
+
     if (child.action === "openAcceptedApprovalsModal") {
       console.log("Opening accepted modal from child"); // Debug log
       setIsAcceptedApprovalsModalOpen(true);
@@ -590,6 +627,12 @@ export function NavigationSidebar({
     pending: isPendingApprovalsModalOpen,
     accepted: isAcceptedApprovalsModalOpen,
     rejected: isRejectedApprovalsModalOpen,
+    docs: isDocsModalOpen,
+    upload: isUploadDocumentsModalOpen,
+    feedback: isFeedbackModalOpen,
+    support: isSupportModalOpen,
+    travel: isTravelDetailsModalOpen,
+    accommodation: isAccommodationModalOpen,
     userRole: userRole,
   });
 
@@ -739,7 +782,9 @@ export function NavigationSidebar({
         />
         <TravelInfoModal
           open={isTravelDetailsModalOpen}
-          onClose={() => setIsTravelDetailsModalOpen(false)} mode={"self-arranged"}        />
+          onClose={() => setIsTravelDetailsModalOpen(false)} 
+          mode={"self-arranged"}        
+        />
         <AccommodationInfoModal
           open={isAccommodationModalOpen}
           onClose={() => setIsAccommodationModalOpen(false)}
