@@ -5,9 +5,15 @@ import { NavigationSidebar, MobileSidebar } from './sidebar'
 import { DashboardHeader, HeaderStats } from './header'
 import { cn } from '@/lib/utils'
 
+// Define the complete set of user roles
+type UserRole = 'ORGANIZER' | 'EVENT_MANAGER' | 'FACULTY' | 'DELEGATE' | 'HALL_COORDINATOR' | 'SPONSOR' | 'VOLUNTEER' | 'VENDOR'
+
+// Define which roles are currently supported by the sidebar
+type SupportedSidebarRole = 'ORGANIZER' | 'EVENT_MANAGER' | 'FACULTY'
+
 interface DashboardLayoutProps {
   children: React.ReactNode
-  userRole: 'ORGANIZER' | 'EVENT_MANAGER' | 'FACULTY' | 'DELEGATE' | 'HALL_COORDINATOR' | 'SPONSOR' | 'VOLUNTEER' | 'VENDOR'
+  userRole: UserRole
   userName?: string
   userEmail?: string
   userAvatar?: string
@@ -32,7 +38,27 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
-  // No default stats. Only dynamic stats passed in headerStats will be displayed.
+  // Map unsupported roles to supported ones for sidebar compatibility
+  const getSidebarRole = (role: UserRole): SupportedSidebarRole => {
+    const supportedRoles: SupportedSidebarRole[] = ['ORGANIZER', 'EVENT_MANAGER', 'FACULTY']
+    
+    if (supportedRoles.includes(role as SupportedSidebarRole)) {
+      return role as SupportedSidebarRole
+    }
+    
+    // Map unsupported roles to appropriate fallbacks
+    const roleMapping: Record<string, SupportedSidebarRole> = {
+      'DELEGATE': 'FACULTY',
+      'HALL_COORDINATOR': 'EVENT_MANAGER',
+      'SPONSOR': 'ORGANIZER',
+      'VOLUNTEER': 'FACULTY',
+      'VENDOR': 'ORGANIZER'
+    }
+    
+    return roleMapping[role] || 'FACULTY'
+  }
+
+  const sidebarRole = getSidebarRole(userRole)
   const statsToShow = headerStats
 
   return (
@@ -40,7 +66,7 @@ export function DashboardLayout({
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <NavigationSidebar
-          userRole={userRole}
+          userRole={sidebarRole}
           userName={userName}
           userEmail={userEmail}
           userAvatar={userAvatar}
@@ -50,11 +76,11 @@ export function DashboardLayout({
       {/* Mobile Sidebar */}
       <MobileSidebar
         isOpen={isMobileSidebarOpen}
-        onClose={() => setIsMobileSidebarOpen(false)}
-        userRole={userRole}
+        userRole={sidebarRole}
         userName={userName}
         userEmail={userEmail}
         userAvatar={userAvatar}
+        closeSidebar={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -63,7 +89,7 @@ export function DashboardLayout({
         {/* Header */}
         <DashboardHeader
           userName={userName}
-          userRole={userRole}
+          userRole={userRole} // Pass original role to header
           onMobileMenuClick={() => setIsMobileSidebarOpen(true)}
         />
 
@@ -91,6 +117,7 @@ export function OrganizerLayout({ children, ...props }: Omit<DashboardLayoutProp
     </DashboardLayout>
   );
 }
+
 export function FacultyLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="FACULTY" showHeaderStats={true} {...props}>
@@ -98,6 +125,7 @@ export function FacultyLayout({ children, ...props }: Omit<DashboardLayoutProps,
     </DashboardLayout>
   );
 }
+
 export function HallCoordinatorLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="HALL_COORDINATOR" showHeaderStats={true} {...props}>
@@ -105,6 +133,7 @@ export function HallCoordinatorLayout({ children, ...props }: Omit<DashboardLayo
     </DashboardLayout>
   );
 }
+
 export function EventManagerLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="EVENT_MANAGER" showHeaderStats={true} {...props}>
@@ -112,6 +141,7 @@ export function EventManagerLayout({ children, ...props }: Omit<DashboardLayoutP
     </DashboardLayout>
   );
 }
+
 export function DelegateLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="DELEGATE" showHeaderStats={true} {...props}>
@@ -119,6 +149,7 @@ export function DelegateLayout({ children, ...props }: Omit<DashboardLayoutProps
     </DashboardLayout>
   );
 }
+
 export function SponsorLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="SPONSOR" showHeaderStats={true} {...props}>
@@ -126,6 +157,7 @@ export function SponsorLayout({ children, ...props }: Omit<DashboardLayoutProps,
     </DashboardLayout>
   );
 }
+
 export function VolunteerLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="VOLUNTEER" showHeaderStats={true} {...props}>
@@ -133,6 +165,7 @@ export function VolunteerLayout({ children, ...props }: Omit<DashboardLayoutProp
     </DashboardLayout>
   );
 }
+
 export function VendorLayout({ children, ...props }: Omit<DashboardLayoutProps, 'userRole'>) {
   return (
     <DashboardLayout userRole="VENDOR" showHeaderStats={true} {...props}>
@@ -149,6 +182,7 @@ interface DashboardPageProps {
   actions?: React.ReactNode
   className?: string
 }
+
 export function DashboardPage({ 
   children, 
   title, 
@@ -217,4 +251,13 @@ export function DashboardSection({
       {children}
     </div>
   )
+}
+
+export interface MobileSidebarProps {
+  isOpen: boolean
+  userRole: SupportedSidebarRole
+  userName: string
+  userEmail: string
+  userAvatar?: string
+  closeSidebar: () => void
 }
