@@ -306,6 +306,10 @@ export async function POST(request: NextRequest) {
     console.log("📄 Validating files...");
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file) {
+        console.log(`❌ File at index ${i} is undefined, skipping...`);
+        continue;
+      }
       const fileValidation = validateFile(file);
       if (!fileValidation.valid) {
         console.log(`❌ File ${i + 1} validation failed:`, fileValidation.error);
@@ -333,6 +337,10 @@ export async function POST(request: NextRequest) {
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file) {
+        console.log(`❌ File at index ${i} is undefined, skipping...`);
+        continue;
+      }
       console.log(`📤 Processing file ${i + 1}/${files.length}: ${file.name}`);
       
       try {
