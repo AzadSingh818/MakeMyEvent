@@ -4,6 +4,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { query } from '@/lib/database/connection';
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+// आपका existing code...
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

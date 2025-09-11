@@ -1,7 +1,7 @@
 // src/app/(dashboard)/organizer/sessions/page.tsx - FIXED: Event loading from database
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OrganizerLayout } from "@/components/dashboard/layout";
 import { SessionForm } from "@/components/sessions/session-form";
@@ -996,4 +996,10 @@ const AllSessions: React.FC = () => {
   );
 };
 
-export default AllSessions;
+const SuspenseWrapper = () => (
+  <Suspense fallback={<div>Loading...</div>}>
+    <AllSessions />
+  </Suspense>
+);
+
+export default SuspenseWrapper;

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/database/connection";
 
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+
 export async function GET(req: NextRequest) {
   try {
     const eventId = req.nextUrl.searchParams.get("eventId") || undefined;

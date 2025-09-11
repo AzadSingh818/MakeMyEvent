@@ -5,6 +5,11 @@ import { authOptions } from '@/lib/auth/config';
 import { query } from '@/lib/database/connection';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+// आपका existing code...
+
 // FIXED: Make all fields optional and handle null properly
 const approvalQuerySchema = z.object({
   eventId: z.string().optional().nullable(),

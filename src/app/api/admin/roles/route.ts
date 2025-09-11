@@ -5,6 +5,10 @@ import { authOptions } from '@/lib/auth/config';
 import { query } from '@/lib/database/connection';
 import { z } from 'zod';
 
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
+
 const UpdateRoleSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
   role: z.enum(['ORGANIZER', 'EVENT_MANAGER', 'FACULTY', 'DELEGATE', 'HALL_COORDINATOR', 'SPONSOR', 'VOLUNTEER', 'VENDOR'])
