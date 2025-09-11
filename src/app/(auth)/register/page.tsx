@@ -596,7 +596,7 @@ export default function RegisterPage() {
                   )}
                 </div>
 
-                <div className="space-y-2">
+                {/* <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -614,7 +614,7 @@ export default function RegisterPage() {
                       message={errors.phone.message || ""}
                     />
                   )}
-                </div>
+                </div> */}
 
                 <div className="space-y-2">
                   <Label htmlFor="role">Role</Label>
@@ -840,7 +840,7 @@ export default function RegisterPage() {
                   </div>
 
                   {/* Phone OTP */}
-                  <div className="space-y-3">
+                  {/* <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">
                         Phone Verification Code
@@ -869,7 +869,7 @@ export default function RegisterPage() {
                       onChange={setPhoneOtp}
                       disabled={isLoading}
                     />
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="flex gap-3">
@@ -894,9 +894,9 @@ export default function RegisterPage() {
                     className="flex-1"
                     disabled={
                       !emailOtp ||
-                      !phoneOtp ||
-                      emailOtp.length !== 6 ||
-                      phoneOtp.length !== 6
+                      // !phoneOtp ||
+                      emailOtp.length !== 6
+                      // phoneOtp.length !== 6
                     }
                   >
                     Verify & Register
