@@ -32,7 +32,7 @@ import {
   Mail,
   Lock,
   User,
-  Phone,
+  // Phone,
   Calendar,
   ArrowLeft,
   Chrome,
@@ -62,12 +62,12 @@ enum RegistrationStep {
   SUCCESS = "success",
 }
 
-// Registration form validation schema
+// FIXED: Registration form validation schema without phone
 const registerSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Please enter a valid email address"),
-    phone: z.string().min(10, "Phone number must be at least 10 digits"),
+    // phone: z.string().min(10, "Phone number must be at least 10 digits"),
     role: z.nativeEnum(UserRole),
     institution: z.string().optional(),
     password: z.string().min(8, "Password must be at least 8 characters"),
@@ -187,16 +187,16 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // OTP related states
+  // OTP related states - FIXED: Only email OTP
   const [emailOtp, setEmailOtp] = useState("");
-  const [phoneOtp, setPhoneOtp] = useState("");
+  // const [phoneOtp, setPhoneOtp] = useState("");
   const [otpTimer, setOtpTimer] = useState(0);
   const [canResendEmail, setCanResendEmail] = useState(false);
-  const [canResendPhone, setCanResendPhone] = useState(false);
+  // const [canResendPhone, setCanResendPhone] = useState(false);
   const [registrationData, setRegistrationData] =
     useState<RegisterFormData | null>(null);
   const [isResendingEmail, setIsResendingEmail] = useState(false);
-  const [isResendingPhone, setIsResendingPhone] = useState(false);
+  // const [isResendingPhone, setIsResendingPhone] = useState(false);
 
   const router = useRouter();
 
@@ -227,26 +227,26 @@ export default function RegisterPage() {
       currentStep === RegistrationStep.OTP_VERIFICATION
     ) {
       setCanResendEmail(true);
-      setCanResendPhone(true);
+      // setCanResendPhone(true);
     }
     return () => clearTimeout(timer);
   }, [otpTimer, currentStep]);
 
-  // Handle initial form submission (step 1)
+  // FIXED: Handle initial form submission (step 1) - Email only
   const onSubmitDetails = async (data: RegisterFormData) => {
     setIsLoading(true);
     setError("");
 
     try {
-      console.log("🔄 Sending OTPs to:", {
+      console.log("🔄 Sending OTP to:", {
         email: data.email,
-        phone: data.phone,
+        // phone: data.phone,
       });
 
       // Store registration data for later use
       setRegistrationData(data);
 
-      // Send OTPs to email and phone
+      // FIXED: Send OTP to email only
       const otpResponse = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: {
@@ -254,7 +254,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           email: data.email.toLowerCase(),
-          phone: data.phone,
+          // phone: data.phone,
           action: "register",
         }),
       });
@@ -265,29 +265,29 @@ export default function RegisterPage() {
         throw new Error(otpResult.message || "Failed to send OTP");
       }
 
-      console.log("✅ OTPs sent successfully");
+      console.log("✅ OTP sent successfully");
       setCurrentStep(RegistrationStep.OTP_VERIFICATION);
 
       // Start timer for OTP expiry (5 minutes)
       setOtpTimer(300);
       setCanResendEmail(false);
-      setCanResendPhone(false);
+      // setCanResendPhone(false);
     } catch (err: any) {
       console.error("❌ OTP sending error:", err);
-      setError(err.message || "Failed to send verification codes");
+      setError(err.message || "Failed to send verification code");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle OTP verification (step 2)
+  // FIXED: Handle OTP verification (step 2) - Email only
   const onSubmitOtp = async () => {
-    if (!emailOtp || !phoneOtp) {
-      setError("Please enter both email and phone OTP");
+    if (!emailOtp) {
+      setError("Please enter email OTP");
       return;
     }
 
-    if (emailOtp.length !== 6 || phoneOtp.length !== 6) {
+    if (emailOtp.length !== 6) {
       setError("OTP must be 6 digits");
       return;
     }
@@ -301,9 +301,9 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      console.log("🔄 Verifying OTPs...");
+      console.log("🔄 Verifying OTP...");
 
-      // First verify OTPs
+      // FIXED: First verify email OTP only
       const verifyResponse = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: {
@@ -311,9 +311,9 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           email: registrationData.email.toLowerCase(),
-          phone: registrationData.phone,
+          // phone: registrationData.phone,
           emailOtp,
-          phoneOtp,
+          // phoneOtp,
         }),
       });
 
@@ -323,9 +323,9 @@ export default function RegisterPage() {
         throw new Error(verifyResult.message || "OTP verification failed");
       }
 
-      console.log("✅ OTPs verified successfully");
+      console.log("✅ OTP verified successfully");
 
-      // If OTP verification successful, proceed with registration
+      // FIXED: If OTP verification successful, proceed with registration
       const registerResponse = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
@@ -334,12 +334,12 @@ export default function RegisterPage() {
         body: JSON.stringify({
           name: registrationData.name,
           email: registrationData.email.toLowerCase(),
-          phone: registrationData.phone,
+          // phone: registrationData.phone,
           role: registrationData.role,
           institution: registrationData.institution,
           password: registrationData.password,
           emailVerified: true,
-          phoneVerified: true,
+          // phoneVerified: true,
         }),
       });
 
@@ -389,15 +389,11 @@ export default function RegisterPage() {
     }
   };
 
-  // Resend OTP function
-  const resendOtp = async (type: "email" | "phone") => {
+  // FIXED: Resend OTP function - Email only
+  const resendOtp = async (type: "email") => {
     if (!registrationData) return;
 
-    if (type === "email") {
-      setIsResendingEmail(true);
-    } else {
-      setIsResendingPhone(true);
-    }
+    setIsResendingEmail(true);
 
     try {
       const response = await fetch("/api/auth/send-otp", {
@@ -406,35 +402,26 @@ export default function RegisterPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email:
-            type === "email" ? registrationData.email.toLowerCase() : undefined,
-          phone: type === "phone" ? registrationData.phone : undefined,
+          email: registrationData.email.toLowerCase(),
+          // phone: type === "phone" ? registrationData.phone : undefined,
           action: "resend",
           type: type,
         }),
       });
 
       if (response.ok) {
-        // Reset timer and disable resend buttons
+        // Reset timer and disable resend button
         setOtpTimer(300);
         setCanResendEmail(false);
-        setCanResendPhone(false);
+        // setCanResendPhone(false);
 
-        // Clear the respective OTP input
-        if (type === "email") {
-          setEmailOtp("");
-        } else {
-          setPhoneOtp("");
-        }
+        // Clear the email OTP input
+        setEmailOtp("");
       }
     } catch (err) {
       console.error(`Failed to resend ${type} OTP:`, err);
     } finally {
-      if (type === "email") {
-        setIsResendingEmail(false);
-      } else {
-        setIsResendingPhone(false);
-      }
+      setIsResendingEmail(false);
     }
   };
 
@@ -523,7 +510,7 @@ export default function RegisterPage() {
             <CardDescription>
               {currentStep === RegistrationStep.DETAILS
                 ? "Join the Conference Management platform"
-                : "Enter the verification codes sent to your email and phone"}
+                : "Enter the verification code sent to your email"}
             </CardDescription>
 
             {/* Progress indicator */}
@@ -596,6 +583,7 @@ export default function RegisterPage() {
                   )}
                 </div>
 
+                {/* Phone number field - COMMENTED OUT */}
                 {/* <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
@@ -778,30 +766,31 @@ export default function RegisterPage() {
                   loading={isLoading}
                   className="w-full"
                 >
-                  Send Verification Codes
+                  Send Verification Code
                 </LoadingButton>
               </form>
             )}
 
-            {/* Step 2: OTP Verification */}
+            {/* Step 2: OTP Verification - FIXED: Email only */}
             {currentStep === RegistrationStep.OTP_VERIFICATION && (
               <div className="space-y-6">
                 <div className="text-center space-y-2">
                   <p className="text-sm text-gray-600">
-                    We've sent 6-digit verification codes to:
+                    We've sent a 6-digit verification code to:
                   </p>
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-blue-600">
                       📧 {registrationData?.email}
                     </p>
-                    <p className="text-xs font-medium text-green-600">
+                    {/* Phone display - COMMENTED OUT */}
+                    {/* <p className="text-xs font-medium text-green-600">
                       📱 {registrationData?.phone}
-                    </p>
+                    </p> */}
                   </div>
                   {otpTimer > 0 && (
                     <div className="flex items-center justify-center gap-1 text-xs text-orange-600 bg-orange-50 px-3 py-1 rounded-full mt-3">
                       <Clock className="w-3 h-3" />
-                      Codes expire in: {formatTimer(otpTimer)}
+                      Code expires in: {formatTimer(otpTimer)}
                     </div>
                   )}
                 </div>
@@ -839,7 +828,7 @@ export default function RegisterPage() {
                     />
                   </div>
 
-                  {/* Phone OTP */}
+                  {/* Phone OTP - COMMENTED OUT */}
                   {/* <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">
@@ -879,7 +868,7 @@ export default function RegisterPage() {
                     onClick={() => {
                       setCurrentStep(RegistrationStep.DETAILS);
                       setEmailOtp("");
-                      setPhoneOtp("");
+                      // setPhoneOtp("");
                       setOtpTimer(0);
                     }}
                     className="flex-1"
@@ -894,9 +883,7 @@ export default function RegisterPage() {
                     className="flex-1"
                     disabled={
                       !emailOtp ||
-                      // !phoneOtp ||
                       emailOtp.length !== 6
-                      // phoneOtp.length !== 6
                     }
                   >
                     Verify & Register
@@ -905,7 +892,7 @@ export default function RegisterPage() {
 
                 <div className="text-center">
                   <p className="text-xs text-gray-500">
-                    Didn't receive the codes? Check your spam folder or try
+                    Didn't receive the code? Check your spam folder or try
                     resending after the timer expires.
                   </p>
                 </div>
@@ -932,7 +919,7 @@ export default function RegisterPage() {
                   onClick={handleGoogleSignIn}
                   className="w-full"
                 >
-                  <Chrome className="w-4 h-4 mr-2" />
+                  <Chrome className="w-4 w-4 mr-2" />
                   Continue with Google
                 </LoadingButton>
 
