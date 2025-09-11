@@ -150,8 +150,11 @@ export async function getRooms(): Promise<Room[]> {
 /**
  * Get all sessions with enriched data - FIXED: Proper faculty name joining
  */
+// src/lib/database/session-queries.ts - FIXED: Event name fetching
 export async function getAllSessions(): Promise<DatabaseSession[]> {
   try {
+    console.log("🔍 Fetching all sessions with event names...");
+
     const result = await query(`
       SELECT 
         cs.id,
@@ -176,15 +179,34 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
         sm.accommodation as "accommodation",
         cs.created_at as "createdAt",
         cs.updated_at as "updatedAt",
-        h.name as "roomName",
-        e.name as "eventName"
+        -- Fix room name fetching (both rooms and halls tables)
+        COALESCE(r.name, h.name, 'Unknown Room') as "roomName",
+        -- Fix event name fetching with debugging
+        COALESCE(e.name, 'Event Not Found') as "eventName",
+        -- Add debug fields
+        cs.event_id as "debugEventId",
+        e.id as "debugJoinedEventId",
+        e.name as "debugEventName"
       FROM conference_sessions cs
       LEFT JOIN session_metadata sm ON cs.id = sm.session_id
       LEFT JOIN users u ON sm.faculty_id = u.id
+      LEFT JOIN rooms r ON cs.hall_id = r.id
       LEFT JOIN halls h ON cs.hall_id = h.id
       LEFT JOIN events e ON cs.event_id = e.id
       ORDER BY cs.start_time DESC
     `);
+
+    // Debug output for first row
+    if (result.rows.length > 0) {
+      console.log("🔍 Debug first session result:", {
+        eventId: result.rows[0].debugEventId,
+        joinedEventId: result.rows[0].debugJoinedEventId,
+        eventName: result.rows[0].debugEventName,
+        finalEventName: result.rows[0].eventName
+      });
+    }
+
+    console.log(`📊 Found ${result.rows.length} sessions`);
 
     return result.rows.map((row) => ({
       id: row.id,
@@ -205,19 +227,18 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
       suggestedTimeStart: row.suggestedTimeStart,
       suggestedTimeEnd: row.suggestedTimeEnd,
       optionalQuery: row.optionalQuery,
-      travel: row.travel,           // ✅ Add this
-      accommodation: row.accommodation, // ✅ Add this
+      travel: row.travel,
+      accommodation: row.accommodation,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       roomName: row.roomName,
-      eventName: row.eventName,
+      eventName: row.eventName, // This should now show proper event names
     }));
   } catch (error) {
     console.error("❌ Error fetching sessions:", error);
     return [];
   }
 }
-
 /**
  * Get session by ID
  */
