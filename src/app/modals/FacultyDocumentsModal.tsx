@@ -42,6 +42,7 @@ type CvRow = {
   fileSize: number;
   originalFilename: string;
   uploadedAt: string;
+  sessionMetadataId?: string;
 };
 
 type PresRow = {
@@ -49,7 +50,6 @@ type PresRow = {
   title: string;
   filePath: string;
   fileSize: number;
-  fileType: string;
   originalFilename: string;
   uploadedAt: string;
   session: { id: string; title?: string; startTime?: string } | null;
@@ -64,6 +64,23 @@ type Props = {
 export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Props) {
   const { data: session } = useSession();
   const email = session?.user?.email || "";
+
+  // Extract actual faculty ID from session (same logic as upload modal)
+  const [actualFacultyId, setActualFacultyId] = useState<string>("");
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    
+    const sessionId = session.user.id;
+    const parts = sessionId.split('-');
+    
+    if (parts.length >= 2 && parts[0] === 'faculty' && parts[1].startsWith('evt_')) {
+      const baseId = parts.slice(0, 2).join('-');
+      setActualFacultyId(baseId);
+    } else {
+      setActualFacultyId(sessionId);
+    }
+  }, [session?.user?.id]);
 
   // Sessions
   const [sessionsLoading, setSessionsLoading] = useState(false);
@@ -87,7 +104,7 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  // Load accepted sessions (by email) when modal opens
+  // Load accepted sessions when modal opens
   useEffect(() => {
     if (!isOpen || !email) return;
     const run = async () => {
@@ -115,22 +132,23 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
     run();
   }, [isOpen, email]);
 
-  // Load documents after a session is chosen
+  // Load documents for selected session
   const refreshDocs = async (sessionId: string) => {
-    if (!sessionId) return;
+    if (!sessionId || !actualFacultyId) return;
     try {
       setLoading(true);
       setLoadErr(null);
 
-      // CVs (global to faculty) + Presentations filtered by selected session
+      console.log("Fetching documents for:", { facultyId: actualFacultyId, sessionId });
+
+      // Fetch both CVs and presentations for the selected session
       const [cvRes, presRes] = await Promise.all([
-        fetch(`/api/faculty/cv?facultyId=${encodeURIComponent(facultyId)}`, { cache: "no-store" }),
-        fetch(
-          `/api/faculty/presentations/upload?facultyId=${encodeURIComponent(facultyId)}&sessionId=${encodeURIComponent(
-            sessionId
-          )}`,
-          { cache: "no-store" }
-        ),
+        fetch(`/api/faculty/cv?facultyId=${encodeURIComponent(actualFacultyId)}&sessionId=${encodeURIComponent(sessionId)}`, { 
+          cache: "no-store" 
+        }),
+        fetch(`/api/faculty/presentations/upload?facultyId=${encodeURIComponent(actualFacultyId)}&sessionId=${encodeURIComponent(sessionId)}`, { 
+          cache: "no-store" 
+        }),
       ]);
 
       if (!cvRes.ok) {
@@ -157,9 +175,9 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
   };
 
   useEffect(() => {
-    if (!isOpen) return;
-    if (selectedSessionId) refreshDocs(selectedSessionId);
-  }, [isOpen, selectedSessionId, facultyId]);
+    if (!isOpen || !selectedSessionId || !actualFacultyId) return;
+    refreshDocs(selectedSessionId);
+  }, [isOpen, selectedSessionId, actualFacultyId]);
 
   // Helpers
   const pickFile = async (accept: string): Promise<File | null> =>
@@ -176,7 +194,7 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
     const res = await fetch("/api/faculty/cv/delete", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, facultyId }),
+      body: JSON.stringify({ id, facultyId: actualFacultyId }),
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -188,7 +206,7 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
     const res = await fetch("/api/faculty/presentations/upload", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileId: id, facultyId }),
+      body: JSON.stringify({ fileId: id, facultyId: actualFacultyId }),
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -219,7 +237,7 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
   const replaceCv = async (id: string, file: File) => {
     const fd = new FormData();
     fd.append("id", id);
-    fd.append("facultyId", facultyId);
+    fd.append("facultyId", actualFacultyId);
     fd.append("file", file, file.name);
     const res = await fetch("/api/faculty/cv/replace", { method: "POST", body: fd });
     if (!res.ok) {
@@ -229,13 +247,12 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
   };
 
   const replacePres = async (row: PresRow, file: File) => {
-    // safe replace: delete old and re-upload new for the same session
+    // Replace presentation: delete old and upload new
     await deletePres(row.id);
     const fd = new FormData();
-    fd.append("file", file, file.name);
-    fd.append("title", row.title || "Presentation");
-    fd.append("facultyId", facultyId);
-    if (row.session?.id) fd.append("sessionId", row.session.id);
+    fd.append("files", file, file.name);
+    fd.append("facultyId", actualFacultyId);
+    if (selectedSessionId) fd.append("sessionId", selectedSessionId);
     const res = await fetch("/api/faculty/presentations/upload", { method: "POST", body: fd });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -287,13 +304,20 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
               View / Edit Documents
             </DialogTitle>
             <DialogDescription className="text-slate-400">
-              Select an accepted session to view, delete, or replace documents. 
+              Select an accepted session to view, delete, or replace documents for that specific session.
             </DialogDescription>
           </DialogHeader>
 
+          {/* Debug info - remove in production */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-slate-500 bg-slate-800 p-2 rounded">
+              Debug: Actual Faculty ID = {actualFacultyId} | Selected Session = {selectedSessionId}
+            </div>
+          )}
+
           {/* Session selector */}
           <div className="space-y-2">
-            <div className="text-sm font-medium">Select Accepted Session</div>
+            <div className="text-sm font-medium">Select Session</div>
             {sessionsLoading ? (
               <div className="text-sm text-slate-300">Loading sessions…</div>
             ) : sessionsErr ? (
@@ -318,22 +342,26 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
             )}
           </div>
 
-          {/* Gate documents on session selection */}
+          {/* Documents display */}
           {!selectedSessionId ? (
             <div className="mt-4 rounded border border-slate-800 bg-slate-800/40 p-3 text-xs text-slate-300">
-              Choose a session to load documents.
+              Choose a session to view documents for that session.
+            </div>
+          ) : !actualFacultyId ? (
+            <div className="mt-4 text-yellow-400 text-xs">
+              Getting faculty information...
             </div>
           ) : (
             <>
               {loading && <div className="mt-4 text-sm text-slate-300">Loading documents…</div>}
               {loadErr && <div className="mt-4 text-sm text-red-400">{loadErr}</div>}
 
-              {/* CVs */}
+              {/* CVs for selected session */}
               <div className="mt-4">
-                <div className="text-sm font-medium mb-1">Curriculum Vitae (CV)</div>
+                <div className="text-sm font-medium mb-1">CV for this session</div>
                 {cvs.length === 0 ? (
                   <div className="rounded border border-slate-800 bg-slate-800/40 p-3 text-xs text-slate-300">
-                    No CVs uploaded.
+                    No CV uploaded for this session.
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -385,7 +413,7 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
               <div className="mt-6">
                 <div className="flex items-center gap-2">
                   <Presentation className="h-4 w-4" />
-                  <div className="text-sm font-medium">Presentations for selected session</div>
+                  <div className="text-sm font-medium">Presentations for this session</div>
                 </div>
 
                 {presentations.length === 0 ? (

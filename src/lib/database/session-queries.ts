@@ -141,7 +141,7 @@ export async function getRooms(): Promise<Room[]> {
       capacity: row.capacity,
       location: row.location,
     }));
-  } catch (error) {
+  } catch (error) { 
     console.error("❌ Error fetching rooms:", error);
     return [];
   }

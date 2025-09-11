@@ -1,7 +1,7 @@
 // src/app/(dashboard)/event-manager/events/create/page.tsx
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; 
 import { ArrowLeft } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
