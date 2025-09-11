@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log("📝 Request body:", body);
 
-    // FIXED: Only require email, phone is optional/ignored
-    const { email, resend = false } = body;
+    // Only require email
+    const { email } = body;
 
     if (!email) {
       return NextResponse.json(
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const emailOtp = generateOTP();
     const expireAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-    // Store email OTP in global memory (replace with Redis in prod)
+    // Store email OTP in global memory
     global.otpStore.set(`email:${email.toLowerCase()}`, {
       otp: emailOtp,
       expireAt,
@@ -67,17 +67,6 @@ export async function POST(request: NextRequest) {
     // Send Email OTP
     try {
       const transporter = createEmailTransporter();
-
-      // Optional: verify transporter to catch auth/config errors early
-      try {
-        await transporter.verify();
-        console.log("📧 SMTP transporter verified");
-      } catch (verifyErr: any) {
-        console.warn(
-          "⚠️ SMTP verify failed (will still attempt send):",
-          verifyErr?.message || verifyErr
-        );
-      }
 
       await transporter.sendMail({
         from: `"Conference Registration" <${
@@ -140,19 +129,14 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         message: "Verification code sent successfully",
-        sent: {
-          email: true,
-        },
+        sent: { email: true },
         ...(process.env.NODE_ENV === "development" && {
           debug: { emailOtp },
         }),
       });
 
     } catch (emailError: any) {
-      console.error(
-        "❌ Email sending error:",
-        emailError?.message || emailError
-      );
+      console.error("❌ Email sending error:", emailError?.message || emailError);
       
       return NextResponse.json(
         { 
