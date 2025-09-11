@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/ui/loading';
 import { Switch } from '@/components/ui/switch';
+
+import { useCreateEvent, useUpdateEvent } from '@/hooks/use-events';
 
 import { Calendar, MapPin, Users, Globe, Mail, Plus, X, Settings, Clock } from 'lucide-react';
 
@@ -70,7 +71,6 @@ interface EventFormProps {
 
 export function EventForm({ eventId, initialData, onSuccess, onCancel }: EventFormProps) {
   const [tagInput, setTagInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   // Form setup
   const form = useForm<EventFormData>({
@@ -99,6 +99,10 @@ export function EventForm({ eventId, initialData, onSuccess, onCancel }: EventFo
 
   const { watch, setValue, getValues } = form;
 
+  // Mutations
+  const createEvent = useCreateEvent();
+  const updateEvent = useUpdateEvent();
+
   // Add tag
   const addTag = () => {
     if (tagInput.trim()) {
@@ -116,77 +120,35 @@ export function EventForm({ eventId, initialData, onSuccess, onCancel }: EventFo
     setValue('tags', currentTags.filter((_, i) => i !== index));
   };
 
-  // Form submission - FIXED: Direct API call instead of hook
+  // Form submission
   const onSubmit = async (data: EventFormData) => {
-    setIsLoading(true);
-    
     try {
-      console.log('🔄 Submitting event data:', data);
-      
-      // Clean up data - remove fields that don't exist in API
+      // Clean up data
       const eventData = {
-        name: data.name,
-        description: data.description || undefined,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        location: data.location,
-        eventType: data.eventType,
-        status: data.status,
-        tags: data.tags || [],
+        ...data,
         website: data.website || undefined,
         contactEmail: data.contactEmail || undefined,
-        // Remove fields that API doesn't expect
-        // venue, maxParticipants, registrationDeadline, isPublic, etc.
+        maxParticipants: data.maxParticipants || undefined,
+        registrationDeadline: data.registrationDeadline || undefined,
       };
 
-      console.log('📤 Cleaned event data for API:', eventData);
-
       if (eventId) {
-        // Update existing event
-        const response = await fetch(`/api/events/${eventId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(eventData),
+        await updateEvent.mutateAsync({
+          eventId,
+          updates: eventData,
         });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to update event');
-        }
-
-        const result = await response.json();
-        console.log('✅ Event updated successfully:', result);
-        toast.success('Event updated successfully!');
         onSuccess?.(eventId);
       } else {
-        // Create new event
-        const response = await fetch('/api/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(eventData),
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('❌ API Error:', error);
-          throw new Error(error.error || 'Failed to create event');
-        }
-
-        const result = await response.json();
-        console.log('✅ Event created successfully:', result);
-        toast.success('Event created successfully!');
-        
-        // FIXED: Correct response structure from API
-        const newEventId = result.data?.id;
-        onSuccess?.(newEventId);
+        const response = await createEvent.mutateAsync(eventData);
+        // ✅ Fixed: Correct API response structure
+        onSuccess?.(response.data.id);
       }
     } catch (error) {
-      console.error('❌ Event form error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save event');
-    } finally {
-      setIsLoading(false);
+      console.error('Event form error:', error);
     }
   };
+
+  const isLoading = createEvent.isPending || updateEvent.isPending;
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -309,6 +271,22 @@ export function EventForm({ eventId, initialData, onSuccess, onCancel }: EventFo
               )}
             </div>
           </div>
+
+          {/* Registration Deadline */}
+          <div className="space-y-2">
+            <Label htmlFor="registrationDeadline">Registration Deadline</Label>
+            <Input
+              id="registrationDeadline"
+              type="datetime-local"
+              {...form.register('registrationDeadline')}
+            />
+            {form.formState.errors.registrationDeadline && (
+              <p className="text-sm text-red-500">{form.formState.errors.registrationDeadline.message}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Leave empty to allow registrations until event starts
+            </p>
+          </div>
         </CardContent>
       </Card>
 
@@ -332,6 +310,30 @@ export function EventForm({ eventId, initialData, onSuccess, onCancel }: EventFo
             {form.formState.errors.location && (
               <p className="text-sm text-red-500">{form.formState.errors.location.message}</p>
             )}
+          </div>
+
+          {/* Venue */}
+          <div className="space-y-2">
+            <Label htmlFor="venue">Venue</Label>
+            <Input
+              id="venue"
+              {...form.register('venue')}
+              placeholder="Hotel name, convention center, etc."
+            />
+          </div>
+
+          {/* Max Participants */}
+          <div className="space-y-2">
+            <Label htmlFor="maxParticipants">Maximum Participants</Label>
+            <Input
+              id="maxParticipants"
+              type="number"
+              {...form.register('maxParticipants', { valueAsNumber: true })}
+              placeholder="Leave empty for unlimited"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave empty for unlimited participants
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -410,6 +412,75 @@ export function EventForm({ eventId, initialData, onSuccess, onCancel }: EventFo
             <p className="text-xs text-muted-foreground">
               Draft events are not visible to the public. Published events can accept registrations.
             </p>
+          </div>
+
+          {/* Settings Toggles */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Public Event</Label>
+                <p className="text-xs text-muted-foreground">
+                  Allow anyone to view and register for this event
+                </p>
+              </div>
+              <Switch
+                checked={watch('isPublic')}
+                onCheckedChange={(checked) => setValue('isPublic', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Allow Registrations</Label>
+                <p className="text-xs text-muted-foreground">
+                  Enable participant registration for this event
+                </p>
+              </div>
+              <Switch
+                checked={watch('allowRegistrations')}
+                onCheckedChange={(checked) => setValue('allowRegistrations', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Require Approval</Label>
+                <p className="text-xs text-muted-foreground">
+                  Manually approve each registration
+                </p>
+              </div>
+              <Switch
+                checked={watch('requireApproval')}
+                onCheckedChange={(checked) => setValue('requireApproval', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Certificates</Label>
+                <p className="text-xs text-muted-foreground">
+                  Generate certificates for participants
+                </p>
+              </div>
+              <Switch
+                checked={watch('certificatesEnabled')}
+                onCheckedChange={(checked) => setValue('certificatesEnabled', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Attendance Required</Label>
+                <p className="text-xs text-muted-foreground">
+                  Require attendance tracking for certificates
+                </p>
+              </div>
+              <Switch
+                checked={watch('attendanceRequired')}
+                onCheckedChange={(checked) => setValue('attendanceRequired', checked)}
+                disabled={!watch('certificatesEnabled')}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
