@@ -80,7 +80,7 @@ export function DashboardLayout({
         userName={userName}
         userEmail={userEmail}
         userAvatar={userAvatar}
-        closeSidebar={() => setIsMobileSidebarOpen(false)}
+        onCloseAction={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
