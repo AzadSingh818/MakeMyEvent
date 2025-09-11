@@ -15,6 +15,8 @@ import {
   Trash2,
   RefreshCw,
   AlertTriangle,
+  Sun,
+  Moon,
 } from "lucide-react";
 import {
   format,
@@ -102,6 +104,29 @@ type DraftSession = {
   description?: string;
 };
 
+// Theme context type
+type Theme = "light" | "dark";
+
+// Date/Time helper functions
+const isDateInPast = (date: Date) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const compareDate = new Date(date);
+  compareDate.setHours(0, 0, 0, 0);
+  return compareDate < today;
+};
+
+const isTimeSlotInPast = (date: Date, hour: number) => {
+  const now = new Date();
+  const slotDate = new Date(date);
+  slotDate.setHours(hour, 0, 0, 0);
+  return slotDate < now;
+};
+
+const getCurrentHour = () => {
+  return new Date().getHours();
+};
+
 // FIXED: Utility function to parse time consistently (preserves original grid behavior)
 const parseTimeString = (timeStr: string) => {
   if (!timeStr) return { hours: 0, minutes: 0, date: new Date() };
@@ -174,6 +199,92 @@ const formatDateTimeLocal = (dateStr: string) => {
   return "";
 };
 
+// FIXED: Theme classes helper with proper light theme support
+const getThemeClasses = (theme: Theme) => {
+  if (theme === "light") {
+    return {
+      container: "min-h-screen bg-gray-50",
+      header: "bg-white border-b border-gray-200",
+      text: {
+        primary: "text-gray-900",
+        secondary: "text-gray-600",
+        muted: "text-gray-500",
+        accent: "text-blue-600",
+        success: "text-green-600",
+        warning: "text-yellow-600",
+        error: "text-red-600",
+      },
+      background: {
+        primary: "bg-white",
+        secondary: "bg-gray-50",
+        tertiary: "bg-gray-100",
+      },
+      border: "border-gray-200",
+      button: {
+        primary: "bg-blue-600 hover:bg-blue-700 text-white",
+        secondary: "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white",
+      },
+      modal: "bg-white border border-gray-300",
+      input: "bg-white border-gray-300 text-gray-900 focus:border-blue-500",
+      alert: {
+        warning: "bg-yellow-50 border-yellow-200 text-yellow-800",
+        error: "bg-red-50 border-red-200 text-red-800",
+      },
+      calendar: {
+        grid: "bg-white border-gray-200",
+        slot: "border-gray-100 hover:bg-gray-50",
+        pastSlot: "bg-gray-100 opacity-40 cursor-not-allowed",
+        today: "bg-blue-50 border-blue-300",
+      },
+      badge: {
+        outline: "border-gray-300 text-gray-700 bg-white",
+        solid: "bg-gray-100 text-gray-800",
+      },
+    };
+  } else {
+    return {
+      container: "min-h-screen bg-gray-950",
+      header: "bg-gray-900 border-b border-gray-800",
+      text: {
+        primary: "text-white",
+        secondary: "text-gray-300",
+        muted: "text-gray-400",
+        accent: "text-blue-400",
+        success: "text-green-400",
+        warning: "text-yellow-400",
+        error: "text-red-400",
+      },
+      background: {
+        primary: "bg-gray-900",
+        secondary: "bg-gray-800",
+        tertiary: "bg-gray-700",
+      },
+      border: "border-gray-700",
+      button: {
+        primary: "bg-blue-600 hover:bg-blue-700 text-white",
+        secondary:
+          "border-gray-600 text-gray-300 hover:bg-gray-800 bg-gray-900",
+      },
+      modal: "bg-gray-900 border border-gray-700",
+      input: "bg-gray-800 border-gray-600 text-white focus:border-blue-500",
+      alert: {
+        warning: "bg-yellow-900/20 border-yellow-700 text-yellow-300",
+        error: "bg-red-900/20 border-red-800 text-red-400",
+      },
+      calendar: {
+        grid: "bg-gray-900 border-gray-800",
+        slot: "border-gray-800/30 hover:bg-gray-800/20",
+        pastSlot: "bg-gray-800/10 opacity-30 cursor-not-allowed",
+        today: "bg-blue-600/20 border-blue-500",
+      },
+      badge: {
+        outline: "border-gray-600 text-gray-300 bg-gray-800",
+        solid: "bg-gray-800 text-gray-200",
+      },
+    };
+  }
+};
+
 interface SessionDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -183,6 +294,7 @@ interface SessionDetailsModalProps {
   rooms: RoomLite[];
   onSessionUpdate: (sessionId: string, updates: Partial<Session>) => void;
   onSessionDelete: (sessionId: string) => void;
+  theme: Theme;
 }
 
 // Session Details Modal Component
@@ -195,35 +307,62 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
   rooms,
   onSessionUpdate,
   onSessionDelete,
+  theme,
 }) => {
   const [editing, setEditing] = useState<Record<string, boolean>>({});
   const [draft, setDraft] = useState<Record<string, DraftSession>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
 
+  const themeClasses = getThemeClasses(theme);
+
   if (!isOpen) return null;
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Confirmed":
-        return "bg-green-500/20 text-green-300 border-green-500/30";
-      case "Draft":
-        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
-      default:
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30";
+    if (theme === "light") {
+      switch (status) {
+        case "Confirmed":
+          return "bg-green-100 text-green-800 border-green-200";
+        case "Draft":
+          return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        default:
+          return "bg-gray-100 text-gray-800 border-gray-200";
+      }
+    } else {
+      switch (status) {
+        case "Confirmed":
+          return "bg-green-500/20 text-green-300 border-green-500/30";
+        case "Draft":
+          return "bg-yellow-500/20 text-yellow-300 border-yellow-500/30";
+        default:
+          return "bg-gray-500/20 text-gray-300 border-gray-500/30";
+      }
     }
   };
 
   const getInviteStatusColor = (status: string) => {
-    switch (status) {
-      case "Accepted":
-        return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-      case "Declined":
-        return "bg-red-500/20 text-red-300 border-red-500/30";
-      case "Pending":
-        return "bg-orange-500/20 text-orange-300 border-orange-500/30";
-      default:
-        return "bg-gray-500/20 text-gray-300 border-gray-500/30";
+    if (theme === "light") {
+      switch (status) {
+        case "Accepted":
+          return "bg-emerald-100 text-emerald-800 border-emerald-200";
+        case "Declined":
+          return "bg-red-100 text-red-800 border-red-200";
+        case "Pending":
+          return "bg-orange-100 text-orange-800 border-orange-200";
+        default:
+          return "bg-gray-100 text-gray-800 border-gray-200";
+      }
+    } else {
+      switch (status) {
+        case "Accepted":
+          return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+        case "Declined":
+          return "bg-red-500/20 text-red-300 border-red-500/30";
+        case "Pending":
+          return "bg-orange-500/20 text-orange-300 border-orange-500/30";
+        default:
+          return "bg-gray-500/20 text-gray-300 border-gray-500/30";
+      }
     }
   };
 
@@ -351,25 +490,31 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="sticky top-0 bg-gray-900 border-b border-gray-700 p-6 rounded-t-xl">
+      <div
+        className={`${themeClasses.modal} rounded-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto shadow-2xl`}
+      >
+        <div
+          className={`sticky top-0 ${themeClasses.modal} border-b ${themeClasses.border} p-6 rounded-t-xl`}
+        >
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-2xl font-bold text-white">
+              <h2 className={`text-2xl font-bold ${themeClasses.text.primary}`}>
                 Sessions for {date}
               </h2>
               {timeSlot && (
-                <p className="text-blue-400 mt-1 font-medium">{timeSlot}</p>
+                <p className={`${themeClasses.text.accent} mt-1 font-medium`}>
+                  {timeSlot}
+                </p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl font-bold p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              className={`${themeClasses.text.muted} hover:${themeClasses.text.primary} text-2xl font-bold p-2 hover:${themeClasses.background.secondary} rounded-lg transition-colors`}
             >
               ×
             </button>
           </div>
-          <p className="text-gray-400 mt-2">
+          <p className={`${themeClasses.text.muted} mt-2`}>
             {sessions.length} session{sessions.length !== 1 ? "s" : ""}{" "}
             scheduled
           </p>
@@ -385,10 +530,12 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
             return (
               <div
                 key={session.id}
-                className={`border border-gray-700 rounded-lg p-5 transition-all duration-200 ${
+                className={`border ${
+                  themeClasses.border
+                } rounded-lg p-5 transition-all duration-200 ${
                   isEditing
                     ? "border-blue-500 bg-blue-900/10"
-                    : "hover:border-gray-600 hover:bg-gray-800/50"
+                    : `hover:border-gray-600 hover:${themeClasses.background.secondary}`
                 }`}
               >
                 <div className="flex justify-between items-start mb-4">
@@ -399,11 +546,13 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                       onChange={(e) =>
                         onChangeDraft(session.id, "title", e.target.value)
                       }
-                      className="text-lg font-semibold text-white bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 w-full mr-4"
+                      className={`text-lg font-semibold ${themeClasses.input} rounded-lg px-3 py-2 w-full mr-4 focus:outline-none`}
                       placeholder="Session Title"
                     />
                   ) : (
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3
+                      className={`text-lg font-semibold ${themeClasses.text.primary}`}
+                    >
                       {session.title || "Untitled Session"}
                     </h3>
                   )}
@@ -429,7 +578,9 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label
+                          className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                        >
                           Place/Location
                         </label>
                         <input
@@ -438,11 +589,13 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                           onChange={(e) =>
                             onChangeDraft(session.id, "place", e.target.value)
                           }
-                          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                          className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label
+                          className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                        >
                           Room
                         </label>
                         <select
@@ -450,7 +603,7 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                           onChange={(e) =>
                             onChangeDraft(session.id, "roomId", e.target.value)
                           }
-                          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                          className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                         >
                           <option value="">Select Room</option>
                           {rooms.map((r) => (
@@ -464,7 +617,9 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label
+                          className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                        >
                           Start Time
                         </label>
                         <input
@@ -477,11 +632,13 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                               e.target.value
                             )
                           }
-                          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                          className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label
+                          className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                        >
                           End Time
                         </label>
                         <input
@@ -490,13 +647,15 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                           onChange={(e) =>
                             onChangeDraft(session.id, "endTime", e.target.value)
                           }
-                          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                          className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label
+                        className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                      >
                         Status
                       </label>
                       <select
@@ -508,7 +667,7 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                             e.target.value as "Draft" | "Confirmed"
                           )
                         }
-                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                        className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                       >
                         <option value="Draft">Draft</option>
                         <option value="Confirmed">Confirmed</option>
@@ -516,7 +675,9 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label
+                        className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                      >
                         Description
                       </label>
                       <textarea
@@ -529,7 +690,7 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                           )
                         }
                         rows={3}
-                        className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                        className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                       />
                     </div>
 
@@ -537,7 +698,7 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                       <Button
                         onClick={() => onSave(session.id)}
                         disabled={isSaving}
-                        className="bg-green-600 hover:bg-green-700"
+                        className="bg-green-600 hover:bg-green-700 text-white"
                       >
                         {isSaving ? (
                           <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -550,7 +711,7 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                         variant="outline"
                         onClick={() => onCancel(session.id)}
                         disabled={isSaving}
-                        className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                        className={themeClasses.button.secondary}
                       >
                         <X className="h-4 w-4 mr-2" />
                         Cancel
@@ -572,7 +733,9 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                   </div>
                 ) : (
                   <div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-300 mb-4">
+                    <div
+                      className={`grid grid-cols-1 md:grid-cols-2 gap-4 text-sm ${themeClasses.text.secondary} mb-4`}
+                    >
                       <div className="flex items-center gap-3">
                         <User className="w-4 h-4 text-blue-400" />
                         <span>{session.facultyName || "Faculty TBD"}</span>
@@ -610,8 +773,12 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                     </div>
 
                     {session.description && (
-                      <div className="mb-4 p-4 bg-gray-800 rounded-lg border border-gray-700">
-                        <p className="text-sm text-gray-300 leading-relaxed">
+                      <div
+                        className={`mb-4 p-4 ${themeClasses.background.secondary} rounded-lg border ${themeClasses.border}`}
+                      >
+                        <p
+                          className={`text-sm ${themeClasses.text.secondary} leading-relaxed`}
+                        >
                           {session.description}
                         </p>
                       </div>
@@ -622,25 +789,67 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                         <div className="mb-4">
                           {session.rejectionReason === "SuggestedTopic" &&
                             session.suggestedTopic && (
-                              <div className="bg-orange-900/20 border border-orange-700 rounded-lg p-3">
-                                <div className="font-medium text-orange-300 mb-1">
+                              <div
+                                className={
+                                  theme === "light"
+                                    ? "bg-orange-50 border border-orange-200 rounded-lg p-3"
+                                    : "bg-orange-900/20 border border-orange-700 rounded-lg p-3"
+                                }
+                              >
+                                <div
+                                  className={`font-medium mb-1 ${
+                                    theme === "light"
+                                      ? "text-orange-800"
+                                      : "text-orange-300"
+                                  }`}
+                                >
                                   Topic Suggestion:
                                 </div>
-                                <div className="text-orange-200">
+                                <div
+                                  className={
+                                    theme === "light"
+                                      ? "text-orange-700"
+                                      : "text-orange-200"
+                                  }
+                                >
                                   {session.suggestedTopic}
                                 </div>
                               </div>
                             )}
                           {session.rejectionReason === "TimeConflict" && (
-                            <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-3">
-                              <div className="font-medium text-blue-300 mb-2">
+                            <div
+                              className={
+                                theme === "light"
+                                  ? "bg-blue-50 border border-blue-200 rounded-lg p-3"
+                                  : "bg-blue-900/20 border border-blue-700 rounded-lg p-3"
+                              }
+                            >
+                              <div
+                                className={`font-medium mb-2 ${
+                                  theme === "light"
+                                    ? "text-blue-800"
+                                    : "text-blue-300"
+                                }`}
+                              >
                                 Time Conflict:
                               </div>
                               {session.suggestedTimeStart &&
                                 session.suggestedTimeEnd && (
-                                  <div className="text-blue-200 space-y-1">
+                                  <div
+                                    className={`space-y-1 ${
+                                      theme === "light"
+                                        ? "text-blue-700"
+                                        : "text-blue-200"
+                                    }`}
+                                  >
                                     <div className="text-sm">
-                                      <span className="text-green-300">
+                                      <span
+                                        className={
+                                          theme === "light"
+                                            ? "text-green-700"
+                                            : "text-green-300"
+                                        }
+                                      >
                                         Suggested Start:
                                       </span>{" "}
                                       {new Date(
@@ -648,7 +857,13 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                                       ).toLocaleString()}
                                     </div>
                                     <div className="text-sm">
-                                      <span className="text-red-300">
+                                      <span
+                                        className={
+                                          theme === "light"
+                                            ? "text-red-700"
+                                            : "text-red-300"
+                                        }
+                                      >
                                         Suggested End:
                                       </span>{" "}
                                       {new Date(
@@ -656,8 +871,20 @@ const SessionDetailsModal: React.FC<SessionDetailsModalProps> = ({
                                       ).toLocaleString()}
                                     </div>
                                     {session.optionalQuery && (
-                                      <div className="text-sm border-t border-blue-800 pt-2 mt-2">
-                                        <span className="text-blue-300">
+                                      <div
+                                        className={`text-sm border-t pt-2 mt-2 ${
+                                          theme === "light"
+                                            ? "border-blue-200"
+                                            : "border-blue-800"
+                                        }`}
+                                      >
+                                        <span
+                                          className={
+                                            theme === "light"
+                                              ? "text-blue-800"
+                                              : "text-blue-300"
+                                          }
+                                        >
                                           Comment:
                                         </span>{" "}
                                         {session.optionalQuery}
@@ -701,6 +928,7 @@ interface CreateSessionModalProps {
   events: Event[];
   facultiesByEvent: Record<string, Faculty[]>;
   onCreate: () => void;
+  theme: Theme;
 }
 
 // Create Session Modal Component
@@ -713,6 +941,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   events,
   facultiesByEvent,
   onCreate,
+  theme,
 }) => {
   const [title, setTitle] = useState("");
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -728,13 +957,22 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   const [travelRequired, setTravelRequired] = useState("");
   const [accommodationRequired, setAccommodationRequired] = useState("");
 
+  const themeClasses = getThemeClasses(theme);
+
   useEffect(() => {
     if (isOpen && defaultDate && defaultHour !== undefined) {
+      const now = new Date();
       const startDate = new Date(defaultDate);
-      startDate.setHours(defaultHour, 0, 0, 0);
+
+      // If it's today and the default hour is in the past, use current hour + 1
+      if (isSameDay(startDate, now) && defaultHour < now.getHours()) {
+        startDate.setHours(now.getHours() + 1, 0, 0, 0);
+      } else {
+        startDate.setHours(defaultHour, 0, 0, 0);
+      }
 
       const endDate = new Date(startDate);
-      endDate.setHours(defaultHour + 1, 0, 0, 0);
+      endDate.setHours(startDate.getHours() + 1, 0, 0, 0);
 
       // FIXED: Format as datetime-local string without timezone conversion
       const formatDateTime = (date: Date) => {
@@ -793,6 +1031,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
     setStartDateTime("");
     setEndDateTime("");
     setStatus("Draft");
+    setTravelRequired("");
+    setAccommodationRequired("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -845,8 +1085,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
         endTime: endDateTime,
         startHour: startTimeLocal.hours,
         endHour: endTimeLocal.hours,
-        travelRequired: travelRequired,        // ✅ Add this log
-        accommodationRequired: accommodationRequired, // ✅ Add this log
+        travelRequired: travelRequired,
+        accommodationRequired: accommodationRequired,
       });
 
       const response = await fetch("/api/sessions", {
@@ -886,20 +1126,24 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="sticky top-0 bg-gray-900 border-b border-gray-700 p-6 rounded-t-xl">
+      <div
+        className={`${themeClasses.modal} rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl`}
+      >
+        <div
+          className={`sticky top-0 ${themeClasses.modal} border-b ${themeClasses.border} p-6 rounded-t-xl`}
+        >
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-white">
+            <h2 className={`text-2xl font-bold ${themeClasses.text.primary}`}>
               Create New Session
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl font-bold p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              className={`${themeClasses.text.muted} hover:${themeClasses.text.primary} text-2xl font-bold p-2 hover:${themeClasses.background.secondary} rounded-lg transition-colors`}
             >
               ×
             </button>
           </div>
-          <p className="text-gray-400 mt-1">
+          <p className={`${themeClasses.text.muted} mt-1`}>
             Fill in the details to create a new session
           </p>
         </div>
@@ -908,30 +1152,34 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   Session Title *
                 </label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   placeholder="Enter session title"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   Event *
-                  <span className="text-xs text-blue-400 ml-2">
+                  <span className={`text-xs ${themeClasses.text.accent} ml-2`}>
                     ({events.length} events available)
                   </span>
                 </label>
                 <select
                   value={selectedEventId}
                   onChange={(e) => handleEventChange(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   required
                 >
                   <option value="">Select Event</option>
@@ -942,7 +1190,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                   ))}
                 </select>
                 {events.length === 0 && (
-                  <p className="text-xs text-yellow-400 mt-1">
+                  <p className={`text-xs ${themeClasses.text.warning} mt-1`}>
                     ⚠️ No events found. Please ensure events are created and
                     faculty lists are uploaded.
                   </p>
@@ -951,9 +1199,11 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label
+                className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+              >
                 Faculty *
-                <span className="text-xs text-blue-400 ml-2">
+                <span className={`text-xs ${themeClasses.text.accent} ml-2`}>
                   ({availableFaculty.length} faculty available for selected
                   event)
                 </span>
@@ -961,7 +1211,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
               <select
                 value={facultyId}
                 onChange={(e) => handleFacultyChange(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                 required
                 disabled={!selectedEventId}
               >
@@ -979,7 +1229,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 ))}
               </select>
               {selectedEventId && availableFaculty.length === 0 && (
-                <p className="text-xs text-yellow-400 mt-1">
+                <p className={`text-xs ${themeClasses.text.warning} mt-1`}>
                   ⚠️ No faculty available for this event. Please upload faculty
                   lists.
                 </p>
@@ -988,9 +1238,11 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   Faculty Email *
-                  <span className="text-xs text-gray-400 ml-2">
+                  <span className={`text-xs ${themeClasses.text.muted} ml-2`}>
                     (auto-filled)
                   </span>
                 </label>
@@ -998,7 +1250,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   placeholder="faculty@university.edu"
                   required
                   readOnly={!!facultyId}
@@ -1006,14 +1258,16 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   Place/Location *
                 </label>
                 <input
                   type="text"
                   value={place}
                   onChange={(e) => setPlace(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   placeholder="e.g., Main Campus, Building A"
                   required
                 />
@@ -1021,13 +1275,15 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label
+                className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+              >
                 Room *
               </label>
               <select
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                 required
               >
                 <option value="">Select Room</option>
@@ -1038,19 +1294,22 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 ))}
               </select>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   Travel *
                 </label>
                 <select
-                  name="travel" // ✅ ADD THIS - Critical for FormData
+                  name="travel"
                   value={travelRequired}
                   onChange={(e) => {
-                    console.log("Travel selected:", e.target.value); // ✅ Debug log
+                    console.log("Travel selected:", e.target.value);
                     setTravelRequired(e.target.value);
                   }}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   required
                 >
                   <option value="">Provide Travel</option>
@@ -1060,17 +1319,19 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   Accommodation *
                 </label>
                 <select
-                  name="accommodation" // ✅ ADD THIS - Critical for FormData
+                  name="accommodation"
                   value={accommodationRequired}
                   onChange={(e) => {
-                    console.log("Accommodation selected:", e.target.value); // ✅ Debug log
+                    console.log("Accommodation selected:", e.target.value);
                     setAccommodationRequired(e.target.value);
                   }}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   required
                 >
                   <option value="">Provide Accommodation</option>
@@ -1079,36 +1340,43 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 </select>
               </div>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   Start Time *
                 </label>
                 <input
                   type="datetime-local"
                   value={startDateTime}
                   onChange={(e) => setStartDateTime(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label
+                  className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+                >
                   End Time *
                 </label>
                 <input
                   type="datetime-local"
                   value={endDateTime}
                   onChange={(e) => setEndDateTime(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                  className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label
+                className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+              >
                 Status
               </label>
               <select
@@ -1116,7 +1384,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 onChange={(e) =>
                   setStatus(e.target.value as "Draft" | "Confirmed")
                 }
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
               >
                 <option value="Draft">Draft</option>
                 <option value="Confirmed">Confirmed</option>
@@ -1124,14 +1392,16 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label
+                className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
+              >
                 Description *
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                className={`w-full ${themeClasses.input} rounded-lg px-3 py-2 focus:outline-none`}
                 placeholder="Session description, objectives, and key topics..."
                 required
               />
@@ -1139,11 +1409,25 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
 
             {/* Selected Event and Faculty Info */}
             {selectedEventId && facultyId && (
-              <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-blue-200 mb-2">
+              <div
+                className={
+                  theme === "light"
+                    ? "bg-blue-50 border border-blue-200 rounded-lg p-4"
+                    : "bg-blue-900/20 border border-blue-700 rounded-lg p-4"
+                }
+              >
+                <h4
+                  className={`text-sm font-medium mb-2 ${
+                    theme === "light" ? "text-blue-800" : "text-blue-200"
+                  }`}
+                >
                   Session Summary:
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-300">
+                <div
+                  className={`grid grid-cols-1 md:grid-cols-2 gap-2 text-xs ${
+                    theme === "light" ? "text-blue-700" : "text-blue-300"
+                  }`}
+                >
                   <div>
                     <span className="font-medium">Event:</span>{" "}
                     {events.find((e) => e.id === selectedEventId)?.name}
@@ -1177,20 +1461,22 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+            <div
+              className={`flex justify-end gap-3 pt-4 border-t ${themeClasses.border}`}
+            >
               <Button
                 type="button"
                 variant="outline"
                 onClick={onClose}
                 disabled={loading}
-                className="border-gray-600 text-gray-300 hover:bg-gray-800"
+                className={themeClasses.button.secondary}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={loading || !selectedEventId || !facultyId}
-                className="bg-green-600 hover:bg-green-700"
+                className={themeClasses.button.primary}
               >
                 {loading ? (
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
@@ -1223,6 +1509,7 @@ const SessionsCalendarView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [lastUpdateTime, setLastUpdateTime] = useState<string>("");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newSessionDate, setNewSessionDate] = useState<Date | undefined>(
@@ -1233,6 +1520,8 @@ const SessionsCalendarView: React.FC = () => {
   );
 
   const POLL_INTERVAL = 30000; // Reduced polling frequency
+
+  const themeClasses = getThemeClasses(theme);
 
   // Load events and faculty data
   const loadEventsAndFaculty = useCallback(async () => {
@@ -1414,13 +1703,23 @@ const SessionsCalendarView: React.FC = () => {
     return () => clearInterval(interval);
   }, [fetchSessions]);
 
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
+
   const handleNewSessionClick = () => {
-    setNewSessionDate(new Date());
-    setNewSessionHour(9);
+    const now = new Date();
+    setNewSessionDate(now);
+    setNewSessionHour(now.getHours() + 1);
     setShowCreateModal(true);
   };
 
   const handleEmptySlotClick = (date: Date, hour: number) => {
+    // Prevent creating sessions in past time slots
+    if (isTimeSlotInPast(date, hour)) {
+      return; // Do nothing for past time slots
+    }
+
     setNewSessionDate(date);
     setNewSessionHour(hour);
     setShowCreateModal(true);
@@ -1441,15 +1740,22 @@ const SessionsCalendarView: React.FC = () => {
   const weekDays = useMemo(() => {
     const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
     const days = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     for (let i = 0; i < 7; i++) {
       const date = addDays(start, i);
-      days.push({
-        date,
-        dayName: format(date, "EEE"),
-        dateNumber: format(date, "d"),
-        fullDate: format(date, "MMM d, yyyy"),
-        isToday: isSameDay(date, new Date()),
-      });
+
+      // Only include today and future dates
+      if (!isDateInPast(date)) {
+        days.push({
+          date,
+          dayName: format(date, "EEE"),
+          dateNumber: format(date, "d"),
+          fullDate: format(date, "MMM d, yyyy"),
+          isToday: isSameDay(date, new Date()),
+        });
+      }
     }
     return days;
   }, [currentWeek]);
@@ -1515,7 +1821,10 @@ const SessionsCalendarView: React.FC = () => {
     sessionsInSlot: Session[]
   ) => {
     if (sessionsInSlot.length === 0) {
-      handleEmptySlotClick(date, hour);
+      // Only allow creating sessions in future time slots
+      if (!isTimeSlotInPast(date, hour)) {
+        handleEmptySlotClick(date, hour);
+      }
       return;
     }
 
@@ -1564,9 +1873,23 @@ const SessionsCalendarView: React.FC = () => {
   };
 
   const navigateWeek = (direction: "prev" | "next") => {
-    setCurrentWeek(
-      direction === "next" ? addDays(currentWeek, 7) : subDays(currentWeek, 7)
-    );
+    const newWeek =
+      direction === "next" ? addDays(currentWeek, 7) : subDays(currentWeek, 7);
+
+    // Prevent navigating to weeks that are completely in the past
+    if (direction === "prev") {
+      const weekStart = startOfWeek(newWeek, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(newWeek, { weekStartsOn: 1 });
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // If the entire week is in the past, don't navigate
+      if (weekEnd < today) {
+        return;
+      }
+    }
+
+    setCurrentWeek(newWeek);
   };
 
   // Calculate total faculty across all events
@@ -1574,7 +1897,7 @@ const SessionsCalendarView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 p-6">
+      <div className={themeClasses.container}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </div>
@@ -1584,12 +1907,12 @@ const SessionsCalendarView: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-950 p-6">
-        <div className="bg-red-900/20 border border-red-800 rounded-lg p-4">
-          <p className="text-red-400">{error}</p>
+      <div className={themeClasses.container}>
+        <div className={`${themeClasses.alert.error} rounded-lg p-4`}>
+          <p className={themeClasses.text.error}>{error}</p>
           <button
             onClick={() => fetchSessions(true)}
-            className="mt-2 text-red-400 hover:text-red-300 underline"
+            className={`mt-2 ${themeClasses.text.primary} hover:${themeClasses.text.secondary} underline`}
           >
             Try again
           </button>
@@ -1599,20 +1922,20 @@ const SessionsCalendarView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950">
-      <div className="bg-gray-900 border-b border-gray-800 p-6">
+    <div className={themeClasses.container}>
+      <div className={`${themeClasses.header} p-6`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl">
               <Calendar className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">
+              <h1 className={`text-2xl font-bold ${themeClasses.text.primary}`}>
                 Sessions Calendar
               </h1>
-              <p className="text-gray-400">
+              <p className={themeClasses.text.secondary}>
                 Database-connected schedule • Last updated: {lastUpdateTime}
-                <span className="text-blue-400 ml-2">
+                <span className={`${themeClasses.text.accent} ml-2`}>
                   • {events.length} events • {totalAvailableFaculty} faculty
                   available
                 </span>
@@ -1621,20 +1944,36 @@ const SessionsCalendarView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              Database Connected
-            </div>
             <Button
               variant="outline"
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              onClick={toggleTheme}
+              className={`${themeClasses.button.secondary} p-2`}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4" />
+              ) : (
+                <Moon className="w-4 h-4" />
+              )}
+            </Button>
+
+            <div
+              className={`flex items-center gap-2 text-sm ${themeClasses.text.muted}`}
+            >
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>Database Connected</span>
+            </div>
+
+            <Button
+              variant="outline"
+              className={themeClasses.button.secondary}
               onClick={() => fetchSessions(true)}
             >
               <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
+              <span className={themeClasses.text.primary}>Refresh</span>
             </Button>
+
             <Button
-              className="bg-blue-600 hover:bg-blue-700"
+              className={themeClasses.button.primary}
               onClick={handleNewSessionClick}
               disabled={events.length === 0}
               title={
@@ -1649,10 +1988,12 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         </div>
 
-        {/* Status Alert */}
+        {/* Status Alert - FIXED for both themes */}
         {events.length === 0 && (
-          <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
-            <div className="flex items-center gap-2 text-yellow-300">
+          <div
+            className={`mb-4 p-3 ${themeClasses.alert.warning} rounded-lg border`}
+          >
+            <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               <span className="text-sm">
                 No events found. Please create events in Event Management or
@@ -1662,41 +2003,52 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         )}
 
-        {/* Events Summary */}
+        {/* FIXED: Events Summary with proper light theme colors */}
         {events.length > 0 && (
           <div className="mb-4 flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="text-gray-300">
-                <strong>{events.length}</strong> active events
+              <span className={themeClasses.text.secondary}>
+                <strong className={themeClasses.text.primary}>
+                  {events.length}
+                </strong>{" "}
+                active events
               </span>
             </div>
             {events.slice(0, 3).map((event) => (
               <div key={event.id} className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
-                  {event.name} ({event.facultyCount} faculty)
+                <Badge
+                  variant="outline"
+                  className={`text-xs ${themeClasses.badge.outline}`}
+                >
+                  <span className={themeClasses.text.primary}>
+                    {event.name} ({event.facultyCount} faculty)
+                  </span>
                 </Badge>
               </div>
             ))}
             {events.length > 3 && (
-              <span className="text-gray-400 text-xs">
+              <span className={`${themeClasses.text.muted} text-xs`}>
                 +{events.length - 3} more events
               </span>
             )}
           </div>
         )}
 
+        {/* FIXED: Week Navigation with proper theme colors */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigateWeek("prev")}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className={themeClasses.button.secondary}
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            <h2 className="text-lg font-semibold text-white">
+            <h2
+              className={`text-lg font-semibold ${themeClasses.text.primary}`}
+            >
               {format(startOfWeek(currentWeek, { weekStartsOn: 1 }), "MMM d")} -{" "}
               {format(
                 endOfWeek(currentWeek, { weekStartsOn: 1 }),
@@ -1707,7 +2059,7 @@ const SessionsCalendarView: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => navigateWeek("next")}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
+              className={themeClasses.button.secondary}
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -1717,24 +2069,27 @@ const SessionsCalendarView: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={() => setCurrentWeek(new Date())}
-            className="border-gray-700 text-gray-300 hover:bg-gray-800"
+            className={themeClasses.button.secondary}
           >
-            Today
+            <span className={themeClasses.text.primary}>Today</span>
           </Button>
         </div>
       </div>
-
-      {/* FIXED: Calendar Grid with corrected time positioning */}
+      {/* FIXED: Calendar Grid with proper theme support and past date/time filtering */}
       <div className="flex overflow-hidden">
-        <div className="bg-gray-900 border-r border-gray-800 w-20 flex-shrink-0">
-          <div className="h-16 border-b border-gray-800"></div>
+        <div
+          className={`${themeClasses.calendar.grid} border-r ${themeClasses.border} w-20 flex-shrink-0`}
+        >
+          <div className={`h-16 border-b ${themeClasses.border}`}></div>
           {timeSlots.map((slot) => (
             <div
               key={slot.hour}
-              className="h-15 border-b border-gray-800/50 flex items-start justify-center pt-1"
+              className={`h-15 border-b ${themeClasses.border} flex items-start justify-center pt-1`}
               style={{ height: "60px" }}
             >
-              <span className="text-xs text-gray-400 font-medium">
+              <span
+                className={`text-xs ${themeClasses.text.muted} font-medium`}
+              >
                 {slot.displayLabel}
               </span>
             </div>
@@ -1746,21 +2101,25 @@ const SessionsCalendarView: React.FC = () => {
             {weekDays.map((day) => (
               <div
                 key={day.date.toISOString()}
-                className="flex-1 border-r border-gray-800 min-w-0"
+                className={`flex-1 border-r ${themeClasses.border} min-w-0`}
               >
                 <div
-                  className={`h-16 border-b border-gray-800 flex flex-col items-center justify-center ${
+                  className={`h-16 border-b ${
+                    themeClasses.border
+                  } flex flex-col items-center justify-center ${
                     day.isToday
-                      ? "bg-blue-600/20 border-blue-500"
-                      : "bg-gray-900"
+                      ? themeClasses.calendar.today
+                      : themeClasses.calendar.grid
                   }`}
                 >
-                  <div className="text-xs font-medium text-gray-400 uppercase">
+                  <div
+                    className={`text-xs font-medium ${themeClasses.text.muted} uppercase`}
+                  >
                     {day.dayName}
                   </div>
                   <div
                     className={`text-lg font-bold ${
-                      day.isToday ? "text-blue-400" : "text-white"
+                      day.isToday ? "text-blue-400" : themeClasses.text.primary
                     }`}
                   >
                     {day.dateNumber}
@@ -1773,21 +2132,39 @@ const SessionsCalendarView: React.FC = () => {
                       day.date,
                       slot.hour
                     );
+                    const isPastSlot = isTimeSlotInPast(day.date, slot.hour);
+
                     return (
                       <div
                         key={slot.hour}
-                        className="h-15 border-b border-gray-800/30 relative hover:bg-gray-800/20 cursor-pointer transition-colors"
+                        className={`h-15 border-b relative transition-colors ${
+                          isPastSlot
+                            ? themeClasses.calendar.pastSlot
+                            : `${themeClasses.calendar.slot} cursor-pointer`
+                        }`}
                         style={{ height: "60px" }}
                         onClick={() =>
+                          !isPastSlot &&
                           handleSlotClick(day.date, slot.hour, sessionsInSlot)
                         }
                       >
                         <div className="absolute inset-0" />
+
+                        {/* Add visual indicator for past slots */}
+                        {isPastSlot && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div
+                              className={`text-xs ${themeClasses.text.muted} font-medium opacity-50`}
+                            >
+                              Past
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
 
-                  {/* FIXED: Session positioning with correct time parsing */}
+                  {/* FIXED: Session positioning with correct time parsing and theme support */}
                   {sessions
                     .filter((session) => {
                       if (!session.startTime) return false;
@@ -1797,11 +2174,18 @@ const SessionsCalendarView: React.FC = () => {
                     .map((session) => {
                       const style = getSessionStyle(session);
                       const colorClass = getSessionColor(session);
+                      const sessionTime = parseTimeString(session.startTime);
+                      const isPastSession = isTimeSlotInPast(
+                        sessionTime.date,
+                        sessionTime.hours
+                      );
 
                       return (
                         <div
                           key={session.id}
-                          className={`absolute left-2 right-2 rounded-lg border-l-4 p-3 text-xs hover:scale-[1.02] transition-all cursor-pointer ${colorClass}`}
+                          className={`absolute left-2 right-2 rounded-lg border-l-4 p-3 text-xs transition-all cursor-pointer ${colorClass} ${
+                            isPastSession ? "opacity-60" : "hover:scale-[1.02]"
+                          }`}
                           style={style}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1814,6 +2198,13 @@ const SessionsCalendarView: React.FC = () => {
                           <div className="text-xs opacity-90 truncate mb-1">
                             {session.facultyName}
                           </div>
+
+                          {/* Add past indicator */}
+                          {isPastSession && (
+                            <div className="absolute top-1 left-1">
+                              <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+                            </div>
+                          )}
 
                           <div className="absolute top-1 right-1">
                             <div
@@ -1841,7 +2232,6 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         </div>
       </div>
-
       <SessionDetailsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -1851,6 +2241,7 @@ const SessionsCalendarView: React.FC = () => {
         rooms={rooms}
         onSessionUpdate={handleSessionUpdate}
         onSessionDelete={handleSessionDelete}
+        theme={theme}
       />
 
       <CreateSessionModal
@@ -1865,6 +2256,7 @@ const SessionsCalendarView: React.FC = () => {
           fetchSessions(true);
           setShowCreateModal(false);
         }}
+        theme={theme}
       />
     </div>
   );
