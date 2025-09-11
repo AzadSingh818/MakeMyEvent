@@ -59,7 +59,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Invitatio
     }
 
     // Check permissions
-    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to send invitations' },
         { status: 403 }

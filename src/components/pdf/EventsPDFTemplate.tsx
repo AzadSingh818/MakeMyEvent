@@ -284,7 +284,7 @@ export const EventsPDFTemplate: React.FC<EventsPDFTemplateProps> = ({
       </Page>
       
       {/* Second Page for Additional Details */}
-      {(data.faculty?.length > 0 || data.registrations?.length > 0 || data.halls?.length > 0) && (
+      {((data.faculty?.length ?? 0) > 0 || (data.registrations?.length ?? 0) > 0 || (data.halls?.length ?? 0) > 0) && (
         <Page size="A4" style={pdfStyles.page}>
           <PDFHeader 
             title={title}

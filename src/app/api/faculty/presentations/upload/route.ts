@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
 
     // Check permissions
     if (session.user.id !== facultyId && 
-        !['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+        !['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -200,7 +200,8 @@ export async function POST(request: NextRequest) {
     
     // If no session provided, try to create/find one
     if (!finalSessionId) {
-      finalSessionId = await ensureEventAndSession(facultyId);
+      const ensuredSessionId = await ensureEventAndSession(facultyId);
+      finalSessionId = ensuredSessionId === null ? undefined : ensuredSessionId;
     } else {
       // Validate provided session exists
       const sessionResult = await query(
@@ -210,7 +211,8 @@ export async function POST(request: NextRequest) {
 
       if (sessionResult.rows.length === 0) {
         // Session doesn't exist, try to create default
-        finalSessionId = await ensureEventAndSession(facultyId);
+        const ensuredSessionId = await ensureEventAndSession(facultyId);
+        finalSessionId = ensuredSessionId === null ? undefined : ensuredSessionId;
       }
     }
 
@@ -337,7 +339,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle database errors
-    if (error?.message?.includes('foreign key')) {
+    if (error instanceof Error && error.message.includes('foreign key')) {
       return NextResponse.json(
         { error: 'Database reference error. Please contact support.' },
         { status: 400 }

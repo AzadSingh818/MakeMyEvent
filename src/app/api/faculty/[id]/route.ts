@@ -580,7 +580,7 @@ async function handleInvitationResponse(facultyId: string, body: any) {
 // Helper function: Resend invitation
 async function handleResendInvitation(facultyId: string, body: any) {
   const session = await getServerSession(authOptions);
-  if (!session?.user || !['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+  if (!session?.user || !['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

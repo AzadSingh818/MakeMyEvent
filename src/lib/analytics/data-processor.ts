@@ -554,8 +554,10 @@ export class DataProcessor {
     // Calculate how many attendees stayed for multiple sessions
     const userSessions = attendanceData.reduce((acc, d) => {
       if (!d.checkInTime) return acc;
-      if (!acc[d.userId]) acc[d.userId] = new Set();
-      acc[d.userId].add(d.sessionId);
+      if (!acc[d.userId]) {
+        acc[d.userId] = new Set<string>();
+      }
+      acc[d.userId]!.add(d.sessionId);
       return acc;
     }, {} as Record<string, Set<string>>);
 

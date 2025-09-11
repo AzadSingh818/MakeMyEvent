@@ -249,7 +249,7 @@ interface SessionAnalyticsProps {
 }
 
 export default function SessionAnalytics({ eventId }: SessionAnalyticsProps) {
-  const [selectedSession, setSelectedSession] = useState<SessionMetrics | null>(mockSessionMetrics[0]);
+  const [selectedSession, setSelectedSession] = useState<SessionMetrics | null>(mockSessionMetrics[0] ?? null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('popularity');
   const [filterRating, setFilterRating] = useState('all');

@@ -201,7 +201,7 @@ const faculty = facultyData?.data?.faculty || [];
             <ExportButton 
               eventId={eventId}
               variant="outline"
-              size="md"
+              size="default"
             />
             
             {/* ✅ UPDATED: Share Button with functionality */}
@@ -209,7 +209,7 @@ const faculty = facultyData?.data?.faculty || [];
               eventId={eventId}
               eventName={event.name}
               variant="outline"
-              size="md"
+              size="default"
             />
             
             <Link href={`/event-manager/events/${eventId}/edit`}>

@@ -6,7 +6,6 @@ import { toast } from 'react-hot-toast';
 // Types
 interface Hall {
   equipment: any;
-  equipment: any;
   id: string;
   name: string;
   location: string;

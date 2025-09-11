@@ -2,7 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/database/connection';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 import { authConfig } from '@/lib/auth/config';
 import { z } from 'zod';
 
@@ -51,9 +52,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const queryData = Object.fromEntries(searchParams.entries());
     
-    // Convert string booleans to actual booleans
-    if (queryData.includeCharts) queryData.includeCharts = queryData.includeCharts === 'true';
-    if (queryData.includeRawData) queryData.includeRawData = queryData.includeRawData === 'true';
+    // Ensure boolean-like strings are passed as strings for schema parsing
+    if (typeof queryData.includeCharts === 'boolean') {
+      queryData.includeCharts = queryData.includeCharts ? 'true' : 'false';
+    }
+    if (typeof queryData.includeRawData === 'boolean') {
+      queryData.includeRawData = queryData.includeRawData ? 'true' : 'false';
+    }
     
     const validatedQuery = ReportQuerySchema.parse(queryData);
     
@@ -91,7 +96,7 @@ export async function GET(request: NextRequest) {
         select: { id: true }
       });
       whereClause.eventId = {
-        in: coordinatorEvents.map(e => e.id)
+        in: coordinatorEvents.map((e: { id: any; }) => e.id)
       };
     } else if (!['Organizer', 'Event_Manager'].includes(user.role)) {
       return NextResponse.json(
@@ -298,30 +303,33 @@ async function getOverallAnalytics(whereClause: any, dateFilters: any, query: an
   const totalCertificates = certificates.length;
 
   // Role distribution
-  const roleDistribution = registrations.reduce((acc, reg) => {
+  const roleDistribution = registrations.reduce((acc: { [x: string]: any; }, reg: { user: { role: any; }; }) => {
     const role = reg.user.role;
     acc[role] = (acc[role] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   // Attendance rate
-  const totalCapacity = sessions.reduce((sum, session) => sum + (session.capacity || 0), 0);
+  const totalCapacity = sessions.reduce((sum: any, session: { capacity: any; }) => sum + (session.capacity || 0), 0);
   const attendanceRate = totalCapacity > 0 ? (totalAttendance / totalCapacity) * 100 : 0;
 
   // Time-based trends
-  const dailyStats = attendance.reduce((acc, att) => {
+  const dailyStats = attendance.reduce((acc: { [x: string]: { attendance: number; sessions: Set<any> }; }, att: { checkInTime: { toISOString: () => string; }; sessionId: any; }) => {
     const date = att.checkInTime?.toISOString().split('T')[0] || 'unknown';
     if (!acc[date]) acc[date] = { attendance: 0, sessions: new Set() };
     acc[date].attendance++;
     acc[date].sessions.add(att.sessionId);
     return acc;
-  }, {} as Record<string, { attendance: number; sessions: Set<string> }>);
+  }, {} as Record<string, { attendance: number; sessions: Set<any> }>);
 
-  const trends = Object.entries(dailyStats).map(([date, data]) => ({
-    date,
-    attendance: data.attendance,
-    sessions: data.sessions.size
-  }));
+  const trends = Object.entries(dailyStats).map(([date, data]) => {
+    const d = data as { attendance: number; sessions: Set<any> };
+    return {
+      date,
+      attendance: d.attendance,
+      sessions: d.sessions.size
+    };
+  });
 
   return NextResponse.json({
     summary: {
@@ -335,9 +343,9 @@ async function getOverallAnalytics(whereClause: any, dateFilters: any, query: an
     roleDistribution,
     trends,
     topSessions: sessions
-      .sort((a, b) => b._count.attendance - a._count.attendance)
+      .sort((a: { _count: { attendance: number; }; }, b: { _count: { attendance: number; }; }) => b._count.attendance - a._count.attendance)
       .slice(0, 10)
-      .map(session => ({
+      .map((session: { id: any; name: any; faculty: { name: any; }; hall: any; _count: { attendance: number; }; capacity: number; }) => ({
         id: session.id,
         name: session.name,
         faculty: session.faculty?.name,
@@ -380,7 +388,7 @@ async function getAttendanceData(whereClause: any, dateFilters: any, query: any)
   });
 
   // Group by session
-  const sessionAttendance = attendance.reduce((acc, att) => {
+  const sessionAttendance = attendance.reduce((acc: { [x: string]: { session: any; attendees: any[]; qrScans: number; manualCheckins: number; lateArrivals: number; }; }, att: { sessionId: any; session: { startTime: number; }; user: any; checkInTime: number; method: string; }) => {
     const sessionId = att.sessionId;
     if (!acc[sessionId]) {
       acc[sessionId] = {
@@ -407,7 +415,7 @@ async function getAttendanceData(whereClause: any, dateFilters: any, query: any)
     }
 
     return acc;
-  }, {} as any);
+  }, {} as { [x: string]: { session: any; attendees: any[]; qrScans: number; manualCheckins: number; lateArrivals: number; }; });
 
   return NextResponse.json({
     sessionAttendance: Object.values(sessionAttendance),
@@ -456,7 +464,7 @@ async function getSessionsData(whereClause: any, dateFilters: any, query: any) {
   });
 
   // Calculate session metrics
-  const sessionsWithMetrics = sessions.map(session => {
+  const sessionsWithMetrics = sessions.map((session: { feedback: any[]; capacity: number; _count: { attendance: number; feedback: number; }; id: any; name: any; faculty: { name: any; }; hall: any; date: any; startTime: any; endTime: any; }) => {
     const feedbackRatings = session.feedback.map(f => f.rating).filter(r => r !== null);
     const avgRating = feedbackRatings.length > 0 
       ? feedbackRatings.reduce((sum, rating) => sum + rating, 0) / feedbackRatings.length 
@@ -489,15 +497,15 @@ async function getSessionsData(whereClause: any, dateFilters: any, query: any) {
     sessions: sessionsWithMetrics,
     summary: {
       totalSessions: sessions.length,
-      avgAttendanceRate: sessionsWithMetrics.reduce((sum, s) => sum + s.attendanceRate, 0) / sessions.length,
-      avgRating: sessionsWithMetrics.reduce((sum, s) => sum + s.avgRating, 0) / sessions.length,
-      totalFeedback: sessionsWithMetrics.reduce((sum, s) => sum + s.totalFeedback, 0)
+      avgAttendanceRate: sessionsWithMetrics.reduce((sum: any, s: { attendanceRate: any; }) => sum + s.attendanceRate, 0) / sessions.length,
+      avgRating: sessionsWithMetrics.reduce((sum: any, s: { avgRating: any; }) => sum + s.avgRating, 0) / sessions.length,
+      totalFeedback: sessionsWithMetrics.reduce((sum: any, s: { totalFeedback: any; }) => sum + s.totalFeedback, 0)
     },
     topRatedSessions: sessionsWithMetrics
-      .sort((a, b) => b.avgRating - a.avgRating)
+      .sort((a: { avgRating: number; }, b: { avgRating: number; }) => b.avgRating - a.avgRating)
       .slice(0, 10),
     mostAttendedSessions: sessionsWithMetrics
-      .sort((a, b) => b.attendanceRate - a.attendanceRate)
+      .sort((a: { attendanceRate: number; }, b: { attendanceRate: number; }) => b.attendanceRate - a.attendanceRate)
       .slice(0, 10),
     generatedAt: new Date().toISOString()
   });
@@ -537,19 +545,19 @@ async function getFacultyData(whereClause: any, dateFilters: any, query: any) {
     }
   });
 
-  const facultyMetrics = faculty.map(f => {
+  const facultyMetrics = faculty.map((f: { sessions: any; id: any; name: any; email: any; _count: { certificates: any; }; }) => {
     const sessions = f.sessions;
     const totalSessions = sessions.length;
-    const totalAttendance = sessions.reduce((sum, s) => sum + s._count.attendance, 0);
-    const totalCapacity = sessions.reduce((sum, s) => sum + (s.capacity || 0), 0);
+    const totalAttendance = sessions.reduce((sum: any, s: { _count: { attendance: any; }; }) => sum + s._count.attendance, 0);
+    const totalCapacity = sessions.reduce((sum: any, s: { capacity: any; }) => sum + (s.capacity || 0), 0);
     const avgAttendanceRate = totalCapacity > 0 ? (totalAttendance / totalCapacity) * 100 : 0;
 
-    const allRatings = sessions.flatMap(s => s.feedback.map(f => f.rating)).filter(r => r !== null);
+    const allRatings = sessions.flatMap((s: { feedback: any[]; }) => s.feedback.map(f => f.rating)).filter((r: null) => r !== null);
     const avgRating = allRatings.length > 0 
-      ? allRatings.reduce((sum, rating) => sum + rating, 0) / allRatings.length 
+      ? allRatings.reduce((sum: any, rating: any) => sum + rating, 0) / allRatings.length 
       : 0;
 
-    const totalFeedback = sessions.reduce((sum, s) => sum + s._count.feedback, 0);
+    const totalFeedback = sessions.reduce((sum: any, s: { _count: { feedback: any; }; }) => sum + s._count.feedback, 0);
 
     return {
       id: f.id,
@@ -569,16 +577,16 @@ async function getFacultyData(whereClause: any, dateFilters: any, query: any) {
     faculty: facultyMetrics,
     summary: {
       totalFaculty: faculty.length,
-      avgRating: facultyMetrics.reduce((sum, f) => sum + f.avgRating, 0) / faculty.length,
-      avgAttendanceRate: facultyMetrics.reduce((sum, f) => sum + f.avgAttendanceRate, 0) / faculty.length,
-      totalSessions: facultyMetrics.reduce((sum, f) => sum + f.totalSessions, 0),
-      totalCertificates: facultyMetrics.reduce((sum, f) => sum + f.certificatesIssued, 0)
+      avgRating: facultyMetrics.reduce((sum: any, f: { avgRating: any; }) => sum + f.avgRating, 0) / faculty.length,
+      avgAttendanceRate: facultyMetrics.reduce((sum: any, f: { avgAttendanceRate: any; }) => sum + f.avgAttendanceRate, 0) / faculty.length,
+      totalSessions: facultyMetrics.reduce((sum: any, f: { totalSessions: any; }) => sum + f.totalSessions, 0),
+      totalCertificates: facultyMetrics.reduce((sum: any, f: { certificatesIssued: any; }) => sum + f.certificatesIssued, 0)
     },
     topRatedFaculty: facultyMetrics
-      .sort((a, b) => b.avgRating - a.avgRating)
+      .sort((a: { avgRating: number; }, b: { avgRating: number; }) => b.avgRating - a.avgRating)
       .slice(0, 10),
     mostEngagedFaculty: facultyMetrics
-      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .sort((a: { engagementScore: number; }, b: { engagementScore: number; }) => b.engagementScore - a.engagementScore)
       .slice(0, 10),
     generatedAt: new Date().toISOString()
   });
@@ -607,18 +615,18 @@ async function getCertificatesData(whereClause: any, dateFilters: any, query: an
     }
   });
 
-  const statusDistribution = certificates.reduce((acc, cert) => {
+  const statusDistribution = certificates.reduce((acc: { [x: string]: any; }, cert: { status: string | number; }) => {
     acc[cert.status] = (acc[cert.status] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const roleDistribution = certificates.reduce((acc, cert) => {
+  const roleDistribution = certificates.reduce((acc: { [x: string]: any; }, cert: { role: string | number; }) => {
     acc[cert.role] = (acc[cert.role] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   return NextResponse.json({
-    certificates: certificates.map(cert => ({
+    certificates: certificates.map((cert: { id: any; recipientName: any; role: any; event: { name: any; }; status: any; createdAt: any; templateId: any; }) => ({
       id: cert.id,
       recipientName: cert.recipientName,
       role: cert.role,
@@ -705,4 +713,8 @@ function getEstimatedFileSize(reportType: string, format: string): string {
   };
   
   return sizes[reportType as keyof typeof sizes]?.[format as keyof typeof sizes.executive_summary] || '2.0 MB';
+}
+
+function getAnalyticsData(whereClause: any, dateFilters: any, validatedQuery: { includeCharts: boolean; includeRawData: boolean; format: "json" | "csv" | "excel" | "pdf"; eventId?: string | undefined; type?: "analytics" | "attendance" | "sessions" | "faculty" | "certificates" | undefined; startDate?: string | undefined; endDate?: string | undefined; halls?: string | undefined; roles?: string | undefined; }) {
+  throw new Error('Function not implemented.');
 }

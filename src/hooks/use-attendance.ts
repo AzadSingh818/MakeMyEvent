@@ -431,7 +431,7 @@ export function useAttendanceStats(eventId?: string) {
   return useQuery({
     queryKey: ['attendance-stats', eventId],
     queryFn: () => attendanceApi.getAttendanceStats(eventId),
-    enabled: !!session?.user && ['ORGANIZER', 'EVENT_MANAGER', 'HALL_COORDINATOR'].includes(session.user.role),
+    enabled: !!session?.user && ['ORGANIZER', 'EVENT_MANAGER', 'HALL_COORDINATOR'].includes(session.user.role || ''),
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
   });
@@ -503,7 +503,7 @@ export function useAttendanceTrends(eventId: string) {
       if (!response.ok) throw new Error('Failed to fetch attendance trends');
       return response.json();
     },
-    enabled: !!session?.user && !!eventId && ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role),
+    enabled: !!session?.user && !!eventId && ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || ''),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

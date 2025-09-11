@@ -23,9 +23,7 @@ import {
   CardHeader,
   CardTitle,
   Button,
-  Badge,
-  ScrollArea
-} from '@/components/ui';
+  Badge} from '@/components/ui';
 
 import {
   DropdownMenu,

@@ -257,7 +257,6 @@ export const pdfStyles = StyleSheet.create({
   
   // Table Styles
   table: {
-    display: 'table',
     width: 'auto',
     borderStyle: 'solid',
     borderWidth: 1,

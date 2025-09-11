@@ -17,8 +17,8 @@ export {
 } from './';
 
 // Form type exports (if needed)
-export type { FacultyFormProps } from './faculty-form';
-export type { SessionFormProps } from './session-form';
-export type { EventFormProps } from './event-form';
-export type { RegistrationFormProps } from './registration-form';
-export type { AttendanceFormProps } from './attendance-form';
+// export type { FacultyFormProps } from './faculty-form';
+// export type { SessionFormProps } from './session-form';
+// export type { EventFormProps } from './event-form';
+// export type { RegistrationFormProps } from './registration-form';
+// export type { AttendanceFormProps } from './attendance-form';

@@ -107,7 +107,7 @@ export function AttendanceForm({ eventId, sessionId: initialSessionId, onSuccess
   const filteredParticipants = registeredParticipants.filter(reg =>
     reg.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     reg.user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    reg.user?.institution?.toLowerCase().includes(searchTerm.toLowerCase())
+    reg.registrationData?.institution?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Get already marked attendance
@@ -151,7 +151,7 @@ export function AttendanceForm({ eventId, sessionId: initialSessionId, onSuccess
         // Single user
         await markAttendance.mutateAsync({
           sessionId: data.sessionId,
-          userId: data.selectedUsers[0],
+          userId: data.selectedUsers[0]!,
           method: 'MANUAL',
         });
       } else {
@@ -314,7 +314,10 @@ export function AttendanceForm({ eventId, sessionId: initialSessionId, onSuccess
                             <div className="flex-1 min-w-0">
                               <h5 className="font-medium">{registration.user?.name}</h5>
                               <p className="text-sm text-muted-foreground">
-                                {registration.user?.email} • {registration.user?.institution}
+                                {registration.user?.email}
+                                {registration.registrationData?.institution && (
+                                  <> • {registration.registrationData.institution}</>
+                                )}
                               </p>
                             </div>
                             <Badge variant="outline">

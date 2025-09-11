@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       queryParams.push(eventId);
       
       // Verify event access for organizers/managers
-      if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+      if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
         const userEventResult = await query(`
           SELECT id FROM user_events 
           WHERE user_id = $1 AND event_id = $2 AND permissions @> '["read"]'
@@ -426,7 +426,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check role permissions
-    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }
@@ -607,7 +607,7 @@ export async function DELETE(request: NextRequest) {
       // Users can cancel their own registrations
       if (row.user_id === session.user.id) return true;
       // Organizers can cancel any registration for their events
-      if (['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role) && row.created_by === session.user.id) return true;
+      if (['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '') && row.created_by === session.user.id) return true;
       return false;
     }).map(row => row.id);
 

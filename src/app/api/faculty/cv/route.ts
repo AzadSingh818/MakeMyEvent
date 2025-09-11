@@ -298,7 +298,7 @@ export async function POST(request: NextRequest) {
     // Permissions: faculty can only upload their own CV unless organizer/event_manager
     if (
       session.user.id !== facultyId &&
-      !["ORGANIZER", "EVENT_MANAGER"].includes(session.user.role)
+      !["ORGANIZER", "EVENT_MANAGER"].includes(session.user.role || "")
     ) {
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }

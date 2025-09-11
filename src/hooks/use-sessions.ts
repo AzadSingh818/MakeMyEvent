@@ -356,7 +356,7 @@ export function useSessionsByEvent(eventId: string, filters: Omit<SessionFilters
 }
 
 // Get sessions by date
-export function useSessionsByDate(date: string, eventId?: string) {
+export function useSessionsByDate(date: string | undefined, eventId?: string) {
   return useSessions({ 
     date, 
     eventId,

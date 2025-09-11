@@ -3,21 +3,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessions } from "../../_store";
 import { FACULTIES } from "../../faculties/route";
 
+// Define the Faculty type if not already defined
+type Faculty = {
+  id: string;
+  name: string;
+  // add other properties if needed
+};
+
+// Explicitly type FACULTIES as Faculty[]
+const FACULTIES_TYPED: Faculty[] = FACULTIES as Faculty[];
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
-
-    if (!email || !password) {
-      return NextResponse.json(
-        { message: "Email and password are required" },
-        { status: 400 }
-      );
-    }
+    // Removed duplicate declaration of enrichedSessions
 
     // Get all sessions and enrich them
     const baseSessions = await getSessions();
     const enrichedSessions = baseSessions.map((session) => {
-      const faculty = FACULTIES.find((f) => f.id === session.facultyId);
+      const faculty = FACULTIES_TYPED.find((f) => f.id === session.facultyId);
       return {
         ...session,
         facultyName: faculty?.name || "Unknown Faculty",

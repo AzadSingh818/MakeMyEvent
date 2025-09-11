@@ -1,9 +1,8 @@
 // src/lib/pdf/generator.ts
 import { pdf } from '@react-pdf/renderer';
-import React from 'react';
-import { EventsPDFTemplate } from '@/components/pdf/EventsPDFTemplate';
+import { EventsPDFTemplate } from '../../components/pdf/EventsPDFTemplate';
 import { saveAs } from 'file-saver';
-import { generateFilename } from '@/lib/utils/export';
+import { generateFilename } from '../utils/export';
 
 // Types
 export interface PDFGenerationOptions {
@@ -47,13 +46,16 @@ export class PDFGenerator {
         includeTimestamp = true,
         contactInfo
       } = options;
+      
       // Create PDF document
-      const MyDocument = React.createElement(EventsPDFTemplate, {
-        data: data,
-        title: title,
-        subtitle: subtitle,
-        isMultipleEvents: false
-      });
+      const MyDocument = (
+        <EventsPDFTemplate
+          data={data}
+          title={title}
+          subtitle={subtitle}
+          isMultipleEvents={false}
+        />
+      );
 
       if (!MyDocument) {
         throw new Error('PDF template did not return a valid React element.');
@@ -89,14 +91,15 @@ export class PDFGenerator {
         includeTimestamp = true,
         contactInfo
       } = options;
-
-      const MyDocument = React.createElement(EventsPDFTemplate, {
-        data: allData,
-        title: title,
-        subtitle: subtitle,
-        isMultipleEvents: true,
-        events: events
-      });
+      const MyDocument = (
+        <EventsPDFTemplate
+          data={allData}
+          title={title}
+          subtitle={subtitle}
+          isMultipleEvents={true}
+          events={events}
+        />
+      );
 
       if (!MyDocument) {
         throw new Error('PDF template did not return a valid React element.');
@@ -106,6 +109,8 @@ export class PDFGenerator {
       console.log('📄 Rendering multi-event PDF document...');
       const blob = await pdf(MyDocument).toBlob();
       
+      console.log('✅ Multi-event PDF generated successfully');
+      return blob;
       console.log('✅ Multi-event PDF generated successfully');
       return blob;
       
@@ -192,7 +197,7 @@ export class PDFGenerator {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-          const base64 = (reader.result as string).split(',')[1] ?? '';
+          const base64 = (reader.result as string).split(',')[1];
           resolve(base64);
         };
         reader.onerror = reject;

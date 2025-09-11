@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     // Allow access for EVENT_MANAGER, ORGANIZER, or event creator
     const hasAccess = 
       event.created_by === session.user.id ||
-      ['EVENT_MANAGER', 'ORGANIZER'].includes(session.user.role);
+      ['EVENT_MANAGER', 'ORGANIZER'].includes(session.user.role || '');
 
     if (!hasAccess) {
       return NextResponse.json(

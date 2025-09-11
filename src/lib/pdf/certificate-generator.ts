@@ -340,8 +340,13 @@ export class CertificateGenerator {
     const results: Blob[] = [];
 
     for (let i = 0; i < certificates.length; i++) {
+      const certificate = certificates[i];
+      if (!certificate) {
+        console.error(`Certificate data at index ${i} is undefined.`);
+        continue;
+      }
       try {
-        const pdfBlob = await this.generateSingleCertificate(certificates[i], template);
+        const pdfBlob = await this.generateSingleCertificate(certificate, template);
         results.push(pdfBlob);
         
         if (onProgress) {

@@ -279,7 +279,10 @@ export async function GET(request: NextRequest) {
       updated_at: 'u.updated_at'
     };
 
-    const validSortBy = sortColumnMap[sortBy] || 'u.created_at';
+    const validSortBy =
+      (sortBy in sortColumnMap
+        ? sortColumnMap[sortBy as keyof typeof sortColumnMap]
+        : 'u.created_at');
 
     // ✅ FIXED: Main query for faculty with raw SQL
     const facultyQuery = `
@@ -406,7 +409,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check permissions
-    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to invite faculty' },
         { status: 403 }
@@ -729,7 +732,7 @@ export async function PUT(request: NextRequest) {
           { status: 403 }
         );
       }
-    } else if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+    } else if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
         { status: 403 }

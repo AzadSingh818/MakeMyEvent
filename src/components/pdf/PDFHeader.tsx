@@ -248,7 +248,7 @@ export const PDFHeader: React.FC<PDFHeaderProps> = ({
   const renderMainHeader = () => (
     <View style={[
       headerStyles.container,
-      showDivider && headerStyles.containerWithDivider
+      ...(showDivider ? [headerStyles.containerWithDivider] : [])
     ]}>
       {/* Logo Section */}
       {renderLogo()}

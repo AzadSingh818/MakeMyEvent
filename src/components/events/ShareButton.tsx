@@ -12,7 +12,7 @@ interface ShareButtonProps {
   eventName?: string;
   eventUrl?: string;
   variant?: 'default' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
   className?: string;
 }
 
@@ -21,7 +21,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
   eventName = 'Event',
   eventUrl,
   variant = 'outline',
-  size = 'md',
+  size = 'default',
   className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -261,7 +261,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
         <div className="absolute top-full right-0 mt-2 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-50 py-1">
           
           {/* Native Share (if available) */}
-          {typeof navigator !== 'undefined' && navigator.share && (
+          {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && (
             <button
               onClick={nativeShare}
               className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"

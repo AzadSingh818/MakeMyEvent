@@ -2,7 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/database/connection';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
 import { authConfig } from '@/lib/auth/config';
 import { z } from 'zod';
 
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
         select: { id: true }
       });
       whereClause.eventId = {
-        in: coordinatorEvents.map(e => e.id)
+        in: coordinatorEvents.map((e: any) => e.id)
       };
     }
 

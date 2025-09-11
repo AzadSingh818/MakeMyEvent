@@ -201,12 +201,12 @@ const VisualRepresentation: React.FC = () => {
     }
 
     const grouped = sessions.reduce((acc, session) => {
-      if (!session || !session.startTime) return acc;
+      if (!session || typeof session.startTime !== "string") return acc;
 
       const startDate = new Date(session.startTime);
       if (isNaN(startDate.getTime())) return acc;
 
-      const dateKey = startDate.toISOString().split("T")[0]; // YYYY-MM-DD
+      const dateKey = startDate.toISOString().split("T")[0] ?? ""; // YYYY-MM-DD
       const displayDate = startDate.toLocaleDateString("en-US", {
         weekday: "long",
         year: "numeric",
@@ -217,7 +217,7 @@ const VisualRepresentation: React.FC = () => {
         weekday: "short",
       });
 
-      if (!acc[dateKey]) {
+      if (dateKey && !acc[dateKey]) {
         acc[dateKey] = {
           date: dateKey,
           displayDate,
@@ -225,7 +225,9 @@ const VisualRepresentation: React.FC = () => {
           sessions: [],
         };
       }
-      acc[dateKey].sessions.push(session);
+      if (dateKey && acc[dateKey]) {
+        acc[dateKey].sessions.push(session);
+      }
       return acc;
     }, {} as Record<string, DaySession>);
 

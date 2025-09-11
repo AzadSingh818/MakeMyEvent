@@ -51,6 +51,7 @@ export async function deleteSessionWithEvent(
 }
 // src/lib/database/event-session-integration.ts - ENHANCED for Dynamic Faculty Invitations
 import { query } from "@/lib/database/connection";
+import { UserRole } from "./models";
 
 export interface EventSessionData {
   sessionId: string;
@@ -220,9 +221,7 @@ async function createOrUpdateFaculty(data: {
  */
 // Add this function to src/lib/database/event-session-integration.ts
 export async function updateSessionWithEvent(
-  sessionId: string, 
-  updates: any
-): Promise<boolean> {
+sessionId: string, updates: any, id: string | undefined, role: UserRole | undefined): Promise<boolean> {
   try {
     console.log(`Updating session with event integration: ${sessionId}`);
     

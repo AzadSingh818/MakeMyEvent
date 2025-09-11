@@ -381,7 +381,7 @@ export function useMyFacultyProfile() {
   return useQuery({
     queryKey: ['my-faculty-profile'],
     queryFn: () => facultyApi.getFacultyProfile(session?.user?.id || ''),
-    enabled: !!session?.user?.id && ['FACULTY', 'SPEAKER', 'MODERATOR', 'CHAIRPERSON'].includes(session.user.role),
+    enabled: !!session?.user?.id && ['FACULTY', 'SPEAKER', 'MODERATOR', 'CHAIRPERSON'].includes(session.user.role || ''),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -500,7 +500,7 @@ export function useFacultyStats(eventId?: string) {
   return useQuery({
     queryKey: ['faculty-stats', eventId],
     queryFn: () => facultyApi.getFacultyStats(eventId),
-    enabled: !!session?.user && ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role),
+    enabled: !!session?.user && ['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || ''),
     staleTime: 2 * 60 * 1000, // 2 minutes
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
   });

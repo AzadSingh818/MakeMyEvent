@@ -37,6 +37,7 @@ import {
   Trash2,
   Plus
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface CommunicationDashboardProps {
   eventId: string;

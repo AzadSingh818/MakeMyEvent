@@ -14,7 +14,8 @@ import {
   TrashIcon,
   UserIcon,
   SaveIcon,
-  XIcon
+  XIcon,
+  AlertTriangleIcon
 } from 'lucide-react';
 
 import { 
@@ -35,10 +36,10 @@ import {
   Separator,
   Alert,
   AlertDescription,
-  Calendar,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  // Calendar,
+  // Popover,
+  // PopoverContent,
+  // PopoverTrigger,
   Tabs,
   TabsContent,
   TabsList,
@@ -287,7 +288,6 @@ export function SessionForm({
               {/* Break Toggle */}
               <div className="flex items-center space-x-2">
                 <Switch
-                  id="isBreak"
                   checked={watchedFields.isBreak}
                   onCheckedChange={(checked) => setValue('isBreak', checked)}
                 />

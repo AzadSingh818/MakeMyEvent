@@ -20,7 +20,6 @@ import {
   AlertCircleIcon,
   PlayIcon,
   PauseIcon,
-  StopIcon,
   UserIcon,
   PresentationIcon,
   Coffee,
@@ -391,7 +390,9 @@ export function SessionList({
         </div>
         
         <div className="text-sm">
-          <div className="font-medium">{visibleSpeakers[0].user.name}</div>
+          {visibleSpeakers[0] && (
+            <div className="font-medium">{visibleSpeakers[0].user.name}</div>
+          )}
           {remainingCount > 0 && (
             <div className="text-gray-600">+{remainingCount} more</div>
           )}

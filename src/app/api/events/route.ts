@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
     const sortByParam = searchParams.get('sortBy') || 'created_at';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    const sortBy = SORT_COLUMN_MAP[sortByParam] || 'created_at';
+    const sortBy = (sortByParam in SORT_COLUMN_MAP)
+      ? SORT_COLUMN_MAP[sortByParam as keyof typeof SORT_COLUMN_MAP]
+      : 'created_at';
     const skip = (page - 1) * limit;
 
     // Build WHERE clause for filtering
@@ -70,7 +72,7 @@ export async function GET(request: NextRequest) {
       // FIXED: Organizers can see all events to create sessions under them
       // Remove the restriction that limited them to only their own events
       // This allows session creation workflow to work properly
-    } else if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+    } else if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
       // Other roles (FACULTY, DELEGATE, etc.) only see published events
       paramCount++;
       whereClause += ` AND e.status = $${paramCount}`;
@@ -212,7 +214,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check permissions
-    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role)) {
+    if (!['ORGANIZER', 'EVENT_MANAGER'].includes(session.user.role || '')) {
       return NextResponse.json(
         { error: 'Insufficient permissions to create events' },
         { status: 403 }

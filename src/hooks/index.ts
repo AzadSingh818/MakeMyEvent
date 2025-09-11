@@ -1,9 +1,9 @@
 // src/components/ui/index.ts - Export all UI components
-export { Button, buttonVariants } from './button'
-export { Input } from './input'
-export { Label } from './label'
-export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card'
-export { Badge } from './badge'
+// export { Button, buttonVariants } from './button'
+// export { Input } from './input'
+// export { Label } from './label'
+// export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card'
+// export { Badge } from './badge'
 
 // Dropdown Menu
 export {
@@ -22,21 +22,21 @@ export {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuRadioGroup,
-} from './dropdown-menu'
+} from '../components/ui/dropdown-menu'
 
 // Checkbox
-export { Checkbox } from './checkbox'
+// export { Checkbox } from './checkbox'
 
 // Switch
-export { Switch } from './switch'
+// export { Switch } from './switch'
 
 // Tooltip
-export {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from './tooltip'
+// export {
+//   Tooltip,
+//   TooltipTrigger,
+//   TooltipContent,
+//   TooltipProvider,
+// } from './tooltip'
 
 // Dialog
 export {
@@ -47,9 +47,9 @@ export {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-} from './dialog'
+} from '../components/ui/dialog'
 
 // Other common components
-export { Textarea } from './textarea'
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select'
-export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'
+// export { Textarea } from './textarea'
+// export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select'
+//export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs'

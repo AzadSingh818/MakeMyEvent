@@ -11,7 +11,7 @@ interface ExportButtonProps {
   eventId?: string;
   eventName?: string;
   variant?: 'default' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'default' | 'sm' | 'lg';
   className?: string;
 }
 
@@ -19,7 +19,7 @@ export const ExportButton: React.FC<ExportButtonProps> = ({
   eventId,
   eventName = 'Event',
   variant = 'outline',
-  size = 'md',
+  size = 'default',
   className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);

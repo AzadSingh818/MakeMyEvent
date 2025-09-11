@@ -14,7 +14,6 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar } from '@/components/ui/calendar';
 import { 
   Download, 
   FileText, 
@@ -188,8 +187,25 @@ interface ExportControlsProps {
 }
 
 export default function ExportControls({ eventId }: ExportControlsProps) {
-  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>(exportFormats[0]);
-  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate>(reportTemplates[0]);
+  const [selectedFormat, setSelectedFormat] = useState<ExportFormat>(exportFormats[0] ?? {
+    id: '',
+    name: '',
+    extension: '',
+    icon: () => null,
+    description: '',
+    features: []
+  });
+  const [selectedTemplate, setSelectedTemplate] = useState<ReportTemplate>(
+    reportTemplates[0] ?? {
+      id: '',
+      name: '',
+      description: '',
+      category: 'custom',
+      sections: [],
+      estimatedSize: '',
+      generationTime: ''
+    }
+  );
   const [selectedSections, setSelectedSections] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
     from: undefined,
@@ -412,7 +428,7 @@ export default function ExportControls({ eventId }: ExportControlsProps) {
                       <Checkbox
                         id="includeCharts"
                         checked={includeCharts}
-                        onCheckedChange={setIncludeCharts}
+                        onCheckedChange={checked => setIncludeCharts(checked === true)}
                       />
                       <Label htmlFor="includeCharts" className="text-sm font-medium">
                         Include Charts & Graphs
@@ -423,7 +439,7 @@ export default function ExportControls({ eventId }: ExportControlsProps) {
                       <Checkbox
                         id="includeRawData"
                         checked={includeRawData}
-                        onCheckedChange={setIncludeRawData}
+                        onCheckedChange={checked => setIncludeRawData(checked === true)}
                       />
                       <Label htmlFor="includeRawData" className="text-sm font-medium">
                         Include Raw Data
