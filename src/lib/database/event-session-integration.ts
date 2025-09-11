@@ -160,27 +160,40 @@ export async function createSessionWithEvent(
 /**
  * DYNAMIC: Create or update faculty user and handle invitation
  */
+/**
+ * DYNAMIC: Create or update faculty user and handle invitation - FIXED
+ */
 async function createOrUpdateFaculty(data: {
   facultyId?: string;
   facultyEmail: string;
   eventId: string;
 }): Promise<{ facultyId: string; isNewUser: boolean }> {
   try {
-    // Check if faculty already exists by email
-    const existingFaculty = await query(
-      "SELECT id, name FROM users WHERE email = $1 AND role = 'FACULTY'",
+    // FIXED: Check if user already exists by email (regardless of role)
+    const existingUser = await query(
+      "SELECT id, name, role FROM users WHERE email = $1",
       [data.facultyEmail]
     );
 
     let facultyId: string;
     let isNewUser = false;
 
-    if (existingFaculty.rows.length > 0) {
-      // Use existing faculty
-      facultyId = existingFaculty.rows[0].id;
-      console.log("ℹ️ Using existing faculty:", facultyId);
+    if (existingUser.rows.length > 0) {
+      // User already exists - use their existing ID
+      facultyId = existingUser.rows[0].id;
+      console.log(`ℹ️ Using existing user: ${facultyId} with role: ${existingUser.rows[0].role}`);
+      
+      // Don't try to change role if they're ORGANIZER or EVENT_MANAGER
+      if (existingUser.rows[0].role !== 'ORGANIZER' && existingUser.rows[0].role !== 'EVENT_MANAGER') {
+        // Only update role to FACULTY if they don't have an admin role
+        await query(
+          "UPDATE users SET role = 'FACULTY', updated_at = NOW() WHERE id = $1",
+          [facultyId]
+        );
+        console.log(`✅ Updated user role to FACULTY: ${facultyId}`);
+      }
     } else {
-      // Create new faculty user
+      // Create new faculty user only if email doesn't exist
       facultyId = data.facultyId || `faculty_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const facultyName = typeof data.facultyEmail === "string" && data.facultyEmail
         ? ((data.facultyEmail ?? "").split("@")[0] ?? "").replace(/[._]/g, " ")
@@ -201,7 +214,7 @@ async function createOrUpdateFaculty(data: {
       console.log("✅ Created new faculty user:", facultyId);
     }
 
-    // Create user_events association
+    // Create user_events association (with conflict handling)
     await query(
       `INSERT INTO user_events (id, user_id, event_id, role, permissions, created_at)
        VALUES (gen_random_uuid(), $1, $2, 'SPEAKER', 'VIEW_ONLY', NOW())
@@ -221,10 +234,10 @@ async function createOrUpdateFaculty(data: {
  */
 // Add this function to src/lib/database/event-session-integration.ts
 export async function updateSessionWithEvent(
-sessionId: string, updates: any, id: string | undefined, role: UserRole | undefined): Promise<boolean> {
+  sessionId: string, updates: any, id: string | undefined, role: UserRole | undefined): Promise<boolean> {
   try {
     console.log(`Updating session with event integration: ${sessionId}`);
-    
+
     const result = await query(
       `UPDATE conference_sessions 
        SET title = COALESCE($2, title), 
@@ -238,7 +251,7 @@ sessionId: string, updates: any, id: string | undefined, role: UserRole | undefi
       [
         sessionId,
         updates.title,
-        updates.description, 
+        updates.description,
         updates.startTime,
         updates.endTime,
         updates.hallId

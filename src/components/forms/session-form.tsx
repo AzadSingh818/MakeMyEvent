@@ -20,6 +20,7 @@ import { LoadingSpinner } from '@/components/ui/loading';
 import { useCreateSession, useUpdateSession, useCheckConflicts } from '@/hooks/use-sessions';
 import { useFacultyByEvent } from '@/hooks/use-faculty';
 import { useEvents } from '@/hooks/use-events';
+import { useRooms } from '@/hooks/use-rooms'; // ADDED: Import rooms hook
 
 import { Calendar, Clock, MapPin, Users, Plus, X, AlertTriangle, CheckCircle } from 'lucide-react';
 
@@ -53,14 +54,6 @@ interface SessionFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
 }
-
-// Mock halls data - in real app this would come from an API
-const mockHalls = [
-  { id: '1', name: 'Main Auditorium', capacity: 500 },
-  { id: '2', name: 'Conference Room A', capacity: 100 },
-  { id: '3', name: 'Conference Room B', capacity: 80 },
-  { id: '4', name: 'Workshop Hall', capacity: 50 },
-];
 
 export function SessionForm({ sessionId, initialData, onSuccess, onCancel }: SessionFormProps) {
   const [selectedSpeakers, setSelectedSpeakers] = useState<Array<{
@@ -99,6 +92,7 @@ export function SessionForm({ sessionId, initialData, onSuccess, onCancel }: Ses
   // Data fetching hooks
   const { data: events } = useEvents({ status: 'PUBLISHED' });
   const { data: facultyData } = useFacultyByEvent(watchedEventId);
+  const { data: roomsData, isLoading: roomsLoading, error: roomsError } = useRooms(true); // ADDED: Fetch active rooms
 
   // Mutations
   const createSession = useCreateSession();
@@ -110,6 +104,9 @@ export function SessionForm({ sessionId, initialData, onSuccess, onCancel }: Ses
   const unselectedFaculty = availableFaculty.filter(
     faculty => !selectedSpeakers.some(speaker => speaker.userId === faculty.id)
   );
+
+  // ADDED: Get available rooms
+  const availableRooms = roomsData?.data || [];
 
   // Check for conflicts when hall or time changes
   const handleConflictCheck = async () => {
@@ -312,21 +309,41 @@ export function SessionForm({ sessionId, initialData, onSuccess, onCancel }: Ses
             </div>
           </div>
 
-          {/* Hall Selection */}
+          {/* FIXED: Hall Selection with Real Data */}
           <div className="space-y-2">
-            <Label htmlFor="hallId">Hall</Label>
-            <Select value={watch('hallId') || ''} onValueChange={(value) => setValue('hallId', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a hall" />
-              </SelectTrigger>
-              <SelectContent>
-                {mockHalls.map((hall) => (
-                  <SelectItem key={hall.id} value={hall.id}>
-                    {hall.name} (Capacity: {hall.capacity})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="hallId">Room/Hall</Label>
+            {roomsLoading ? (
+              <div className="flex items-center gap-2 p-2 border rounded-md">
+                <LoadingSpinner size="sm" />
+                <span className="text-sm text-gray-500">Loading rooms...</span>
+              </div>
+            ) : roomsError ? (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Failed to load rooms. Please refresh the page.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Select value={watch('hallId') || ''} onValueChange={(value) => setValue('hallId', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a room" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRooms.length === 0 ? (
+                    <SelectItem value="" disabled>
+                      No rooms available
+                    </SelectItem>
+                  ) : (
+                    availableRooms.map((room) => (
+                      <SelectItem key={room.id} value={room.id}>
+                        {room.name} - {room.location} (Capacity: {room.capacity})
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Conflict Check */}
@@ -355,8 +372,8 @@ export function SessionForm({ sessionId, initialData, onSuccess, onCancel }: Ses
                   )}
                   <AlertDescription>
                     {conflictCheck.hasConflicts 
-                      ? `Schedule conflict detected! Hall is already booked during this time.`
-                      : `No conflicts found. Hall is available for the selected time.`
+                      ? `Schedule conflict detected! Room is already booked during this time.`
+                      : `No conflicts found. Room is available for the selected time.`
                     }
                   </AlertDescription>
                 </Alert>
