@@ -9,8 +9,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Calendar,
   Edit3,
@@ -30,12 +41,13 @@ import {
   FileText,
   Plus,
   Timer,
-  CalendarDays
+  CalendarDays,
 } from "lucide-react";
 
 type InviteStatus = "Pending" | "Accepted" | "Declined";
 
 type SessionRow = {
+  eventName: any;
   id: string;
   eventId?: string;
   title: string;
@@ -93,16 +105,53 @@ type DraftSession = {
 
 // Helper functions
 const badge = (s: InviteStatus) => {
-  const base = "px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1";
-  if (s === "Accepted") return <span className={`${base} bg-green-900/30 text-green-300 border border-green-700`}><CheckCircle className="h-3 w-3" />Accepted</span>;
-  if (s === "Declined") return <span className={`${base} bg-red-900/30 text-red-300 border border-red-700`}><X className="h-3 w-3" />Declined</span>;
-  return <span className={`${base} bg-yellow-900/30 text-yellow-300 border border-yellow-700`}><Clock className="h-3 w-3" />Pending</span>;
+  const base =
+    "px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1";
+  if (s === "Accepted")
+    return (
+      <span
+        className={`${base} bg-green-900/30 text-green-300 border border-green-700`}
+      >
+        <CheckCircle className="h-3 w-3" />
+        Accepted
+      </span>
+    );
+  if (s === "Declined")
+    return (
+      <span
+        className={`${base} bg-red-900/30 text-red-300 border border-red-700`}
+      >
+        <X className="h-3 w-3" />
+        Declined
+      </span>
+    );
+  return (
+    <span
+      className={`${base} bg-yellow-900/30 text-yellow-300 border border-yellow-700`}
+    >
+      <Clock className="h-3 w-3" />
+      Pending
+    </span>
+  );
 };
 
 const statusBadge = (s: "Draft" | "Confirmed") => {
   const base = "px-2 py-1 rounded-full text-xs font-medium";
-  if (s === "Confirmed") return <span className={`${base} bg-blue-900/30 text-blue-300 border border-blue-700`}>Confirmed</span>;
-  return <span className={`${base} bg-gray-700 text-gray-300 border border-gray-600`}>Draft</span>;
+  if (s === "Confirmed")
+    return (
+      <span
+        className={`${base} bg-blue-900/30 text-blue-300 border border-blue-700`}
+      >
+        Confirmed
+      </span>
+    );
+  return (
+    <span
+      className={`${base} bg-gray-700 text-gray-300 border border-gray-600`}
+    >
+      Draft
+    </span>
+  );
 };
 
 const toInputDateTime = (iso?: string) => {
@@ -128,7 +177,7 @@ const calculateDuration = (startTime?: string, endTime?: string) => {
 const AllSessions: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // State
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -137,7 +186,9 @@ const AllSessions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "Draft" | "Confirmed">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "Draft" | "Confirmed"
+  >("all");
   const [inviteFilter, setInviteFilter] = useState<"all" | InviteStatus>("all");
   const [selectedEventId, setSelectedEventId] = useState<string>("all");
 
@@ -152,15 +203,15 @@ const AllSessions: React.FC = () => {
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
 
   // Get URL params
-  const eventIdFromUrl = searchParams.get('eventId');
-  const actionFromUrl = searchParams.get('action');
+  const eventIdFromUrl = searchParams.get("eventId");
+  const actionFromUrl = searchParams.get("action");
 
   useEffect(() => {
     if (eventIdFromUrl) {
       setSelectedEventId(eventIdFromUrl);
       setPreselectedEventId(eventIdFromUrl);
     }
-    if (actionFromUrl === 'create') {
+    if (actionFromUrl === "create") {
       setShowCreateModal(true);
     }
   }, [eventIdFromUrl, actionFromUrl]);
@@ -169,21 +220,23 @@ const AllSessions: React.FC = () => {
   const loadEvents = async () => {
     try {
       setEventsLoading(true);
-      console.log('Fetching events for sessions page...');
-      
-      const response = await fetch("/api/events", { 
+      console.log("Fetching events for sessions page...");
+
+      const response = await fetch("/api/events", {
         cache: "no-store",
         headers: {
-          'Content-Type': 'application/json',
-        }
+          "Content-Type": "application/json",
+        },
       });
 
       if (!response.ok) {
-        throw new Error(`Events API Error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Events API Error: ${response.status} ${response.statusText}`
+        );
       }
 
       const data = await response.json();
-      console.log('Events API Response:', data);
+      console.log("Events API Response:", data);
 
       // FIXED: Handle the correct API response format
       let eventsArray = [];
@@ -194,7 +247,7 @@ const AllSessions: React.FC = () => {
       } else if (Array.isArray(data)) {
         eventsArray = data;
       } else {
-        console.warn('Unexpected events API response format:', data);
+        console.warn("Unexpected events API response format:", data);
         eventsArray = [];
       }
 
@@ -202,23 +255,24 @@ const AllSessions: React.FC = () => {
       const processedEvents: Event[] = eventsArray.map((event: any) => ({
         id: event.id,
         name: event.name,
-        location: event.venue || event.location || 'TBA',
-        status: event.status || 'DRAFT',
+        location: event.venue || event.location || "TBA",
+        status: event.status || "DRAFT",
         startDate: event.start_date || event.startDate,
         endDate: event.end_date || event.endDate,
         createdByName: event.created_by_name || event.createdByName,
         _count: {
           sessions: event._count?.sessions || 0,
           registrations: event._count?.registrations || 0,
-        }
+        },
       }));
 
-      console.log(`Successfully loaded ${processedEvents.length} events for sessions`);
+      console.log(
+        `Successfully loaded ${processedEvents.length} events for sessions`
+      );
       setEvents(processedEvents);
-
     } catch (error) {
-      console.error('Error loading events:', error);
-      
+      console.error("Error loading events:", error);
+
       // FIXED: Fallback events only if API fails
       const fallbackEvents: Event[] = [
         {
@@ -226,10 +280,14 @@ const AllSessions: React.FC = () => {
           name: "Academic Excellence Conference 2025",
           location: "University Campus",
           status: "PUBLISHED",
-          startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          endDate: new Date(Date.now() + 32 * 24 * 60 * 60 * 1000).toISOString(),
-          _count: { sessions: 0, registrations: 0 }
-        }
+          startDate: new Date(
+            Date.now() + 30 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          endDate: new Date(
+            Date.now() + 32 * 24 * 60 * 60 * 1000
+          ).toISOString(),
+          _count: { sessions: 0, registrations: 0 },
+        },
       ];
       setEvents(fallbackEvents);
     } finally {
@@ -243,7 +301,12 @@ const AllSessions: React.FC = () => {
       await loadEvents();
 
       const [sRes, rRes, fRes] = await Promise.all([
-        fetch(`/api/sessions${selectedEventId !== "all" ? `?eventId=${selectedEventId}` : ""}`, { cache: "no-store" }),
+        fetch(
+          `/api/sessions${
+            selectedEventId !== "all" ? `?eventId=${selectedEventId}` : ""
+          }`,
+          { cache: "no-store" }
+        ),
         fetch("/api/rooms", { cache: "no-store" }),
         fetch("/api/faculties", { cache: "no-store" }),
       ]);
@@ -255,12 +318,14 @@ const AllSessions: React.FC = () => {
       const [sData, rData, fData] = await Promise.all([
         sRes.json(),
         rRes.json(),
-        fRes.json()
+        fRes.json(),
       ]);
 
-      const sessionsList = sData.data?.sessions || sData.sessions || sData || [];
+      const sessionsList =
+        sData.data?.sessions || sData.sessions || sData || [];
       const mapped: SessionRow[] = sessionsList.map((s: any) => {
-        const roomId = s.roomId ?? rData.find((r: any) => r.name === s.roomName)?.id;
+        const roomId =
+          s.roomId ?? rData.find((r: any) => r.name === s.roomName)?.id;
         const duration = calculateDuration(s.startTime, s.endTime);
 
         return {
@@ -268,8 +333,12 @@ const AllSessions: React.FC = () => {
           roomId,
           duration,
           startTime: s.startTime || s.time,
-          formattedStartTime: s.startTime ? new Date(s.startTime).toLocaleString() : undefined,
-          formattedEndTime: s.endTime ? new Date(s.endTime).toLocaleString() : undefined,
+          formattedStartTime: s.startTime
+            ? new Date(s.startTime).toLocaleString()
+            : undefined,
+          formattedEndTime: s.endTime
+            ? new Date(s.endTime).toLocaleString()
+            : undefined,
         };
       });
 
@@ -294,16 +363,18 @@ const AllSessions: React.FC = () => {
     setSelectedEventId(eventId);
     const newUrl = new URL(window.location.href);
     if (eventId === "all") {
-      newUrl.searchParams.delete('eventId');
+      newUrl.searchParams.delete("eventId");
     } else {
-      newUrl.searchParams.set('eventId', eventId);
+      newUrl.searchParams.set("eventId", eventId);
     }
-    window.history.replaceState({}, '', newUrl.toString());
+    window.history.replaceState({}, "", newUrl.toString());
   };
 
   // Create session handlers
   const handleCreateSession = (eventId?: string) => {
-    setPreselectedEventId(eventId || selectedEventId !== "all" ? selectedEventId : "");
+    setPreselectedEventId(
+      eventId || selectedEventId !== "all" ? selectedEventId : ""
+    );
     setShowCreateModal(true);
   };
 
@@ -317,8 +388,8 @@ const AllSessions: React.FC = () => {
     setShowCreateModal(false);
     setPreselectedEventId("");
     const newUrl = new URL(window.location.href);
-    newUrl.searchParams.delete('action');
-    window.history.replaceState({}, '', newUrl.toString());
+    newUrl.searchParams.delete("action");
+    window.history.replaceState({}, "", newUrl.toString());
   };
 
   // Filtered sessions
@@ -329,13 +400,15 @@ const AllSessions: React.FC = () => {
       session.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       session.place.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === "all" || session.status === statusFilter;
-    const matchesInvite = inviteFilter === "all" || session.inviteStatus === inviteFilter;
+    const matchesStatus =
+      statusFilter === "all" || session.status === statusFilter;
+    const matchesInvite =
+      inviteFilter === "all" || session.inviteStatus === inviteFilter;
 
     return matchesSearch && matchesStatus && matchesInvite;
   });
 
-  const selectedEvent = events.find(e => e.id === selectedEventId);
+  const selectedEvent = events.find((e) => e.id === selectedEventId);
 
   // Edit handlers
   const onEdit = (id: string) => {
@@ -364,15 +437,19 @@ const AllSessions: React.FC = () => {
     });
   };
 
-  const onChangeDraft = (id: string, field: keyof DraftSession, value: string) => {
-  setDraft((d) => ({
-    ...d,
-    [id]: { 
-      ...d[id], 
-      [field]: value 
-    } as DraftSession,
-  }));
-};
+  const onChangeDraft = (
+    id: string,
+    field: keyof DraftSession,
+    value: string
+  ) => {
+    setDraft((d) => ({
+      ...d,
+      [id]: {
+        ...d[id],
+        [field]: value,
+      } as DraftSession,
+    }));
+  };
 
   const onSave = async (id: string) => {
     const body = draft[id];
@@ -491,7 +568,11 @@ const AllSessions: React.FC = () => {
                   className="border-gray-600 text-gray-300 hover:bg-gray-800"
                   disabled={loading || eventsLoading}
                 >
-                  <RefreshCw className={`h-4 w-4 mr-2 ${(loading || eventsLoading) ? 'animate-spin' : ''}`} />
+                  <RefreshCw
+                    className={`h-4 w-4 mr-2 ${
+                      loading || eventsLoading ? "animate-spin" : ""
+                    }`}
+                  />
                   Refresh
                 </Button>
               </div>
@@ -503,21 +584,30 @@ const AllSessions: React.FC = () => {
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-5 w-5 text-gray-400" />
-                    <label className="text-sm font-medium text-gray-300">Filter by Event:</label>
+                    <label className="text-sm font-medium text-gray-300">
+                      Filter by Event:
+                    </label>
                   </div>
                   <div className="flex-1 max-w-md">
                     {eventsLoading ? (
                       <div className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 flex items-center">
                         <RefreshCw className="h-4 w-4 mr-2 animate-spin text-blue-500" />
-                        <span className="text-gray-300">Loading events from database...</span>
+                        <span className="text-gray-300">
+                          Loading events from database...
+                        </span>
                       </div>
                     ) : events.length === 0 ? (
                       <div className="bg-red-900/20 border border-red-600 rounded-lg px-3 py-2 flex items-center">
                         <AlertTriangle className="h-4 w-4 mr-2 text-red-400" />
-                        <span className="text-red-300">No events available. Please create events first.</span>
+                        <span className="text-red-300">
+                          No events available. Please create events first.
+                        </span>
                       </div>
                     ) : (
-                      <Select value={selectedEventId} onValueChange={handleEventChange}>
+                      <Select
+                        value={selectedEventId}
+                        onValueChange={handleEventChange}
+                      >
                         <SelectTrigger className="bg-gray-800 border-gray-600">
                           <SelectValue placeholder="Select an event" />
                         </SelectTrigger>
@@ -528,7 +618,8 @@ const AllSessions: React.FC = () => {
                               <div className="flex flex-col">
                                 <div className="font-medium">{event.name}</div>
                                 <div className="text-xs text-gray-400">
-                                  {event.location} • {event._count.sessions} sessions
+                                  {event.location} • {event._count.sessions}{" "}
+                                  sessions
                                 </div>
                               </div>
                             </SelectItem>
@@ -572,7 +663,11 @@ const AllSessions: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {filteredSessions.filter((s) => s.inviteStatus === "Accepted").length}
+                        {
+                          filteredSessions.filter(
+                            (s) => s.inviteStatus === "Accepted"
+                          ).length
+                        }
                       </div>
                       <div className="text-sm text-gray-400">Accepted</div>
                     </div>
@@ -588,7 +683,11 @@ const AllSessions: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {filteredSessions.filter((s) => s.inviteStatus === "Pending").length}
+                        {
+                          filteredSessions.filter(
+                            (s) => s.inviteStatus === "Pending"
+                          ).length
+                        }
                       </div>
                       <div className="text-sm text-gray-400">Pending</div>
                     </div>
@@ -604,7 +703,11 @@ const AllSessions: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {filteredSessions.filter((s) => s.status === "Confirmed").length}
+                        {
+                          filteredSessions.filter(
+                            (s) => s.status === "Confirmed"
+                          ).length
+                        }
                       </div>
                       <div className="text-sm text-gray-400">Confirmed</div>
                     </div>
@@ -620,9 +723,15 @@ const AllSessions: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-white">
-                        {filteredSessions.filter((s) => s.rejectionReason === "TimeConflict").length}
+                        {
+                          filteredSessions.filter(
+                            (s) => s.rejectionReason === "TimeConflict"
+                          ).length
+                        }
                       </div>
-                      <div className="text-sm text-gray-400">Time Conflicts</div>
+                      <div className="text-sm text-gray-400">
+                        Time Conflicts
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -672,7 +781,8 @@ const AllSessions: React.FC = () => {
                   </div>
 
                   <div className="text-sm text-gray-400">
-                    Showing {filteredSessions.length} of {sessions.length} sessions
+                    Showing {filteredSessions.length} of {sessions.length}{" "}
+                    sessions
                   </div>
                 </div>
               </CardContent>
@@ -684,20 +794,25 @@ const AllSessions: React.FC = () => {
             <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
               <CardContent className="p-12 text-center">
                 <RefreshCw className="h-12 w-12 animate-spin text-blue-400 mx-auto mb-4" />
-                <div className="text-xl text-gray-300 mb-2">Loading Sessions</div>
-                <div className="text-gray-400">Fetching session data from database...</div>
+                <div className="text-xl text-gray-300 mb-2">
+                  Loading Sessions
+                </div>
+                <div className="text-gray-400">
+                  Fetching session data from database...
+                </div>
               </CardContent>
             </Card>
           ) : filteredSessions.length === 0 ? (
             <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
               <CardContent className="p-12 text-center">
                 <Calendar className="h-16 w-16 text-gray-600 mx-auto mb-6" />
-                <div className="text-2xl font-semibold text-gray-300 mb-3">No Sessions Found</div>
+                <div className="text-2xl font-semibold text-gray-300 mb-3">
+                  No Sessions Found
+                </div>
                 <div className="text-gray-400 mb-6 max-w-md mx-auto">
-                  {selectedEventId !== "all" 
+                  {selectedEventId !== "all"
                     ? "This event doesn't have any sessions yet. Create the first session to get started."
-                    : "No sessions match your current filters. Try adjusting your search criteria or create a new session."
-                  }
+                    : "No sessions match your current filters. Try adjusting your search criteria or create a new session."}
                 </div>
                 <div className="flex gap-3 justify-center">
                   <Button
@@ -707,7 +822,9 @@ const AllSessions: React.FC = () => {
                     <Plus className="h-4 w-4 mr-2" />
                     Create New Session
                   </Button>
-                  {(searchTerm || statusFilter !== "all" || inviteFilter !== "all") && (
+                  {(searchTerm ||
+                    statusFilter !== "all" ||
+                    inviteFilter !== "all") && (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -719,7 +836,7 @@ const AllSessions: React.FC = () => {
                     >
                       Clear Filters
                     </Button>
-                    )}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -796,72 +913,104 @@ const AllSessions: React.FC = () => {
                           <tr
                             key={s.id}
                             className={`hover:bg-gray-800/50 transition-colors ${
-                              isEditing ? "bg-blue-900/10 border border-blue-800/30" : ""
-                            } ${index % 2 === 0 ? "bg-gray-900/20" : "bg-gray-900/40"}`}
+                              isEditing
+                                ? "bg-blue-900/10 border border-blue-800/30"
+                                : ""
+                            } ${
+                              index % 2 === 0
+                                ? "bg-gray-900/20"
+                                : "bg-gray-900/40"
+                            }`}
                           >
                             {/* Title */}
                             <td className="p-4">
-                              <div className="font-medium text-white">{s.title}</div>
+                              <div className="font-medium text-white">
+                                {s.title}
+                              </div>
                               {s.description && (
-                                <div className="text-xs text-gray-400 mt-1 line-clamp-2">{s.description}</div>
+                                <div className="text-xs text-gray-400 mt-1 line-clamp-2">
+                                  {s.description}
+                                </div>
                               )}
                             </td>
 
                             {/* Event (only show when viewing all events) */}
                             {selectedEventId === "all" && (
                               <td className="p-4">
-                                {s.eventInfo ? (
+                                {s.eventName ? (
                                   <div className="text-xs">
-                                    <div className="font-medium text-gray-200">{s.eventInfo.name}</div>
-                                    <div className="text-gray-400">{s.eventInfo.location}</div>
+                                    <div className="font-medium text-gray-200">
+                                      {s.eventName}
+                                    </div>
+                                    <div className="text-gray-400">
+                                      {s.place}
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div className="text-gray-500">Unknown event</div>
+                                  <div className="text-gray-500">
+                                    Unknown event
+                                  </div>
                                 )}
                               </td>
                             )}
 
                             {/* Faculty */}
                             <td className="p-4">
-                              <div className="text-gray-200">{s.facultyName}</div>
+                              <div className="text-gray-200">
+                                {s.facultyName}
+                              </div>
                             </td>
-                            
+
                             {/* Email */}
                             <td className="p-4">
-                              <div className="text-gray-300 text-xs">{s.email}</div>
+                              <div className="text-gray-300 text-xs">
+                                {s.email}
+                              </div>
                             </td>
-                            
+
                             {/* Place */}
                             <td className="p-4">
                               {isEditing ? (
                                 <input
                                   className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
                                   value={d?.place || ""}
-                                  onChange={(e) => onChangeDraft(s.id, "place", e.target.value)}
+                                  onChange={(e) =>
+                                    onChangeDraft(s.id, "place", e.target.value)
+                                  }
                                 />
                               ) : (
                                 <div className="text-gray-200">{s.place}</div>
                               )}
                             </td>
-                            
+
                             {/* Room */}
                             <td className="p-4">
                               {isEditing ? (
                                 <select
                                   className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
                                   value={d?.roomId || s.roomId || ""}
-                                  onChange={(e) => onChangeDraft(s.id, "roomId", e.target.value)}
+                                  onChange={(e) =>
+                                    onChangeDraft(
+                                      s.id,
+                                      "roomId",
+                                      e.target.value
+                                    )
+                                  }
                                 >
                                   <option value="">Select Room</option>
                                   {rooms.map((r) => (
-                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                    <option key={r.id} value={r.id}>
+                                      {r.name}
+                                    </option>
                                   ))}
                                 </select>
                               ) : (
-                                <div className="text-gray-200">{s.roomName || "-"}</div>
+                                <div className="text-gray-200">
+                                  {s.roomName || "-"}
+                                </div>
                               )}
                             </td>
-                            
+
                             {/* Schedule */}
                             <td className="p-4">
                               {isEditing ? (
@@ -870,40 +1019,66 @@ const AllSessions: React.FC = () => {
                                     type="datetime-local"
                                     className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-blue-500 focus:outline-none"
                                     value={d?.startTime || ""}
-                                    onChange={(e) => onChangeDraft(s.id, "startTime", e.target.value)}
+                                    onChange={(e) =>
+                                      onChangeDraft(
+                                        s.id,
+                                        "startTime",
+                                        e.target.value
+                                      )
+                                    }
                                   />
                                   <input
                                     type="datetime-local"
                                     className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-blue-500 focus:outline-none"
                                     value={d?.endTime || ""}
-                                    onChange={(e) => onChangeDraft(s.id, "endTime", e.target.value)}
+                                    onChange={(e) =>
+                                      onChangeDraft(
+                                        s.id,
+                                        "endTime",
+                                        e.target.value
+                                      )
+                                    }
                                   />
                                 </div>
                               ) : s.startTime || s.endTime ? (
                                 <div className="text-xs space-y-1">
                                   {s.startTime && (
                                     <div className="text-green-300">
-                                      <span className="text-gray-400">Start:</span> {s.formattedStartTime}
+                                      <span className="text-gray-400">
+                                        Start:
+                                      </span>{" "}
+                                      {s.formattedStartTime}
                                     </div>
                                   )}
                                   {s.endTime && (
                                     <div className="text-red-300">
-                                      <span className="text-gray-400">End:</span> {s.formattedEndTime}
+                                      <span className="text-gray-400">
+                                        End:
+                                      </span>{" "}
+                                      {s.formattedEndTime}
                                     </div>
                                   )}
                                 </div>
                               ) : (
-                                <div className="text-gray-500 text-xs">Not scheduled</div>
+                                <div className="text-gray-500 text-xs">
+                                  Not scheduled
+                                </div>
                               )}
                             </td>
-                            
+
                             {/* Status */}
                             <td className="p-4">
                               {isEditing ? (
                                 <select
                                   className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
                                   value={d?.status || s.status}
-                                  onChange={(e) => onChangeDraft(s.id, "status", e.target.value as "Draft" | "Confirmed")}
+                                  onChange={(e) =>
+                                    onChangeDraft(
+                                      s.id,
+                                      "status",
+                                      e.target.value as "Draft" | "Confirmed"
+                                    )
+                                  }
                                 >
                                   <option value="Draft">Draft</option>
                                   <option value="Confirmed">Confirmed</option>
@@ -912,10 +1087,10 @@ const AllSessions: React.FC = () => {
                                 statusBadge(s.status)
                               )}
                             </td>
-                            
+
                             {/* Invite Status */}
                             <td className="p-4">{badge(s.inviteStatus)}</td>
-                            
+
                             {/* Actions */}
                             <td className="p-4">
                               {isEditing ? (
@@ -926,7 +1101,11 @@ const AllSessions: React.FC = () => {
                                     disabled={isSaving}
                                     className="bg-green-600 hover:bg-green-700 text-white h-8 px-2"
                                   >
-                                    {isSaving ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                                    {isSaving ? (
+                                      <RefreshCw className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Save className="h-3 w-3" />
+                                    )}
                                   </Button>
                                   <Button
                                     size="sm"
@@ -955,7 +1134,11 @@ const AllSessions: React.FC = () => {
                                     disabled={isDeleting}
                                     className="border-red-600 text-red-400 hover:bg-red-900/20 h-8 px-2"
                                   >
-                                    {isDeleting ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                                    {isDeleting ? (
+                                      <RefreshCw className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3 w-3" />
+                                    )}
                                   </Button>
                                 </div>
                               )}
@@ -973,7 +1156,8 @@ const AllSessions: React.FC = () => {
           {/* Footer Stats */}
           {filteredSessions.length > 0 && (
             <div className="mt-6 text-center text-sm text-gray-400">
-              Last updated: {new Date().toLocaleTimeString()} • Auto-refresh every 10 seconds
+              Last updated: {new Date().toLocaleTimeString()} • Auto-refresh
+              every 10 seconds
             </div>
           )}
         </div>
@@ -989,7 +1173,9 @@ const AllSessions: React.FC = () => {
             eventId={preselectedEventId || ""}
             session={undefined}
             onSuccess={handleSessionCreated}
-            onCancel={handleCloseCreateModal} halls={[]}          />
+            onCancel={handleCloseCreateModal}
+            halls={[]}
+          />
         </DialogContent>
       </Dialog>
     </OrganizerLayout>

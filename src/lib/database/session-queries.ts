@@ -207,7 +207,8 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
     }
 
     console.log(`📊 Found ${result.rows.length} sessions`);
-
+    console.log("📊 Query result:", result.rows[0]);
+    console.log("📊 Event name from DB:", result.rows[0]?.eventName);
     return result.rows.map((row) => ({
       id: row.id,
       title: row.title,

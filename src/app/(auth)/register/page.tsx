@@ -919,7 +919,7 @@ export default function RegisterPage() {
                   onClick={handleGoogleSignIn}
                   className="w-full"
                 >
-                  <Chrome className="w-4 w-4 mr-2" />
+                  <Chrome className="w-4 mr-2" />
                   Continue with Google
                 </LoadingButton>
 

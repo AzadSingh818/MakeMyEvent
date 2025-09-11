@@ -123,11 +123,18 @@ export async function GET() {
         formattedStartTime: s.startTime,
         formattedEndTime: s.endTime,
         // ENHANCED: Add invitation status for UI
+        eventName: s.eventName || "Unknown Event",
         invitationStatus: s.inviteStatus || "Pending",
         canTrack: !!(s.facultyEmail && s.inviteStatus),
       };
     });
-
+    console.log("API Response first session:", enriched[0]); // Debug line
+      // ADD THIS DEBUG LINE HERE
+    console.log("🔍 Sessions data before sending:", enriched.map(s => ({
+      title: s.title,
+      eventName: s.eventName,
+      originalEventName: s.eventName
+    })));
     return NextResponse.json(
       { success: true, data: { sessions: enriched }, count: enriched.length },
       { headers: { "Content-Type": "application/json" } }
