@@ -28,10 +28,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     console.log("📝 Delete request:", { id, facultyId });
+    const userId = session?.user?.id ?? "";  
 
+const sessionParts = typeof userId === "string" ? userId.split("-") : [];
     // Extract base ID from session ID for permission check
-    const sessionParts = session.user.id.split('-');
-    const baseSessionId = sessionParts.length >= 2 && sessionParts[0] === 'faculty' && sessionParts[1].startsWith('evt_') 
+    const baseSessionId = sessionParts.length >= 2 && sessionParts[0] === 'faculty' && sessionParts[1]?.startsWith('evt_') 
       ? sessionParts.slice(0, 2).join('-') 
       : session.user.id;
 
