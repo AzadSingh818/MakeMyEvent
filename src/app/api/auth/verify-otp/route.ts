@@ -1,3 +1,4 @@
+// src/app/api/auth/verify-otp/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 // Extend global type to include otpStore and verifyAttempts
@@ -34,26 +35,27 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log("📝 Verify request body received");
 
-    const { email, phone, emailOtp, phoneOtp } = body;
+    // FIXED: Only require email and emailOtp
+    const { email, emailOtp } = body;
 
     // Validate inputs
-    if (!email || !phone || !emailOtp || !phoneOtp) {
+    if (!email || !emailOtp) {
       return NextResponse.json(
-        { message: "Email, phone, and both OTP codes are required" },
+        { message: "Email and email OTP code are required" },
         { status: 400 }
       );
     }
 
     // Validate OTP format
-    if (!/^\d{6}$/.test(emailOtp) || !/^\d{6}$/.test(phoneOtp)) {
+    if (!/^\d{6}$/.test(emailOtp)) {
       return NextResponse.json(
-        { message: "OTP codes must be exactly 6 digits" },
+        { message: "OTP code must be exactly 6 digits" },
         { status: 400 }
       );
     }
 
-    // Rate limiting
-    const rateLimitKey = `${email.toLowerCase()}:${phone}`;
+    // Rate limiting - using email only for the key
+    const rateLimitKey = `${email.toLowerCase()}`;
     const now = Date.now();
     const attempts = global.verifyAttempts.get(rateLimitKey);
 
@@ -67,17 +69,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get keys for stored OTPs
+    // Get key for stored OTP
     const emailKey = `email:${email.toLowerCase()}`;
-    const phoneKey = `phone:${phone}`;
 
-    console.log("🔍 Looking for OTPs with keys:", { emailKey, phoneKey });
+    console.log("🔍 Looking for OTP with key:", { emailKey });
     console.log("🗄️ Current storage keys:", Array.from(global.otpStore.keys()));
     console.log("🗄️ Storage size:", global.otpStore.size);
 
-    // Get stored OTPs
+    // Get stored OTP
     const emailOtpData = global.otpStore.get(emailKey);
-    const phoneOtpData = global.otpStore.get(phoneKey);
 
     // Increment attempt counter
     const newAttempts = attempts ? attempts.count + 1 : 1;
@@ -86,76 +86,62 @@ export async function POST(request: NextRequest) {
       resetAt: now + ATTEMPT_WINDOW,
     });
 
-    console.log("🔍 Found OTPs:", {
+    console.log("🔍 Found OTP:", {
       emailFound: !!emailOtpData,
-      phoneFound: !!phoneOtpData,
       attempts: newAttempts,
     });
 
-    // Check if OTPs exist
-    if (!emailOtpData || !phoneOtpData) {
-      console.log("❌ OTPs not found in storage");
+    // Check if OTP exists
+    if (!emailOtpData) {
+      console.log("❌ OTP not found in storage");
       return NextResponse.json(
         {
           message:
-            "Verification codes not found or have expired. Please request new codes.",
+            "Verification code not found or has expired. Please request a new code.",
         },
         { status: 400 }
       );
     }
 
     // Check expiration
-    if (emailOtpData.expireAt < now || phoneOtpData.expireAt < now) {
-      console.log("❌ OTPs expired");
+    if (emailOtpData.expireAt < now) {
+      console.log("❌ OTP expired");
       global.otpStore.delete(emailKey);
-      global.otpStore.delete(phoneKey);
       return NextResponse.json(
         {
-          message: "Verification codes have expired. Please request new codes.",
+          message: "Verification code has expired. Please request a new code.",
         },
         { status: 400 }
       );
     }
 
-    // Verify OTPs
+    // Verify OTP
     const emailValid = emailOtpData.otp === emailOtp;
-    const phoneValid = phoneOtpData.otp === phoneOtp;
 
     console.log("🔍 OTP validation result:", {
       emailValid,
-      phoneValid,
       providedEmailOtp: emailOtp,
-      providedPhoneOtp: phoneOtp,
       storedEmailOtp: emailOtpData.otp,
-      storedPhoneOtp: phoneOtpData.otp,
     });
 
-    if (!emailValid || !phoneValid) {
-      let message = "Invalid verification code";
-      if (!emailValid && !phoneValid) {
-        message = "Both verification codes are invalid";
-      } else if (!emailValid) {
-        message = "Email verification code is invalid";
-      } else {
-        message = "Phone verification code is invalid";
-      }
-
-      console.log("❌ Validation failed:", message);
-      return NextResponse.json({ message }, { status: 400 });
+    if (!emailValid) {
+      console.log("❌ Validation failed: Email verification code is invalid");
+      return NextResponse.json(
+        { message: "Invalid verification code" }, 
+        { status: 400 }
+      );
     }
 
-    // Success - clean up OTPs and rate limiting
+    // Success - clean up OTP and rate limiting
     global.otpStore.delete(emailKey);
-    global.otpStore.delete(phoneKey);
     global.verifyAttempts.delete(rateLimitKey);
 
-    console.log("✅ OTPs verified successfully");
+    console.log("✅ OTP verified successfully");
 
     return NextResponse.json({
-      message: "Verification codes verified successfully",
+      message: "Verification code verified successfully",
       verified: true,
       email: email.toLowerCase(),
-      phone: phone,
     });
   } catch (error) {
     console.error("❌ Verify OTP error:", error);
@@ -164,7 +150,7 @@ export async function POST(request: NextRequest) {
       errorMessage = error.message;
     }
     return NextResponse.json(
-      { message: "Failed to verify OTP codes", error: errorMessage },
+      { message: "Failed to verify OTP code", error: errorMessage },
       { status: 500 }
     );
   }

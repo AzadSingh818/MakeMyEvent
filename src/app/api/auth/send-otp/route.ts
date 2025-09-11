@@ -1,3 +1,4 @@
+// src/app/api/auth/send-otp/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 // Global storage for OTPs (use Redis in production)
@@ -12,11 +13,8 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Create email transporter — FIXED (uses createTransport)
+// Create email transporter
 const createEmailTransporter = () => {
-  // Either default import or require works; default import is fine in route handlers
-  // import nodemailer from 'nodemailer' at top also works
-  // Using require avoids ESM/CJS interop issues in some setups.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const nodemailer = require("nodemailer");
 
@@ -40,42 +38,33 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log("📝 Request body:", body);
 
-    const { email, phone, resend = false } = body;
+    // FIXED: Only require email, phone is optional/ignored
+    const { email, resend = false } = body;
 
-    if (!email || !phone) {
+    if (!email) {
       return NextResponse.json(
-        { message: "Email and phone are required" },
+        { message: "Email is required" },
         { status: 400 }
       );
     }
 
-    // Generate OTPs
+    // Generate OTP
     const emailOtp = generateOTP();
-    const phoneOtp = generateOTP();
     const expireAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-    // Store in global memory (replace with Redis in prod)
+    // Store email OTP in global memory (replace with Redis in prod)
     global.otpStore.set(`email:${email.toLowerCase()}`, {
       otp: emailOtp,
       expireAt,
     });
-    global.otpStore.set(`phone:${phone}`, { otp: phoneOtp, expireAt });
 
-    console.log("🔐 Generated OTPs:", {
+    console.log("🔐 Generated Email OTP:", {
       email: email.toLowerCase(),
       emailOtp,
-      phone,
-      phoneOtp,
       storageSize: global.otpStore.size,
     });
 
-    const results: Array<{
-      type: "email" | "phone";
-      status: "sent" | "failed";
-      error?: string;
-    }> = [];
-
-    // Email
+    // Send Email OTP
     try {
       const transporter = createEmailTransporter();
 
@@ -126,7 +115,6 @@ export async function POST(request: NextRequest) {
                 <ol style="color: #0c4a6e; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.6;">
                   <li>Return to the registration page</li>
                   <li>Enter this code in the "Email Verification Code" field</li>
-                  <li>Also enter your phone verification code</li>
                   <li>Click "Verify & Register" to complete your account setup</li>
                 </ol>
               </div>
@@ -149,106 +137,37 @@ export async function POST(request: NextRequest) {
       });
 
       console.log("✅ Email sent successfully to:", email);
-      results.push({ type: "email", status: "sent" });
+
+      return NextResponse.json({
+        message: "Verification code sent successfully",
+        sent: {
+          email: true,
+        },
+        ...(process.env.NODE_ENV === "development" && {
+          debug: { emailOtp },
+        }),
+      });
+
     } catch (emailError: any) {
       console.error(
         "❌ Email sending error:",
         emailError?.message || emailError
       );
-      results.push({
-        type: "email",
-        status: "failed",
-        error: String(emailError?.message || emailError),
-      });
-    }
-
-    // Phone (SMS)
-    try {
-      if (process.env.NODE_ENV === "development") {
-        console.log(`
-╔══════════════════════════════════════╗
-║          📱 SMS SIMULATION           ║
-╠══════════════════════════════════════╣
-║ To: ${phone.padEnd(28)} ║
-║                                      ║
-║ Your Conference registration         ║
-║ verification code is:                ║
-║                                      ║
-║      🔢 ${phoneOtp}                     ║
-║                                      ║
-║ This code will expire in 5 minutes. ║
-║ Do not share this code with anyone.  ║
-║                                      ║
-║ If you didn't request this code,     ║
-║ please ignore this message.          ║
-╚══════════════════════════════════════╝
-        `);
-      } else {
-        // Production SMS via Twilio
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const twilio = require("twilio");
-        if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
-          throw new Error("Twilio credentials not configured");
-        }
-        const twilioClient = twilio(
-          process.env.TWILIO_ACCOUNT_SID,
-          process.env.TWILIO_AUTH_TOKEN
-        );
-        await twilioClient.messages.create({
-          body: `Your Conference registration verification code is: ${phoneOtp}. This code will expire in 5 minutes. Do not share this code with anyone.`,
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: phone,
-        });
-        console.log("✅ SMS sent successfully via Twilio to:", phone);
-      }
-
-      results.push({ type: "phone", status: "sent" });
-    } catch (phoneError: any) {
-      console.error("❌ Phone OTP error:", phoneError?.message || phoneError);
-      results.push({
-        type: "phone",
-        status: "failed",
-        error: String(phoneError?.message || phoneError),
-      });
-    }
-
-    // Evaluate results
-    const failed = results.filter((r) => r.status === "failed");
-    const succeeded = results.filter((r) => r.status === "sent");
-
-    if (succeeded.length === 0) {
+      
       return NextResponse.json(
-        { message: "Failed to send verification codes", errors: failed },
+        { 
+          message: "Failed to send verification code",
+          error: String(emailError?.message || emailError)
+        },
         { status: 500 }
       );
     }
 
-    if (failed.length > 0) {
-      return NextResponse.json(
-        {
-          message: "Some verification codes failed to send",
-          results,
-          partialSuccess: true,
-        },
-        { status: 207 }
-      );
-    }
-
-    return NextResponse.json({
-      message: "Verification codes sent successfully",
-      sent: {
-        email: results.some((r) => r.type === "email" && r.status === "sent"),
-        phone: results.some((r) => r.type === "phone" && r.status === "sent"),
-      },
-      ...(process.env.NODE_ENV === "development" && {
-        debug: { emailOtp, phoneOtp },
-      }),
-    });
   } catch (error: any) {
     console.error("❌ Send OTP error:", error?.message || error);
     return NextResponse.json(
       {
-        message: "Failed to send verification codes",
+        message: "Failed to send verification code",
         error: String(error?.message || error),
       },
       { status: 500 }
