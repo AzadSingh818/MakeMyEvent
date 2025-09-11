@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     console.log("📝 Verify request body received");
 
-    // FIXED: Only require email and emailOtp
     const { email, emailOtp } = body;
 
     // Validate inputs
@@ -127,7 +126,7 @@ export async function POST(request: NextRequest) {
     if (!emailValid) {
       console.log("❌ Validation failed: Email verification code is invalid");
       return NextResponse.json(
-        { message: "Invalid verification code" }, 
+        { message: "Invalid verification code" },
         { status: 400 }
       );
     }
