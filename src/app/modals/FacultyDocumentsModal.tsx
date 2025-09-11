@@ -74,7 +74,7 @@ export default function FacultyDocumentsModal({ isOpen, onClose, facultyId }: Pr
     const sessionId = session.user.id;
     const parts = sessionId.split('-');
     
-    if (parts.length >= 2 && parts[0] === 'faculty' && parts[1].startsWith('evt_')) {
+    if (parts.length >= 2 && parts[0] === 'faculty' && parts[1]?.startsWith('evt_')) {
       const baseId = parts.slice(0, 2).join('-');
       setActualFacultyId(baseId);
     } else {
