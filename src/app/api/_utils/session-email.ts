@@ -99,7 +99,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Start</th>
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">End</th>
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Location</th>
-          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Description</th>
+          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Role</th>
         </tr>
       </thead>
       <tbody>
@@ -123,7 +123,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
         <strong>Travel:</strong> You are requested to kindly arrange your own travel.
     </p>
     <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-        <strong>Registration:</strong> Please complete your conference registration at the base rate.
+        <strong>Registration:</strong> You will receive a unique link at early bird rates upon acceptance of the invite.
     </p>
 </div>
 
@@ -218,24 +218,19 @@ function renderUpdateHTML(
       </tr>
       <tr style="background:#fff;">
         <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">Start Time:</td>
-        <td style="padding:12px; border-bottom:1px solid #ddd;">${formatDate(
-          session.startTime
-        )}</td>
+        <td style="padding:12px; border-bottom:1px solid #ddd;">TBD
+        </td>
       </tr>
       <tr style="background:#f8f9fa;">
         <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">End Time:</td>
-        <td style="padding:12px; border-bottom:1px solid #ddd;">${formatDate(
-          session.endTime
-        )}</td> 
+        <td style="padding:12px; border-bottom:1px solid #ddd;">TBD</td> 
       </tr>
       <tr style="background:#fff;">
         <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">Location:</td>
-        <td style="padding:12px; border-bottom:1px solid #ddd;">${safe(
-          session.place
-        )} - ${safe(roomName)}</td>
+        <td style="padding:12px; border-bottom:1px solid #ddd;">TBD</td>
       </tr>
       <tr style="background:#f8f9fa;">
-        <td style="padding:12px; font-weight:bold;">Description:</td>
+        <td style="padding:12px; font-weight:bold;">Role:</td>
         <td style="padding:12px;">${safe(session.description)}</td>
       </tr>
     </table>
@@ -259,7 +254,7 @@ function renderUpdateHTML(
     <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
         <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Registration & Participation:</h4>
         <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-            <strong>Registration:</strong> Please complete your conference registration at the base rate.
+            <strong>Registration:</strong> You will receive a unique link at early bird rates upon acceptance of the invite.
         </p>
         <p style="color: #4a5568; font-size: 14px; margin: 0 0 10px 0; line-height: 1.6;">
             Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
@@ -390,7 +385,7 @@ Description: ${safe(session.description)}
 
 Please confirm your availability again as the schedule has changed.
 
-Registration: Please complete your conference registration at the base rate.
+Registration: You will receive a unique link at early bird rates upon acceptance of the invite.
 
 Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
 
