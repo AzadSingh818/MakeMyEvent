@@ -301,7 +301,7 @@ Your proposed faculty role${sessions.length > 1 ? "s are" : " is"} outlined belo
 Your Faculty Invitation – PediCritiCon 2025
 ${sessions
   .map(
-    (s) => `Date: ${formatDate(s.sessionDate)}
+    (s) => `Date: ${formatDate(s.sessionDate) === "01" ? "Day 01" : formatDate(s.sessionDate)}
 Session: ${safe(s.title)}
 Role: ${safe(s.description) || 'Speaker'}`
   )
