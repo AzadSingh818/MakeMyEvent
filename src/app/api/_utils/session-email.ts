@@ -314,14 +314,30 @@ function renderUnifiedEmailTemplate(data: EmailTemplateData): string {
  * Single function to send all types of emails
  */
 export async function sendUnifiedEmail(data: EmailTemplateData) {
+  // FIXED: Enhanced validation and debugging
+  console.log("🔍 EMAIL DEBUG - Input data received:");
+  console.log("Faculty Name:", data.facultyName);
+  console.log("Email:", data.email);
+  console.log("Email Type:", data.emailType);
+  
   if (!data.facultyName || !data.email) {
-    console.error('❌ Missing required email data:', { facultyName: data.facultyName, email: data.email });
+    console.error('❌ Missing required email data:', { 
+      facultyName: data.facultyName, 
+      email: data.email 
+    });
     return { ok: false, message: "Faculty name and email required" };
+  }
+
+  // FIXED: Additional validation to catch "Faculty Member" fallback
+  if (data.facultyName === "Faculty Member" || data.facultyName.trim() === "") {
+    console.error('❌ Generic faculty name detected:', data.facultyName);
+    return { ok: false, message: "Valid faculty name required - received generic fallback" };
   }
 
   // Clean and format the faculty name
   const cleanFacultyName = formatFacultyName(data.facultyName);
   
+  console.log(`🔍 EMAIL DEBUG - Cleaned faculty name: "${cleanFacultyName}"`);
   console.log(`📧 Sending ${data.emailType} email to Dr. ${cleanFacultyName} (${data.email})`);
 
   const html = renderUnifiedEmailTemplate({
