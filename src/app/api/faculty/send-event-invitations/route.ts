@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     const sentInvitations = [];
     const failedInvitations = [];
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/organizer/faculty";
 
     console.log(
       `📨 Starting REAL email campaign for ${invitations.length} faculty members`
