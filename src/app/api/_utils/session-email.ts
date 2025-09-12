@@ -2,26 +2,26 @@ import { sendMail } from "@/lib/mailer";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
-// Hardcoded data for all faculty members from PDF + additional faculty
+// Hardcoded data for all 7 faculty members from PDF
 const FACULTY_DATA = {
   "anand07amar@gmail.com": {
     facultyName: "Dr Anand",
     email: "anand07amar@gmail.com",
     sessions: [
       {
-        title: "demonstration",
-        day: "06/11",
+        title: "Demonstration",
+        day: "07/11",
         role: "Speaker"
       }
     ]
   },
-  "muigoku42@gmail.com": {
+  "muigoku42@gmail.com" : {
     facultyName: "Dr Goku",
     email: "muigoku42@gmail.com",
     sessions: [
       {
         title: "Introduction",
-        day: "06/11",
+        day: "07/11",
         role: "Speaker"
       }
     ]
@@ -112,19 +112,7 @@ const FACULTY_DATA = {
         role: "Speaker"
       }
     ]
-  },
-  // ADD NEW FACULTY HERE - Example:
-  // "newdoctor@example.com": {
-  //   facultyName: "Dr New Doctor",
-  //   email: "newdoctor@example.com",
-  //   sessions: [
-  //     {
-  //       title: "New Session Title",
-  //       day: "07/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // }
+  }
 };
 
 // Generate HTML for a specific faculty member
@@ -199,20 +187,7 @@ function renderFacultyHTML(facultyEmail: string) {
           <strong>Please confirm your acceptance by clicking Yes or No on the faculty dashboard</strong>
       </p>
     </div>
-    <p style="text-align:center; margin: 30px 0;">
-      <a href="${loginUrl}" target="_blank" style="
-        background:#764ba2;
-        color:#fff;
-        padding:15px 25px;
-        border-radius:25px;
-        text-decoration:none;
-        font-weight:bold;
-        font-size:16px;
-        box-shadow:0 4px 15px rgba(118,75,162,0.4);
-        ">
-        🔐 Access Faculty Portal
-      </a>
-    </p>
+
     <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 6px; padding: 15px; margin: 25px 0;">
         <h4 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 14px;">🔹 Hospitality & Travel:</h4>
         <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
@@ -244,6 +219,21 @@ function renderFacultyHTML(facultyEmail: string) {
             <span style="color: #764ba2;">Scientific Committee, PediCritiCon 2025</span>
         </p>
     </div>
+    
+    <p style="text-align:center; margin: 30px 0;">
+      <a href="${loginUrl}" target="_blank" style="
+        background:#764ba2;
+        color:#fff;
+        padding:15px 25px;
+        border-radius:25px;
+        text-decoration:none;
+        font-weight:bold;
+        font-size:16px;
+        box-shadow:0 4px 15px rgba(118,75,162,0.4);
+        ">
+        🔐 Access Faculty Portal
+      </a>
+    </p>
     <p style="font-size:12px; color:#666; text-align:center; margin-top:20px;">
       If you have questions, contact your event coordinator. This message was sent automatically.
     </p>
@@ -313,7 +303,7 @@ Scientific Committee, PediCritiCon 2025
 }
 
 /**
- * TEMPORARILY DISABLED - Send personalized emails to ALL 7 faculty members
+ * Send personalized emails to ALL 7 faculty members
  * This function ignores all input parameters and sends to all 7 people
  */
 export async function sendBulkInviteEmail(
@@ -321,17 +311,56 @@ export async function sendBulkInviteEmail(
   facultyName?: string,  // Ignored  
   email?: string  // Ignored
 ) {
-  // TEMPORARILY DISABLED - Return without sending emails
-  console.log('Bulk email sending temporarily disabled');
+  const results = [];
+  
+  // Send personalized email to each faculty member
+  for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
+    try {
+      const html = renderFacultyHTML(facultyEmail);
+      const text = generateFacultyTextEmail(facultyEmail);
+      
+      const result = await sendMail({
+        to: facultyData.email,
+        subject: `Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad`,
+        text,
+        html,
+      });
+      
+      results.push({
+        email: facultyData.email,
+        name: facultyData.facultyName,
+        success: result.ok,
+        message: result.message || "Email sent successfully"
+      });
+      
+      console.log(`Email sent to ${facultyData.facultyName} (${facultyData.email}): ${result.ok ? 'Success' : 'Failed'}`);
+      
+    } catch (error) {
+      console.error(`Failed to send email to ${facultyData.facultyName}:`, error);
+      results.push({
+        email: facultyData.email,
+        name: facultyData.facultyName,
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+  
+  // Return summary of all sends
+  const successCount = results.filter(r => r.success).length;
+  const failureCount = results.filter(r => !r.success).length;
+  
+  console.log(`Email Summary: ${successCount} successful, ${failureCount} failed out of ${results.length} total`);
+  
   return {
-    ok: true,
-    message: 'Email sending disabled - sessions created without emails',
-    results: []
+    ok: failureCount === 0,
+    message: `Sent ${successCount}/${results.length} emails successfully`,
+    results: results
   };
 }
 
 /**
- * TEMPORARILY DISABLED - Send personalized emails to ALL 7 faculty members
+ * Send personalized emails to ALL 7 faculty members
  * Input parameters are ignored
  */
 export async function sendInviteEmail(
@@ -339,12 +368,7 @@ export async function sendInviteEmail(
   facultyName?: string,  // Ignored
   email?: string  // Ignored
 ) {
-  // TEMPORARILY DISABLED - Return without sending emails
-  console.log('Email sending temporarily disabled');
-  return {
-    ok: true,
-    message: 'Email sending disabled - sessions created without emails'
-  };
+  return sendBulkInviteEmail(); // Calls the bulk function that sends to all 7
 }
 
 /**
