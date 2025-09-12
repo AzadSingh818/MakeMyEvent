@@ -48,15 +48,9 @@ function renderHTML(sessions: Session[], facultyName: string) {
         <td style="padding:12px; border-right:1px solid #ddd;">${safe(
           s.title
         )}</td>
-        <td style="padding:12px; border-right:1px solid #ddd;">${formatDate(
-          s.startTime
-        )}</td>
-        <td style="padding:12px; border-right:1px solid #ddd;">${formatDate(
-          s.endTime
-        )}</td>
-        <td style="padding:12px; border-right:1px solid #ddd;">${safe(
-          s.place
-        )} - ${safe(s.roomName || s.roomId)}</td>
+        <td style="padding:12px; border-right:1px solid #ddd;">TBD</td>
+        <td style="padding:12px; border-right:1px solid #ddd;">TBD</td>
+        <td style="padding:12px; border-right:1px solid #ddd;">TBD</td>
         <td style="padding:12px;">${safe(s.description)}</td>
       </tr>`
     )
@@ -316,7 +310,7 @@ Your proposed faculty role is outlined below:
 Your Faculty Invitation – PediCritiCon 2025
 ${sessions
   .map(
-    (s) => `Date: ${formatDate(s.startTime).split(',')[0]}
+    (s) => `Date: TBD
 Session: ${safe(s.title)}
 Role: Speaker`
   )
@@ -378,9 +372,9 @@ export async function sendUpdateEmail(
 
 Your session "${safe(session.title)}" has been updated:
 
-Start Time: ${formatDate(session.startTime)}
-End Time: ${formatDate(session.endTime)}
-Location: ${safe(session.place)} - ${safe(roomName)}
+Start Time: TBD
+End Time: TBD
+Location: TBD
 Description: ${safe(session.description)}
 
 Please confirm your availability again as the schedule has changed.
