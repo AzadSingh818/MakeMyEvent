@@ -42,11 +42,26 @@ export interface Session {
 function formatDate(val?: string) {
   if (!val) return "-";
   const d = new Date(val);
-  return isNaN(d.getTime()) ? "-" : d.toLocaleString();
+  return isNaN(d.getTime()) ? "-" : d.toLocaleString('en-IN', { 
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
 }
 
 function safe(val?: string) {
   return val || "-";
+}
+
+// Helper function to clean and format faculty name
+function formatFacultyName(name?: string): string {
+  if (!name) return "Faculty";
+  
+  // Remove any "Dr." prefix if it exists and clean the name
+  const cleanName = name.replace(/^Dr\.?\s*/i, '').trim();
+  
+  // Return the clean name or fallback
+  return cleanName || "Faculty";
 }
 
 /**
@@ -54,7 +69,14 @@ function safe(val?: string) {
  * Single template that handles all email scenarios
  */
 function renderUnifiedEmailTemplate(data: EmailTemplateData): string {
+  // Ensure faculty name is properly formatted
+  const cleanFacultyName = formatFacultyName(data.facultyName);
+  
+  // Create login URL that redirects to faculty login page
   const loginUrl = `${baseUrl}/faculty/login?email=${encodeURIComponent(data.email)}`;
+  
+  console.log(`🔍 Generating email for Dr. ${cleanFacultyName} (${data.email}) - Type: ${data.emailType}`);
+  console.log(`🔗 Login URL: ${loginUrl}`);
   
   // Determine email title based on type
   const getEmailTitle = () => {
@@ -187,7 +209,7 @@ function renderUnifiedEmailTemplate(data: EmailTemplateData): string {
       ${data.emailType === 'session_update' ? '📅 Session Updated' : 'Subject: Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad'}
     </h2>
     
-    <p><strong>Dear Dr. ${safe(data.facultyName)},</strong></p>
+    <p><strong>Dear Dr. ${cleanFacultyName},</strong></p>
     
     ${getGreetingMessage()}
     
@@ -262,6 +284,17 @@ function renderUnifiedEmailTemplate(data: EmailTemplateData): string {
     <p style="font-size:12px; color:#666; text-align:center; margin-top:20px;">
       If you have questions, contact your event coordinator. This message was sent automatically.
     </p>
+    
+    <!-- Debug Info (only visible in development) -->
+    ${process.env.NODE_ENV === 'development' ? `
+    <div style="margin-top:30px; padding:10px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; color:#666;">
+        <strong>Debug Info:</strong><br>
+        Faculty Name: ${data.facultyName} → Dr. ${cleanFacultyName}<br>
+        Email: ${data.email}<br>
+        Login URL: ${loginUrl}<br>
+        Email Type: ${data.emailType}
+    </div>
+    ` : ''}
   </div>
 
   <!-- Footer -->
@@ -282,26 +315,47 @@ function renderUnifiedEmailTemplate(data: EmailTemplateData): string {
  */
 export async function sendUnifiedEmail(data: EmailTemplateData) {
   if (!data.facultyName || !data.email) {
+    console.error('❌ Missing required email data:', { facultyName: data.facultyName, email: data.email });
     return { ok: false, message: "Faculty name and email required" };
   }
 
-  const html = renderUnifiedEmailTemplate(data);
+  // Clean and format the faculty name
+  const cleanFacultyName = formatFacultyName(data.facultyName);
+  
+  console.log(`📧 Sending ${data.emailType} email to Dr. ${cleanFacultyName} (${data.email})`);
+
+  const html = renderUnifiedEmailTemplate({
+    ...data,
+    facultyName: cleanFacultyName // Ensure clean name is used
+  });
   
   // Generate text version
-  const textContent = generateTextVersion(data);
+  const textContent = generateTextVersion({
+    ...data,
+    facultyName: cleanFacultyName
+  });
   
   // Generate subject based on email type
   const subject = getEmailSubject(data);
 
-  return sendMail({
-    to: data.email,
-    subject,
-    text: textContent,
-    html,
-  });
+  try {
+    const result = await sendMail({
+      to: data.email,
+      subject,
+      text: textContent,
+      html,
+    });
+    
+    console.log(`✅ Email sent successfully to Dr. ${cleanFacultyName}`);
+    return result;
+  } catch (error) {
+    console.error(`❌ Failed to send email to Dr. ${cleanFacultyName}:`, error);
+    return { ok: false, message: `Failed to send email: ${error}` };
+  }
 }
 
 function generateTextVersion(data: EmailTemplateData): string {
+  const cleanFacultyName = formatFacultyName(data.facultyName);
   const sessionText = data.sessions?.map(s => `
 Date: ${formatDate(s.startTime).split(',')[0]}
 Session: ${safe(s.title)}
@@ -309,7 +363,7 @@ Role: Speaker`).join('\n\n') || '';
 
   return `Subject: ${getEmailSubject(data)}
 
-Dear Dr. ${data.facultyName},
+Dear Dr. ${cleanFacultyName},
 
 ${data.emailType === 'session_update' 
   ? 'Your session has been updated with new details:'
@@ -362,6 +416,8 @@ export async function sendBulkInviteEmail(
   facultyName: string,
   email: string
 ) {
+  console.log(`📬 Sending bulk invite to Dr. ${formatFacultyName(facultyName)} for ${sessions.length} sessions`);
+  
   return sendUnifiedEmail({
     facultyName,
     email,
@@ -379,7 +435,12 @@ export async function sendInviteEmail(
   facultyName: string,
   email: string
 ) {
-  return sendBulkInviteEmail([session], facultyName, email);
+  console.log(`📨 Sending single session invite to Dr. ${formatFacultyName(facultyName)}`);
+  
+  // Get faculty name from session if not provided
+  const finalFacultyName = facultyName || session.facultyName || 'Faculty';
+  
+  return sendBulkInviteEmail([session], finalFacultyName, email);
 }
 
 export async function sendUpdateEmail(
@@ -387,12 +448,18 @@ export async function sendUpdateEmail(
   facultyName: string,
   roomName: string
 ): Promise<{ ok: boolean; message?: string }> {
-  if (!session || !facultyName || !session.email) {
-    return { ok: false, message: "Invalid arguments for update email" };
+  if (!session || !session.email) {
+    console.error('❌ Invalid session data for update email:', session);
+    return { ok: false, message: "Invalid session data for update email" };
   }
 
+  // Use facultyName from session if not provided in parameter
+  const finalFacultyName = facultyName || session.facultyName || 'Faculty';
+  
+  console.log(`📧 Sending session update email to Dr. ${formatFacultyName(finalFacultyName)}`);
+
   return sendUnifiedEmail({
-    facultyName,
+    facultyName: finalFacultyName,
     email: session.email,
     eventName: 'PediCritiCon 2025',
     eventDates: 'November 6–9, 2025',
