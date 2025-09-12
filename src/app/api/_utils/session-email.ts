@@ -36,6 +36,132 @@ export interface Session {
   suggestedTimeEnd?: string;
   optionalQuery?: string;
   eventId?: string;
+  travel?: string;
+  accommodation?: string;
+}
+
+export interface Faculty {
+  id: string;
+  name: string;
+  email: string;
+  department?: string;
+  institution?: string;
+  expertise?: string;
+  phone?: string;
+  eventId: string;
+  eventName: string;
+}
+
+// Faculty data fetching functions
+async function fetchFacultyFromDatabase(): Promise<Faculty[]> {
+  try {
+    const response = await fetch(`${baseUrl}/api/faculties`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    
+    if (response.ok) {
+      const faculties = await response.json();
+      console.log(`✅ Loaded ${faculties.length} faculties from database`);
+      return faculties;
+    }
+    
+    console.warn("Failed to fetch faculties from database");
+    return [];
+  } catch (error) {
+    console.error("Error fetching faculties from database:", error);
+    return [];
+  }
+}
+
+function getFacultyFromLocalStorage(): Faculty[] {
+  try {
+    if (typeof window === "undefined") return [];
+    
+    const savedFacultyData = localStorage.getItem("eventFacultyData");
+    if (!savedFacultyData) return [];
+    
+    const eventFacultyData = JSON.parse(savedFacultyData);
+    const localFaculties = eventFacultyData.flatMap(
+      (eventData: any) =>
+        eventData.facultyList?.map((faculty: any) => ({
+          ...faculty,
+          eventId: eventData.eventId,
+          eventName: eventData.eventName,
+        })) || []
+    );
+    
+    console.log(`✅ Loaded ${localFaculties.length} faculties from localStorage`);
+    return localFaculties;
+  } catch (error) {
+    console.error("Error loading faculties from localStorage:", error);
+    return [];
+  }
+}
+
+async function getAllFacultyData(): Promise<Faculty[]> {
+  console.log("🔄 Loading all faculty data...");
+  
+  const [dbFaculties, localFaculties] = await Promise.all([
+    fetchFacultyFromDatabase(),
+    getFacultyFromLocalStorage()
+  ]);
+  
+  // Merge faculties, avoiding duplicates based on email
+  const allFaculties = [...dbFaculties];
+  
+  localFaculties.forEach((localFaculty) => {
+    if (!allFaculties.find((f) => f.email === localFaculty.email)) {
+      allFaculties.push(localFaculty);
+    }
+  });
+  
+  console.log(`✅ Total faculties loaded: ${allFaculties.length}`);
+  return allFaculties;
+}
+
+// Enhanced function to resolve faculty name
+async function resolveFacultyName(session: Session): Promise<string> {
+  // First check if facultyName is already available in the session
+  if (session.facultyName && session.facultyName.trim() !== "") {
+    console.log(`✅ Faculty name found in session: ${session.facultyName}`);
+    return session.facultyName;
+  }
+  
+  // If not, try to resolve using facultyId
+  if (session.facultyId) {
+    console.log(`🔍 Resolving faculty name for ID: ${session.facultyId}`);
+    
+    const allFaculties = await getAllFacultyData();
+    const faculty = allFaculties.find(f => f.id === session.facultyId);
+    
+    if (faculty?.name) {
+      console.log(`✅ Faculty name resolved: ${faculty.name}`);
+      return faculty.name;
+    }
+    
+    console.warn(`⚠️ Faculty not found for ID: ${session.facultyId}`);
+  }
+  
+  // Fallback: try to find by email
+  if (session.email) {
+    console.log(`🔍 Trying to resolve faculty by email: ${session.email}`);
+    
+    const allFaculties = await getAllFacultyData();
+    const faculty = allFaculties.find(f => f.email === session.email);
+    
+    if (faculty?.name) {
+      console.log(`✅ Faculty name resolved by email: ${faculty.name}`);
+      return faculty.name;
+    }
+  }
+  
+  // Final fallback - extract name from email or use generic
+  const emailName = session.email?.split('@')[0]?.replace(/[._]/g, ' ');
+  const fallbackName = emailName || "Valued Faculty";
+  
+  console.warn(`⚠️ Using fallback name: ${fallbackName}`);
+  return fallbackName;
 }
 
 // Utility functions
@@ -277,7 +403,7 @@ function renderUnifiedEmailTemplate(data: EmailTemplateData): string {
 }
 
 /**
- * UNIFIED EMAIL SENDER
+ * UNIFIED EMAIL SENDER WITH FACULTY NAME RESOLUTION
  * Single function to send all types of emails
  */
 export async function sendUnifiedEmail(data: EmailTemplateData) {
@@ -292,6 +418,8 @@ export async function sendUnifiedEmail(data: EmailTemplateData) {
   
   // Generate subject based on email type
   const subject = getEmailSubject(data);
+
+  console.log(`📧 Sending ${data.emailType} email to Dr. ${data.facultyName} (${data.email})`);
 
   return sendMail({
     to: data.email,
@@ -356,15 +484,31 @@ function getEmailSubject(data: EmailTemplateData): string {
   }
 }
 
-// Legacy wrapper functions for backward compatibility
+// UPDATED legacy wrapper functions with faculty name resolution
 export async function sendBulkInviteEmail(
   sessions: Session[],
-  facultyName: string,
-  email: string
+  facultyName?: string,
+  email?: string
 ) {
+  // If facultyName not provided, resolve it from the first session
+  if (!facultyName && sessions.length > 0 && sessions[0]) {
+    console.log("🔍 Faculty name not provided, resolving from session data...");
+    facultyName = await resolveFacultyName(sessions[0]);
+  }
+  
+  // Use email from first session if not provided
+  const targetEmail = email || sessions[0]?.email;
+  
+  if (!facultyName || !targetEmail) {
+    console.error("❌ Missing required data for bulk invite email");
+    return { ok: false, message: "Faculty name and email are required" };
+  }
+
+  console.log(`📧 Sending bulk invite to Dr. ${facultyName} (${targetEmail})`);
+
   return sendUnifiedEmail({
     facultyName,
-    email,
+    email: targetEmail,
     eventName: 'PediCritiCon 2025',
     eventDates: 'November 6–9, 2025',
     eventLocation: 'Hyderabad International Convention Centre (HICC), Hyderabad, India',
@@ -376,21 +520,57 @@ export async function sendBulkInviteEmail(
 
 export async function sendInviteEmail(
   session: Session,
-  facultyName: string,
-  email: string
+  facultyName?: string,
+  email?: string
 ) {
-  return sendBulkInviteEmail([session], facultyName, email);
+  // Resolve faculty name if not provided
+  const resolvedFacultyName = facultyName || await resolveFacultyName(session);
+  const targetEmail = email || session.email;
+
+  console.log(`📧 Sending single invite to Dr. ${resolvedFacultyName} (${targetEmail})`);
+
+  return sendBulkInviteEmail([session], resolvedFacultyName, targetEmail);
 }
 
 export async function sendUpdateEmail(
   session: Session,
-  facultyName: string,
-  roomName: string
+  facultyName?: string,
+  roomName?: string
 ): Promise<{ ok: boolean; message?: string }> {
-  if (!session || !facultyName || !session.email) {
-    return { ok: false, message: "Invalid arguments for update email" };
+  if (!session || !session.email) {
+    return { ok: false, message: "Invalid session or email for update email" };
   }
 
+  // Resolve faculty name if not provided
+  const resolvedFacultyName = facultyName || await resolveFacultyName(session);
+  
+  // Update session with room name if provided
+  if (roomName) {
+    session.roomName = roomName;
+  }
+
+  console.log(`📧 Sending update email to Dr. ${resolvedFacultyName} (${session.email})`);
+
+  return sendUnifiedEmail({
+    facultyName: resolvedFacultyName,
+    email: session.email,
+    eventName: 'PediCritiCon 2025',
+    eventDates: 'November 6–9, 2025',
+    eventLocation: 'Hyderabad International Convention Centre (HICC), Hyderabad, India',
+    eventVenue: 'HICC Hyderabad',
+    sessions: [session],
+    emailType: 'session_update',
+  });
+}
+
+// New utility function to send email with automatic faculty resolution
+export async function sendSessionEmail(
+  session: Session,
+  emailType: 'invitation' | 'session_update' = 'invitation',
+  customMessage?: string
+) {
+  const facultyName = await resolveFacultyName(session);
+  
   return sendUnifiedEmail({
     facultyName,
     email: session.email,
@@ -399,6 +579,7 @@ export async function sendUpdateEmail(
     eventLocation: 'Hyderabad International Convention Centre (HICC), Hyderabad, India',
     eventVenue: 'HICC Hyderabad',
     sessions: [session],
-    emailType: 'session_update',
+    emailType,
+    customMessage,
   });
 }
