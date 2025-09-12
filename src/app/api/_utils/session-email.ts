@@ -2,102 +2,125 @@ import { sendMail } from "@/lib/mailer";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
-// Hardcoded data for all 7 faculty members from PDF
+// Hardcoded data for all faculty members from PDF + additional faculty
 const FACULTY_DATA = {
   "anand07amar@gmail.com": {
     facultyName: "Dr Anand",
     email: "anand07amar@gmail.com",
     sessions: [
       {
-        title: "demo",
+        title: "demonstration",
         day: "06/11",
         role: "Speaker"
       }
     ]
   },
-  // "praj@abhinavagroup.com": {
-  //   facultyName: "Prajwal",
-  //   email: "praj@abhinavagroup.com",
+  "muigoku42@gmail.com": {
+    facultyName: "Dr Goku",
+    email: "muigoku42@gmail.com",
+    sessions: [
+      {
+        title: "Introduction",
+        day: "06/11",
+        role: "Speaker"
+      }
+    ]
+  },
+  "praj@abhinavagroup.com": {
+    facultyName: "Prajwal",
+    email: "praj@abhinavagroup.com",
+    sessions: [
+      {
+        title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
+        day: "07/11",
+        role: "Speaker"
+      }
+    ]
+  },
+  "priya.ks@abhinavagroup.com": {
+    facultyName: "Priya", 
+    email: "priya.ks@abhinavagroup.com",
+    sessions: [
+      {
+        title: "Crack the Cardiac Code: Applied Physiology Made Simple",
+        day: "08/11",
+        role: "Speaker"
+      }
+    ]
+  },
+  "shruti@abhinavagroup.com": {
+    facultyName: "Shruti",
+    email: "shruti@abhinavagroup.com", 
+    sessions: [
+      {
+        title: "Pediatric Research Networking",
+        day: "09/11",
+        role: "Speaker"
+      },
+      {
+        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+        day: "09/11",
+        role: "Moderator"
+      }
+    ]
+  },
+  "v@abhinavagroup.com": {
+    facultyName: "Vidyashankar",
+    email: "v@abhinavagroup.com",
+    sessions: [
+      {
+        title: "Oncologic Emergencies: Expert Strategies", 
+        day: "09/11",
+        role: "Speaker"
+      }
+    ]
+  },
+  "drskpanuganti@gmail.com": {
+    facultyName: "Dr Suresh Kumar Panuganti",
+    email: "drskpanuganti@gmail.com",
+    sessions: [
+      {
+        title: "Pediatric Research Networking",
+        day: "09/11", 
+        role: "Speaker"
+      }
+    ]
+  },
+  "farhanshaikh74@gmail.com": {
+    facultyName: "Dr Farhan Shaikh",
+    email: "farhanshaikh74@gmail.com",
+    sessions: [
+      {
+        title: "Pediatric Research Networking",
+        day: "09/11",
+        role: "Speaker"
+      },
+      {
+        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+        day: "09/11", 
+        role: "Moderator"
+      }
+    ]
+  },
+  "dayalanjul@gmail.com": {
+    facultyName: "Dr Anjul Dayal",
+    email: "dayalanjul@gmail.com",
+    sessions: [
+      {
+        title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
+        day: "09/11",
+        role: "Speaker"
+      }
+    ]
+  },
+  // ADD NEW FACULTY HERE - Example:
+  // "newdoctor@example.com": {
+  //   facultyName: "Dr New Doctor",
+  //   email: "newdoctor@example.com",
   //   sessions: [
   //     {
-  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
+  //       title: "New Session Title",
   //       day: "07/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "priya.ks@abhinavagroup.com": {
-  //   facultyName: "Priya", 
-  //   email: "priya.ks@abhinavagroup.com",
-  //   sessions: [
-  //     {
-  //       title: "Crack the Cardiac Code: Applied Physiology Made Simple",
-  //       day: "08/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "shruti@abhinavagroup.com": {
-  //   facultyName: "Shruti",
-  //   email: "shruti@abhinavagroup.com", 
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Research Networking",
-  //       day: "09/11",
-  //       role: "Speaker"
-  //     },
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       day: "09/11",
-  //       role: "Moderator"
-  //     }
-  //   ]
-  // },
-  // "v@abhinavagroup.com": {
-  //   facultyName: "Vidyashankar",
-  //   email: "v@abhinavagroup.com",
-  //   sessions: [
-  //     {
-  //       title: "Oncologic Emergencies: Expert Strategies", 
-  //       day: "09/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "drskpanuganti@gmail.com": {
-  //   facultyName: "Dr Suresh Kumar Panuganti",
-  //   email: "drskpanuganti@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Research Networking",
-  //       day: "09/11", 
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "farhanshaikh74@gmail.com": {
-  //   facultyName: "Dr Farhan Shaikh",
-  //   email: "farhanshaikh74@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Research Networking",
-  //       day: "09/11",
-  //       role: "Speaker"
-  //     },
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       day: "09/11", 
-  //       role: "Moderator"
-  //     }
-  //   ]
-  // },
-  // "dayalanjul@gmail.com": {
-  //   facultyName: "Dr Anjul Dayal",
-  //   email: "dayalanjul@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-  //       day: "09/11",
   //       role: "Speaker"
   //     }
   //   ]
@@ -325,7 +348,7 @@ export async function sendInviteEmail(
 }
 
 /**
- * TEMPORARILY DISABLED - Send update emails to ALL 7 faculty members
+ * Send update emails to ALL 7 faculty members
  * Input parameters are ignored
  */
 export async function sendUpdateEmail(
@@ -333,10 +356,73 @@ export async function sendUpdateEmail(
   facultyName?: string,  // Ignored
   roomName?: string  // Ignored
 ): Promise<{ ok: boolean; message?: string }> {
-  // TEMPORARILY DISABLED - Return without sending emails
-  console.log('Update email sending temporarily disabled');
-  return {
-    ok: true,
-    message: 'Update email sending disabled - sessions updated without emails'
-  };
+  try {
+    const results = [];
+    
+    // Send update email to each faculty member
+    for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
+      try {
+        const sessionsText = facultyData.sessions
+          .map(s => `Session: "${s.title}" - ${s.day} - ${s.role}`)
+          .join('\n');
+
+        const text = `Hello ${facultyData.facultyName},
+
+Your session${facultyData.sessions.length > 1 ? 's have' : ' has'} been updated:
+
+${sessionsText}
+
+Please confirm your availability again as the schedule has changed.
+
+Registration: You will receive a unique link at early bird rates upon acceptance of the invite.
+
+Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
+
+We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 a memorable success.
+
+Warm regards,
+Scientific Committee, PediCritiCon 2025
+
+Login here: ${baseUrl.replace(
+          /\/+$/,
+          ""
+        )}/faculty-login?email=${encodeURIComponent(facultyData.email)}
+`;
+
+        const result = await sendMail({
+          to: facultyData.email,
+          subject: `📅 Session Updated: PediCritiCon 2025`,
+          text,
+          html: renderFacultyHTML(facultyEmail), // Use their personalized HTML
+        });
+        
+        results.push({
+          email: facultyData.email,
+          success: result.ok
+        });
+        
+      } catch (error) {
+        console.error(`Failed to send update email to ${facultyData.facultyName}:`, error);
+        results.push({
+          email: facultyData.email,
+          success: false
+        });
+      }
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+    
+    return {
+      ok: failureCount === 0,
+      message: `Update emails: ${successCount}/${results.length} sent successfully`
+    };
+    
+  } catch (error) {
+    console.error("Failed to send update emails:", error);
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "Email sending failed",
+    };
+  }
 }

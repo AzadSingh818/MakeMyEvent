@@ -137,50 +137,50 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Hospitality",
-          href: "",
-          icon: Hotel,
-          children: [
-            {
-              label: "Travel",
-              href: "/organizer/hospitality/travel",
-              icon: Plane,
-            },
-            {
-              label: "Accommodation",
-              href: "/organizer/hospitality/hotels",
-              icon: Hotel,
-            },
-            {
-              label: "Mementos",
-              href: "/organizer/hospitality/mementos",
-              icon: Award,
-            },
-          ],
-        },
-        {
-          label: "Certificates",
-          href: "",
-          icon: Award,
-          children: [
-            {
-              label: "Generate",
-              href: "/organizer/certificates/generate",
-              icon: Award,
-            },
-            {
-              label: "Templates",
-              href: "/organizer/certificates/templates",
-              icon: FileText,
-            },
-            {
-              label: "Download",
-              href: "/organizer/certificates/download",
-              icon: Download,
-            },
-          ],
-        },
+        // {
+        //   label: "Hospitality",
+        //   href: "",
+        //   icon: Hotel,
+        //   children: [
+        //     {
+        //       label: "Travel",
+        //       href: "/organizer/hospitality/travel",
+        //       icon: Plane,
+        //     },
+        //     {
+        //       label: "Accommodation",
+        //       href: "/organizer/hospitality/hotels",
+        //       icon: Hotel,
+        //     },
+        //     {
+        //       label: "Mementos",
+        //       href: "/organizer/hospitality/mementos",
+        //       icon: Award,
+        //     },
+        //   ],
+        // },
+        // {
+        //   label: "Certificates",
+        //   href: "",
+        //   icon: Award,
+        //   children: [
+        //     {
+        //       label: "Generate",
+        //       href: "/organizer/certificates/generate",
+        //       icon: Award,
+        //     },
+        //     {
+        //       label: "Templates",
+        //       href: "/organizer/certificates/templates",
+        //       icon: FileText,
+        //     },
+        //     {
+        //       label: "Download",
+        //       href: "/organizer/certificates/download",
+        //       icon: Download,
+        //     },
+        //   ],
+        // },
         // {
         //   label: "Reports",
         //   href: "",
@@ -259,11 +259,11 @@ const getNavigationItems = (
               href: "/event-manager/sessions/schedule",
               icon: Calendar,
             },
-            {
-              label: "Assignments",
-              href: "/event-manager/sessions/assignments",
-              icon: Users,
-            },
+            // {
+            //   label: "Assignments",
+            //   href: "/event-manager/sessions/assignments",
+            //   icon: Users,
+            // },
           ],
         },
         {
@@ -288,28 +288,28 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Venues",
-          href: "",
-          icon: MapPin,
-          children: [
-            {
-              label: "All Venues",
-              href: "/event-manager/venues",
-              icon: MapPin,
-            },
-            {
-              label: "Hall Management",
-              href: "/event-manager/venues/halls",
-              icon: Building,
-            },
-            {
-              label: "Equipment",
-              href: "/event-manager/venues/equipment",
-              icon: Settings,
-            },
-          ],
-        },
+        // {
+        //   label: "Venues",
+        //   href: "",
+        //   icon: MapPin,
+        //   children: [
+        //     {
+        //       label: "All Venues",
+        //       href: "/event-manager/venues",
+        //       icon: MapPin,
+        //     },
+        //     {
+        //       label: "Hall Management",
+        //       href: "/event-manager/venues/halls",
+        //       icon: Building,
+        //     },
+        //     {
+        //       label: "Equipment",
+        //       href: "/event-manager/venues/equipment",
+        //       icon: Settings,
+        //     },
+        //   ],
+        // },
         // {
         //   label: "Reports",
         //   href: "",
@@ -339,11 +339,11 @@ const getNavigationItems = (
           href: "/faculty",
           icon: Monitor,
         },
-        {
-          label: "My Profile",
-          href: "/faculty/profile",
-          icon: Users,
-        },
+        // {
+        //   label: "My Profile",
+        //   href: "/faculty/profile",
+        //   icon: Users,
+        // },
         {
           label: "My Sessions",
           href: "/faculty/sessions",
@@ -365,28 +365,28 @@ const getNavigationItems = (
             },
           ],
         },
-        {
-          label: "Travel & Stay",
-          href: "",
-          icon: Plane,
-          children: [
-            {
-              label: "Travel Details",
-              icon: Plane,
-              action: "openTravelDetailsModal",
-            },
-            {
-              label: "Accommodation",
-              icon: Hotel,
-              action: "openAccommodationModal",
-            },
-          ],
-        },
-        {
-          label: "Certificates",
-          href: "/faculty/certificates",
-          icon: Award,
-        },
+        // {
+        //   label: "Travel & Stay",
+        //   href: "",
+        //   icon: Plane,
+        //   children: [
+        //     {
+        //       label: "Travel Details",
+        //       icon: Plane,
+        //       action: "openTravelDetailsModal",
+        //     },
+        //     {
+        //       label: "Accommodation",
+        //       icon: Hotel,
+        //       action: "openAccommodationModal",
+        //     },
+        //   ],
+        // },
+        // {
+        //   label: "Certificates",
+        //   href: "/faculty/certificates",
+        //   icon: Award,
+        // },
         {
           label: "Submit Feedback",
           icon: MessageSquare,

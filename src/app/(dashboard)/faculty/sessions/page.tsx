@@ -11,7 +11,7 @@ import {
   MapPin,
   Activity,
   ArrowLeft,
-  AlertTriangle,
+  AlertTriangle, 
   ExternalLink,
   X,
   CheckCircle,

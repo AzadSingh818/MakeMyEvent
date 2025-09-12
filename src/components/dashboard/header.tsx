@@ -263,7 +263,7 @@ export function DashboardHeader({
                   </div>
                 </div>
                 
-                <div className="p-2">
+                {/* <div className="p-2">
                   <Button variant="ghost" className="w-full justify-start text-sm">
                     <User className="h-4 w-4 mr-3" />
                     My Profile
@@ -276,7 +276,7 @@ export function DashboardHeader({
                     <Globe className="h-4 w-4 mr-3" />
                     Language
                   </Button>
-                </div>
+                </div> */}
                 
                 <div className="p-2 border-t border-gray-200 dark:border-gray-700">
                   <Button variant="ghost" className="w-full justify-start text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
