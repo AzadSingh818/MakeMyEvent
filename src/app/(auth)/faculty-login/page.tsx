@@ -192,7 +192,7 @@ export default function FacultyLoginPage() {
             </div>
           </div>
 
-          {otpSent && (
+          {/* {otpSent && (
             <>
               <div>
                 <label htmlFor="otp" className="block mb-1 font-medium">
@@ -219,9 +219,9 @@ export default function FacultyLoginPage() {
                 </button>
               </div>
             </>
-          )}
+          )} */}
 
-          <button
+          {/* <button
             type="submit"
             disabled={!email || loading}
             className={`w-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-3 font-semibold shadow-lg transition ${
@@ -235,7 +235,7 @@ export default function FacultyLoginPage() {
             ) : (
               "Send OTP"
             )}
-          </button>
+          </button> */}
         </form>
 
         <div className="my-6 flex items-center justify-center text-gray-400">

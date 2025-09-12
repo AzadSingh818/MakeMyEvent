@@ -358,73 +358,10 @@ export async function sendUpdateEmail(
   facultyName?: string,  // Ignored
   roomName?: string  // Ignored
 ): Promise<{ ok: boolean; message?: string }> {
-  try {
-    const results = [];
-    
-    // Send update email to each faculty member
-    for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
-      try {
-        const sessionsText = facultyData.sessions
-          .map(s => `Session: "${s.title}" - ${s.day} - ${s.role}`)
-          .join('\n');
-
-        const text = `Hello ${facultyData.facultyName},
-
-Your session${facultyData.sessions.length > 1 ? 's have' : ' has'} been updated:
-
-${sessionsText}
-
-Please confirm your availability again as the schedule has changed.
-
-Registration: You will receive a unique link at early bird rates upon acceptance of the invite.
-
-Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
-
-We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 a memorable success.
-
-Warm regards,
-Scientific Committee, PediCritiCon 2025
-
-Login here: ${baseUrl.replace(
-          /\/+$/,
-          ""
-        )}/faculty-login?email=${encodeURIComponent(facultyData.email)}
-`;
-
-        const result = await sendMail({
-          to: facultyData.email,
-          subject: `📅 Session Updated: PediCritiCon 2025`,
-          text,
-          html: renderFacultyHTML(facultyEmail), // Use their personalized HTML
-        });
-        
-        results.push({
-          email: facultyData.email,
-          success: result.ok
-        });
-        
-      } catch (error) {
-        console.error(`Failed to send update email to ${facultyData.facultyName}:`, error);
-        results.push({
-          email: facultyData.email,
-          success: false
-        });
-      }
-    }
-    
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-    
-    return {
-      ok: failureCount === 0,
-      message: `Update emails: ${successCount}/${results.length} sent successfully`
-    };
-    
-  } catch (error) {
-    console.error("Failed to send update emails:", error);
-    return {
-      ok: false,
-      message: error instanceof Error ? error.message : "Email sending failed",
-    };
-  }
+  // TEMPORARILY DISABLED - Return without sending emails
+  console.log('Update email sending temporarily disabled');
+  return {
+    ok: true,
+    message: 'Update email sending disabled - sessions updated without emails'
+  };
 }
