@@ -165,7 +165,20 @@ function renderFacultyHTML(facultyEmail: string) {
           <strong>Please confirm your acceptance by clicking Yes or No on the faculty dashboard</strong>
       </p>
     </div>
-
+    <p style="text-align:center; margin: 30px 0;">
+      <a href="${loginUrl}" target="_blank" style="
+        background:#764ba2;
+        color:#fff;
+        padding:15px 25px;
+        border-radius:25px;
+        text-decoration:none;
+        font-weight:bold;
+        font-size:16px;
+        box-shadow:0 4px 15px rgba(118,75,162,0.4);
+        ">
+        🔐 Access Faculty Portal
+      </a>
+    </p>
     <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 6px; padding: 15px; margin: 25px 0;">
         <h4 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 14px;">🔹 Hospitality & Travel:</h4>
         <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
@@ -197,21 +210,6 @@ function renderFacultyHTML(facultyEmail: string) {
             <span style="color: #764ba2;">Scientific Committee, PediCritiCon 2025</span>
         </p>
     </div>
-    
-    <p style="text-align:center; margin: 30px 0;">
-      <a href="${loginUrl}" target="_blank" style="
-        background:#764ba2;
-        color:#fff;
-        padding:15px 25px;
-        border-radius:25px;
-        text-decoration:none;
-        font-weight:bold;
-        font-size:16px;
-        box-shadow:0 4px 15px rgba(118,75,162,0.4);
-        ">
-        🔐 Access Faculty Portal
-      </a>
-    </p>
     <p style="font-size:12px; color:#666; text-align:center; margin-top:20px;">
       If you have questions, contact your event coordinator. This message was sent automatically.
     </p>
