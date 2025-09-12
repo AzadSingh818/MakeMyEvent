@@ -81,7 +81,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
   </div>
 
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
-    <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">Faculty Invitation</h1>
+    <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad</h1>
     
     <p>Dear Dr. <strong>${safe(facultyName)}</strong>,</p>
     <p>Greetings from the Scientific Committee, PediCritiCon 2025!
@@ -307,7 +307,7 @@ export async function sendBulkInviteEmail(
   const html = renderHTML(sessions, facultyName);
   const text = `Subject: Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad
 
-Dear Dr. ${facultyName},
+Dear Dr. Shruti!,
 
 Greetings from the Scientific Committee, PediCritiCon 2025!
 
@@ -336,7 +336,7 @@ Login here: ${baseUrl.replace(
 🔹 Hospitality & Travel:
 Accommodation: We will provide you with twin-sharing accommodation for the duration of the conference. Email will follow with more details on this.
 Travel: You are requested to kindly arrange your own travel.
-Registration: Please complete your conference registration at the base rate.
+Registration: You will receive a unique link at early bird rates upon acceptance of the invite.
 
 Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
 
