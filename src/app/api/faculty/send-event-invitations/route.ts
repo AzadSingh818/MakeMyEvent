@@ -15,7 +15,8 @@ export async function POST(req: NextRequest) {
 
     const sentInvitations = [];
     const failedInvitations = [];
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/organizer/faculty";
+    // FIXED: Correct base URL for Vercel deployment
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app";
 
     console.log(
       `📨 Starting REAL email campaign for ${invitations.length} faculty members`
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
           invitationId: invitation.id,
         });
 
-        const facultyLoginLink = `${baseUrl}/faculty-login?${loginParams.toString()}`;
+        // FIXED: Correct faculty login path
+        const facultyLoginLink = `${baseUrl}/faculty/login?${loginParams.toString()}`;
 
         // Format event dates
         const startDate = new Date(event.startDate);
