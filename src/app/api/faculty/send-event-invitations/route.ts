@@ -176,6 +176,23 @@ If you have any questions, please contact our support team.`;
             a memorable success.
         </p>
 
+        <!-- Final Conference Message -->
+        <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
+            <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Registration & Participation:</h4>
+            <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+                <strong>Registration:</strong> Please complete your conference registration at the base rate.
+            </p>
+            <p style="color: #4a5568; font-size: 14px; margin: 0 0 10px 0; line-height: 1.6;">
+                Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
+                If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> at 
+                the earliest so we may make suitable adjustments.
+            </p>
+            <p style="color: #4a5568; font-size: 14px; margin: 0; line-height: 1.6;">
+                We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
+                a memorable success.
+            </p>
+        </div>
+
         <div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #4299e1; border-radius: 4px;">
             <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
                 Warm regards,<br>
