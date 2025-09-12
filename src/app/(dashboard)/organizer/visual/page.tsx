@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState, useMemo, useCallback } from "react";
@@ -36,7 +37,7 @@ export interface Session {
   id: string;
   title: string;
   facultyId: string;
-  facultyName?: string;
+  facultyName?: string; // FIXED: This will now be properly stored
   email: string;
   place: string;
   roomId: string;
@@ -931,7 +932,7 @@ interface CreateSessionModalProps {
   theme: Theme;
 }
 
-// Create Session Modal Component
+// FIXED: Create Session Modal Component with Faculty Name Storage
 const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
   isOpen,
   onClose,
@@ -994,7 +995,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
     ? facultiesByEvent[selectedEventId] || []
     : [];
 
-  // Auto-populate email when faculty is selected
+  // FIXED: Auto-populate email AND get faculty name when faculty is selected
   const handleFacultyChange = (selectedFacultyId: string) => {
     setFacultyId(selectedFacultyId);
     const selectedFaculty = availableFaculty.find(
@@ -1062,15 +1063,20 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
         return;
       }
 
+      // FIXED: Get the faculty name from the selected faculty
+      const selectedFaculty = availableFaculty.find((f) => f.id === facultyId);
+      const facultyName = selectedFaculty?.name || "";
+
       const formData = new FormData();
       formData.append("title", title);
       formData.append("facultyId", facultyId);
+      formData.append("facultyName", facultyName); // FIXED: Add faculty name to form data
       formData.append("email", email);
       formData.append("place", place);
       formData.append("roomId", roomId);
       formData.append("description", description);
 
-      // FIXED: Send datetime-local strings directly without conversion
+      // FIXED: Send datetime-local strings directly without conversion (IST time)
       formData.append("startTime", startDateTime);
       formData.append("endTime", endDateTime);
 
@@ -1080,7 +1086,8 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
       formData.append("travel", travelRequired);
       formData.append("accommodation", accommodationRequired);
 
-      console.log("📋 Creating session with local times:", {
+      console.log("📋 Creating session with IST times and faculty name:", {
+        facultyName: facultyName,
         startTime: startDateTime,
         endTime: endDateTime,
         startHour: startTimeLocal.hours,
@@ -1101,17 +1108,17 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
       }
 
       const result = await response.json();
-      console.log("✅ Session created successfully:", result);
+      console.log("✅ Session created successfully with faculty name:", result);
 
       resetForm();
       onCreate();
       onClose();
 
       if (result.emailStatus === "sent") {
-        alert("Session created and invitation email sent successfully!");
+        alert(`Session created and invitation email sent to Dr. ${facultyName}!`);
       } else {
         alert(
-          "Session created successfully! Email notification may be delayed."
+          `Session created successfully for Dr. ${facultyName}! Email notification may be delayed.`
         );
       }
     } catch (error) {
@@ -1346,7 +1353,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 <label
                   className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
                 >
-                  Start Time *
+                  Start Time * (IST)
                 </label>
                 <input
                   type="datetime-local"
@@ -1361,7 +1368,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                 <label
                   className={`block text-sm font-medium ${themeClasses.text.secondary} mb-2`}
                 >
-                  End Time *
+                  End Time * (IST)
                 </label>
                 <input
                   type="datetime-local"
@@ -1437,7 +1444,7 @@ const CreateSessionModal: React.FC<CreateSessionModalProps> = ({
                     {availableFaculty.find((f) => f.id === facultyId)?.name}
                   </div>
                   <div>
-                    <span className="font-medium">Time:</span>{" "}
+                    <span className="font-medium">Time (IST):</span>{" "}
                     {startDateTime &&
                       `${
                         parseTimeString(startDateTime).hours
@@ -1654,6 +1661,8 @@ const SessionsCalendarView: React.FC = () => {
             roomName:
               roomsList.find((r: RoomLite) => r.id === session.roomId)?.name ||
               session.roomName,
+            // FIXED: Ensure facultyName is properly preserved from database
+            facultyName: session.facultyName || session.faculty?.name || "Faculty TBD"
           }));
 
           setSessions(enhancedSessions);
@@ -1760,7 +1769,7 @@ const SessionsCalendarView: React.FC = () => {
     return days;
   }, [currentWeek]);
 
-  // FIXED: Get sessions for slot using local time parsing (like original)
+  // FIXED: Get sessions for slot using local time parsing (IST time preserved)
   const getSessionsForSlot = (date: Date, hour: number) => {
     return sessions.filter((session) => {
       if (!session.startTime || !session.endTime) return false;
@@ -1776,14 +1785,14 @@ const SessionsCalendarView: React.FC = () => {
     });
   };
 
-  // FIXED: Get session style using local time positioning (preserves grid behavior)
+  // FIXED: Get session style using local time positioning (preserves IST grid behavior)
   const getSessionStyle = (session: Session) => {
     if (!session.startTime || !session.endTime) return {};
 
     const startTime = parseTimeString(session.startTime);
     const endTime = parseTimeString(session.endTime);
 
-    // Calculate position based on local time (like original)
+    // Calculate position based on local time (IST preserved)
     const startPosition = (startTime.hours * 60 + startTime.minutes) / 60;
     const duration =
       (endTime.hours * 60 +
@@ -1931,7 +1940,7 @@ const SessionsCalendarView: React.FC = () => {
             </div>
             <div>
               <h1 className={`text-2xl font-bold ${themeClasses.text.primary}`}>
-                Sessions Calendar
+                Sessions Calendar (IST)
               </h1>
               <p className={themeClasses.text.secondary}>
                 Database-connected schedule • Last updated: {lastUpdateTime}
@@ -1988,7 +1997,7 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         </div>
 
-        {/* Status Alert - FIXED for both themes */}
+        {/* Status Alert */}
         {events.length === 0 && (
           <div
             className={`mb-4 p-3 ${themeClasses.alert.warning} rounded-lg border`}
@@ -2003,7 +2012,7 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         )}
 
-        {/* FIXED: Events Summary with proper light theme colors */}
+        {/* Events Summary */}
         {events.length > 0 && (
           <div className="mb-4 flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
@@ -2035,7 +2044,7 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         )}
 
-        {/* FIXED: Week Navigation with proper theme colors */}
+        {/* Week Navigation */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button
@@ -2075,7 +2084,8 @@ const SessionsCalendarView: React.FC = () => {
           </Button>
         </div>
       </div>
-      {/* FIXED: Calendar Grid with proper theme support and past date/time filtering */}
+
+      {/* Calendar Grid with IST Time Slots */}
       <div className="flex overflow-hidden">
         <div
           className={`${themeClasses.calendar.grid} border-r ${themeClasses.border} w-20 flex-shrink-0`}
@@ -2164,7 +2174,7 @@ const SessionsCalendarView: React.FC = () => {
                     );
                   })}
 
-                  {/* FIXED: Session positioning with correct time parsing and theme support */}
+                  {/* FIXED: Session positioning with correct IST time parsing and faculty names */}
                   {sessions
                     .filter((session) => {
                       if (!session.startTime) return false;
@@ -2196,7 +2206,7 @@ const SessionsCalendarView: React.FC = () => {
                             {session.title}
                           </div>
                           <div className="text-xs opacity-90 truncate mb-1">
-                            {session.facultyName}
+                            Dr. {session.facultyName || "Faculty TBD"}
                           </div>
 
                           {/* Add past indicator */}
@@ -2232,6 +2242,7 @@ const SessionsCalendarView: React.FC = () => {
           </div>
         </div>
       </div>
+
       <SessionDetailsModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -2263,4 +2274,3 @@ const SessionsCalendarView: React.FC = () => {
 };
 
 export default SessionsCalendarView;
-
