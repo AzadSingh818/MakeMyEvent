@@ -12,22 +12,26 @@ export type Session = {
   roomId: string;
   roomName?: string;
   description?: string;
-  startTime: string;
+  sessionDate?: string;     // Added for Day column
+  startTime?: string;       // Uncommented
   endTime: string;
   status: "Draft" | "Confirmed";
   inviteStatus: "Pending" | "Accepted" | "Declined";
   rejectionReason?: "NotInterested" | "SuggestedTopic" | "TimeConflict";
   suggestedTopic?: string;
-  suggestedTimeStart?: string;
+  suggestedTimeStart?: string;  // Uncommented
   suggestedTimeEnd?: string;
   optionalQuery?: string;
   eventId?: string;
 };
 
 function formatDate(val?: string) {
-  if (!val) return "-";
+  if (!val) return "TBD";
   const d = new Date(val);
-  return isNaN(d.getTime()) ? "-" : d.toLocaleString();
+  return isNaN(d.getTime()) ? "TBD" : d.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric'
+  });
 }
 
 function safe(val?: string) {
@@ -41,17 +45,14 @@ function renderHTML(sessions: Session[], facultyName: string) {
     ""
   )}/faculty-login?email=${encodeURIComponent(firstSession?.email || "")}`;
 
+  // Fixed: 3-column table rows to match header
   const rows = sessions
     .map(
       (s) => `
       <tr style="border-bottom: 1px solid #eaeaea;">
-        <td style="padding:12px; border-right:1px solid #ddd;">${safe(
-          s.title
-        )}</td>
-        <td style="padding:12px; border-right:1px solid #ddd;">TBD</td>
-        <td style="padding:12px; border-right:1px solid #ddd;">TBD</td>
-        <td style="padding:12px; border-right:1px solid #ddd;">TBD</td>
-        <td style="padding:12px;">${safe(s.description)}</td>
+        <td style="padding:12px; border-right:1px solid #ddd;">${safe(s.title)}</td>
+        <td style="padding:12px; border-right:1px solid #ddd;">${formatDate(s.sessionDate)}</td>
+        <td style="padding:12px;">${safe(s.description) || 'Speaker'}</td>
       </tr>`
     )
     .join("");
@@ -78,21 +79,16 @@ function renderHTML(sessions: Session[], facultyName: string) {
     <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad</h1>
     
     <p>Dear Dr. <strong>${safe(facultyName)}</strong>,</p>
-    <p>Greetings from the Scientific Committee, PediCritiCon 2025!
-    ${sessions.length} session${
-    sessions.length > 1 ? "s" : ""
-  }:<p>It gives us immense pleasure to invite you as a distinguished faculty member to PediCritiCon 2025 – the 27th National Conference of the IAP Intensive Care Chapter, hosted by the Pediatric Intensive Care Chapter—Kakatiya, Telangana State.</p>
-  <p>Your proposed faculty role is outlined below:
-    Your Faculty Invitation – PediCritiCon 2025
-  </p>
-  </p>
+    <p>Greetings from the Scientific Committee, PediCritiCon 2025!</p>
+    <p>It gives us immense pleasure to invite you as a distinguished faculty member to PediCritiCon 2025 – the 27th National Conference of the IAP Intensive Care Chapter, hosted by the Pediatric Intensive Care Chapter—Kakatiya, Telangana State.</p>
+    <p>Your proposed faculty role${sessions.length > 1 ? "s are" : " is"} outlined below:</p>
+    
+    <!-- Fixed 3-column table -->
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
       <thead style="background:#efefef;">
         <tr>
-          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Title</th>
-          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Start</th>
-          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">End</th>
-          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Location</th>
+          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Title</th>
+          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Day</th>
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Role</th>
         </tr>
       </thead>
@@ -100,45 +96,47 @@ function renderHTML(sessions: Session[], facultyName: string) {
         ${rows}
       </tbody>
     </table>
+
     <!-- Conference Registration & Participation -->
     <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
-    <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Acceptance & Details:</h4>
-    <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-        <strong>Please confirm your acceptance by clicking Yes or No on the faculty dashboard</strong>
-    </p>
-</div>
+      <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Acceptance & Details:</h4>
+      <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+          <strong>Please confirm your acceptance by clicking Yes or No on the faculty dashboard</strong>
+      </p>
+    </div>
 
-<div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 6px; padding: 15px; margin: 25px 0;">
-    <h4 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 14px;">🔹 Hospitality & Travel:</h4>
-    <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-        <strong>Accommodation:</strong> We will provide you with twin-sharing accommodation for the duration of the conference. Email will follow with more details on this.
-    </p>
-    <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-        <strong>Travel:</strong> You are requested to kindly arrange your own travel.
-    </p>
-    <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-        <strong>Registration:</strong> You will receive a unique link at early bird rates upon acceptance of the invite.
-    </p>
-</div>
+    <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 6px; padding: 15px; margin: 25px 0;">
+        <h4 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 14px;">🔹 Hospitality & Travel:</h4>
+        <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+            <strong>Accommodation:</strong> We will provide you with twin-sharing accommodation for the duration of the conference. Email will follow with more details on this.
+        </p>
+        <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+            <strong>Travel:</strong> You are requested to kindly arrange your own travel.
+        </p>
+        <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+            <strong>Registration:</strong> You will receive a unique link at early bird rates upon acceptance of the invite.
+        </p>
+    </div>
 
-<div style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 6px; padding: 15px; margin: 25px 0;">
-    <p style="color: #1e40af; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">
-        Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
-        If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> on the faculty dashboard at 
-        the earliest so we may make suitable adjustments.
-    </p>
-    <p style="color: #1e40af; font-size: 14px; margin: 0; line-height: 1.6;">
-        We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
-        a memorable success.
-    </p>
-</div>
+    <div style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 6px; padding: 15px; margin: 25px 0;">
+        <p style="color: #1e40af; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">
+            Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
+            If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> on the faculty dashboard at 
+            the earliest so we may make suitable adjustments.
+        </p>
+        <p style="color: #1e40af; font-size: 14px; margin: 0; line-height: 1.6;">
+            We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
+            a memorable success.
+        </p>
+    </div>
 
-<div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #764ba2; border-radius: 4px;">
-    <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
-        Warm regards,<br>
-        <span style="color: #764ba2;">Scientific Committee, PediCritiCon 2025</span>
-    </p>
-</div>
+    <div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #764ba2; border-radius: 4px;">
+        <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
+            Warm regards,<br>
+            <span style="color: #764ba2;">Scientific Committee, PediCritiCon 2025</span>
+        </p>
+    </div>
+    
     <p style="text-align:center; margin: 30px 0;">
       <a href="${loginUrl}" target="_blank" style="
         background:#764ba2;
@@ -206,26 +204,19 @@ function renderUpdateHTML(
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
       <tr style="background:#f8f9fa;">
         <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">Title:</td>
-        <td style="padding:12px; border-bottom:1px solid #ddd;">${safe(
-          session.title
-        )}</td>
+        <td style="padding:12px; border-bottom:1px solid #ddd;">${safe(session.title)}</td>
       </tr>
       <tr style="background:#fff;">
-        <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">Start Time:</td>
-        <td style="padding:12px; border-bottom:1px solid #ddd;">TBD
-        </td>
+        <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">Day:</td>
+        <td style="padding:12px; border-bottom:1px solid #ddd;">${formatDate(session.sessionDate)}</td> 
       </tr>
       <tr style="background:#f8f9fa;">
-        <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">End Time:</td>
-        <td style="padding:12px; border-bottom:1px solid #ddd;">TBD</td> 
-      </tr>
-      <tr style="background:#fff;">
         <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">Location:</td>
-        <td style="padding:12px; border-bottom:1px solid #ddd;">TBD</td>
+        <td style="padding:12px; border-bottom:1px solid #ddd;">${safe(session.place)} - ${safe(roomName)}</td>
       </tr>
-      <tr style="background:#f8f9fa;">
+      <tr style="background:#fff;">
         <td style="padding:12px; font-weight:bold;">Role:</td>
-        <td style="padding:12px;">${safe(session.description)}</td>
+        <td style="padding:12px;">${safe(session.description) || 'Speaker'}</td>
       </tr>
     </table>
     <p><strong>Please confirm your availability again as the schedule has changed.</strong></p>
@@ -248,7 +239,7 @@ function renderUpdateHTML(
     <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
         <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Registration & Participation:</h4>
         <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-            <strong>Registration:</strong> You will receive a unique link at early bird rates upon acceptance of the invite.
+            <strong>Registration:</strong> You will receive a unique link at early bird rates upon acceptance of the invite.
         </p>
         <p style="color: #4a5568; font-size: 14px; margin: 0 0 10px 0; line-height: 1.6;">
             Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
@@ -296,7 +287,7 @@ export async function sendBulkInviteEmail(
   const html = renderHTML(sessions, facultyName);
   const text = `Subject: Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad
 
-Dear Dr. Shruti!,
+Dear Dr. ${safe(facultyName)},
 
 Greetings from the Scientific Committee, PediCritiCon 2025!
 
@@ -305,14 +296,14 @@ It gives us immense pleasure to invite you as a distinguished faculty member to 
 📅 Dates: November 6–9, 2025
 📍 Venue: Hyderabad International Convention Centre (HICC), Hyderabad, India
 
-Your proposed faculty role is outlined below:
+Your proposed faculty role${sessions.length > 1 ? "s are" : " is"} outlined below:
 
 Your Faculty Invitation – PediCritiCon 2025
 ${sessions
   .map(
-    (s) => `Date: TBD
+    (s) => `Date: ${formatDate(s.sessionDate)}
 Session: ${safe(s.title)}
-Role: Speaker`
+Role: ${safe(s.description) || 'Speaker'}`
   )
   .join("\n\n")}
 
@@ -371,15 +362,13 @@ export async function sendUpdateEmail(
     const text = `Hello ${facultyName},
 
 Your session "${safe(session.title)}" has been updated:
-
-Start Time: TBD
-End Time: TBD
-Location: TBD
-Description: ${safe(session.description)}
+Day: ${formatDate(session.sessionDate)}
+Role: ${safe(session.description) || 'Speaker'}
+Location: ${safe(session.place)} - ${safe(roomName)}
 
 Please confirm your availability again as the schedule has changed.
 
-Registration: You will receive a unique link at early bird rates upon acceptance of the invite.
+Registration: You will receive a unique link at early bird rates upon acceptance of the invite.
 
 Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
 
