@@ -83,10 +83,15 @@ function renderHTML(sessions: Session[], facultyName: string) {
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
     <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">🎤 Speaking Invitation</h1>
     
-    <p>Dear Doctor<strong>${safe(facultyName)}</strong>,</p>
-    <p>You are invited to speak at the following ${sessions.length} session${
+    <p>Dear Dr. <strong>${safe(facultyName)}</strong>,</p>
+    <p>Greetings from the Scientific Committee, PediCritiCon 2025!
+    ${sessions.length} session${
     sessions.length > 1 ? "s" : ""
-  }:</p>
+  }:<p>It gives us immense pleasure to invite you as a distinguished faculty member to PediCritiCon 2025 – the 27th National Conference of the IAP Intensive Care Chapter, hosted by the Pediatric Intensive Care Chapter—Kakatiya, Telangana State.</p>
+  <p>Your proposed faculty role is outlined below:
+    Your Faculty Invitation – PediCritiCon 2025
+  </p>
+  </p>
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
       <thead style="background:#efefef;">
         <tr>
@@ -101,6 +106,45 @@ function renderHTML(sessions: Session[], facultyName: string) {
         ${rows}
       </tbody>
     </table>
+    <!-- Conference Registration & Participation -->
+    <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
+    <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Acceptance & Details:</h4>
+    <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+        <strong>Please confirm your acceptance by clicking Yes or No</strong>
+    </p>
+</div>
+
+<div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 6px; padding: 15px; margin: 25px 0;">
+    <h4 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 14px;">🔹 Hospitality & Travel:</h4>
+    <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+        <strong>Accommodation:</strong> We will provide you with twin-sharing accommodation for the duration of the conference. Email will follow with more details on this.
+    </p>
+    <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+        <strong>Travel:</strong> You are requested to kindly arrange your own travel.
+    </p>
+    <p style="color: #1b5e20; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+        <strong>Registration:</strong> Please complete your conference registration at the base rate.
+    </p>
+</div>
+
+<div style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 6px; padding: 15px; margin: 25px 0;">
+    <p style="color: #1e40af; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">
+        Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
+        If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> at 
+        the earliest so we may make suitable adjustments.
+    </p>
+    <p style="color: #1e40af; font-size: 14px; margin: 0; line-height: 1.6;">
+        We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
+        a memorable success.
+    </p>
+</div>
+
+<div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #764ba2; border-radius: 4px;">
+    <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
+        Warm regards,<br>
+        <span style="color: #764ba2;">Scientific Committee, PediCritiCon 2025</span>
+    </p>
+</div>
     <p style="text-align:center; margin: 30px 0;">
       <a href="${loginUrl}" target="_blank" style="
         background:#764ba2;
@@ -115,31 +159,6 @@ function renderHTML(sessions: Session[], facultyName: string) {
         🔐 Access Faculty Portal
       </a>
     </p>
-
-    <!-- Conference Registration & Participation -->
-    <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
-        <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Registration & Participation:</h4>
-        <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-            <strong>Registration:</strong> Please complete your conference registration at the base rate.
-        </p>
-        <p style="color: #4a5568; font-size: 14px; margin: 0 0 10px 0; line-height: 1.6;">
-            Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
-            If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> at 
-            the earliest so we may make suitable adjustments.
-        </p>
-        <p style="color: #4a5568; font-size: 14px; margin: 0; line-height: 1.6;">
-            We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
-            a memorable success.
-        </p>
-    </div>
-
-    <div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #764ba2; border-radius: 4px;">
-        <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
-            Warm regards,<br>
-            <span style="color: #764ba2;">Scientific Committee, PediCritiCon 2025</span>
-        </p>
-    </div>
-
     <p style="font-size:12px; color:#666; text-align:center; margin-top:20px;">
       If you have questions, contact your event coordinator. This message was sent automatically.
     </p>
@@ -188,7 +207,7 @@ function renderUpdateHTML(
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
     <h1 style="color:#ff6b35; text-align:center; margin-bottom:20px;">📅 Session Updated</h1>
     
-    <p>Dear Doctor<strong>${safe(facultyName)}</strong>,</p>
+    <p>Dear Dr. <strong>${safe(facultyName)}</strong>,</p>
     <p>Your session has been updated with new details:</p>
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
       <tr style="background:#f8f9fa;">
