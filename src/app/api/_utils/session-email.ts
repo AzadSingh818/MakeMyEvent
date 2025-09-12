@@ -1,6 +1,6 @@
 import { sendMail } from "@/lib/mailer";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 export type Session = {
   id: string;
@@ -83,7 +83,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
     <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">🎤 Speaking Invitation</h1>
     
-    <p>Dear <strong>Dr.${safe(facultyName)}</strong>,</p>
+    <p>Hello <strong>${safe(facultyName)}</strong>,</p>
     <p>You are invited to speak at the following ${sessions.length} session${
     sessions.length > 1 ? "s" : ""
   }:</p>
@@ -286,19 +286,37 @@ export async function sendBulkInviteEmail(
   }
 
   const html = renderHTML(sessions, facultyName);
-  const text = `Hello ${facultyName},
+  const text = `Subject: Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad
 
-You have been invited to speak at ${sessions.length} session(s):
+Dear Dr. ${facultyName},
 
+Greetings from the Scientific Committee, PediCritiCon 2025!
+
+It gives us immense pleasure to invite you as a distinguished faculty member to PediCritiCon 2025 – the 27th National Conference of the IAP Intensive Care Chapter, hosted by the Pediatric Intensive Care Chapter—Kakatiya, Telangana State.
+
+📅 Dates: November 6–9, 2025
+📍 Venue: Hyderabad International Convention Centre (HICC), Hyderabad, India
+
+Your proposed faculty role is outlined below:
+
+Your Faculty Invitation – PediCritiCon 2025
 ${sessions
   .map(
-    (s) => `- ${safe(s.title)}
-  Start: ${formatDate(s.startTime)}
-  End: ${formatDate(s.endTime)}
-  Location: ${safe(s.place)}`
+    (s) => `Date: ${formatDate(s.startTime).split(',')[0]}
+Session: ${safe(s.title)}
+Role: Speaker`
   )
   .join("\n\n")}
 
+👉 Kindly confirm your acceptance by clicking Yes or No 
+Login here: ${baseUrl.replace(
+    /\/+$/,
+    ""
+  )}/faculty-login?email=${encodeURIComponent(email)}
+
+🔹 Hospitality & Travel:
+Accommodation: We will provide you with twin-sharing accommodation for the duration of the conference. Email will follow with more details on this.
+Travel: You are requested to kindly arrange your own travel.
 Registration: Please complete your conference registration at the base rate.
 
 Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
@@ -307,18 +325,11 @@ We sincerely look forward to your acceptance and active contribution in making P
 
 Warm regards,
 Scientific Committee, PediCritiCon 2025
-
-Login here: ${baseUrl.replace(
-    /\/+$/,
-    ""
-  )}/faculty-login?email=${encodeURIComponent(email)}
 `;
 
   return sendMail({
     to: email,
-    subject: `🎓 ${sessions.length} Session Invitation${
-      sessions.length > 1 ? "s" : ""
-    } - Please Login`,
+    subject: `Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad`,
     text,
     html,
   });
