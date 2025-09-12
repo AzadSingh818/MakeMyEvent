@@ -83,7 +83,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
     <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">🎤 Speaking Invitation</h1>
     
-    <p>Hello <strong>${safe(facultyName)}</strong>,</p>
+    <p>Dear Doctor<strong>${safe(facultyName)}</strong>,</p>
     <p>You are invited to speak at the following ${sessions.length} session${
     sessions.length > 1 ? "s" : ""
   }:</p>
