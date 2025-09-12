@@ -188,7 +188,7 @@ function renderUpdateHTML(
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
     <h1 style="color:#ff6b35; text-align:center; margin-bottom:20px;">📅 Session Updated</h1>
     
-    <p>Hello <strong>${safe(facultyName)}</strong>,</p>
+    <p>Dear Doctor<strong>${safe(facultyName)}</strong>,</p>
     <p>Your session has been updated with new details:</p>
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
       <tr style="background:#f8f9fa;">
