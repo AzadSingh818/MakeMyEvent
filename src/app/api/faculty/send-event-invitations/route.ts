@@ -80,7 +80,7 @@ We look forward to your positive response!
 This invitation was sent by the Conference Management System
 If you have any questions, please contact our support team.`;
 
-        // Create HTML version
+        // Create HTML version with BOTH header and footer images
         const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -90,14 +90,17 @@ If you have any questions, please contact our support team.`;
     <title>Event Invitation</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    
     <!-- Header -->
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; color: white; border-radius: 10px 10px 0 0;">
-        <h1 style="margin: 0; font-size: 28px; font-weight: bold;">🎓 Event Invitation</h1>
-        <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">${event.title}</p>
+    <div style="background: #f8f9fa; padding: 0; text-align: center; border-radius: 10px 10px 0 0; overflow: hidden;">
+        <!-- PediCritiCon Header Image -->
+        <img src="https://make-my-event.vercel.app/images/pedicriticon-header.png" 
+             alt="PediCritiCon 2025 Header - 6th to 9th November 2025"
+             style="width: 100%; height: auto; display: block; max-width: 600px;" />
     </div>
     
     <!-- Content -->
-    <div style="background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <div style="background: white; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
         <p style="font-size: 16px; margin-bottom: 15px;">Dear <strong style="color: #4299e1;">${invitation.name}</strong>,</p>
         
         <div style="background: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4299e1;">
@@ -154,20 +157,39 @@ If you have any questions, please contact our support team.`;
             </ol>
         </div>
 
-        <p style="color: #718096; font-size: 13px; text-align: center; margin-top: 25px; line-height: 1.4;">
-            We are excited about the possibility of having you join us for this prestigious event.<br>
-            Your expertise would be invaluable to our academic community.
+        <!-- Registration Notice -->
+        <div style="background: #fff5f5; border: 1px solid #feb2b2; border-radius: 6px; padding: 15px; margin: 25px 0;">
+            <h4 style="color: #9b2c2c; margin: 0 0 10px 0; font-size: 14px;">📝 Important Registration Information:</h4>
+            <p style="color: #822727; margin: 0; font-size: 14px; line-height: 1.5;">
+                <strong>Registration:</strong> Please complete your conference registration at the base rate.
+            </p>
+        </div>
+
+        <p style="color: #4a5568; font-size: 14px; text-align: left; margin: 20px 0; line-height: 1.6;">
+            Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
+            If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> at 
+            the earliest so we may make suitable adjustments.
         </p>
+
+        <p style="color: #4a5568; font-size: 14px; text-align: left; margin: 20px 0; line-height: 1.6;">
+            We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
+            a memorable success.
+        </p>
+
+        <div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #4299e1; border-radius: 4px;">
+            <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
+                Warm regards,<br>
+                <span style="color: #4299e1;">Scientific Committee, PediCritiCon 2025</span>
+            </p>
+        </div>
     </div>
 
     <!-- Footer -->
-    <div style="background: #2d3748; color: #e2e8f0; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; margin-top: 10px;">
-        <p style="margin: 0 0 8px 0; font-size: 13px;">
-            📧 This invitation was sent by the Conference Management System
-        </p>
-        <p style="margin: 0; font-size: 11px; opacity: 0.8;">
-            Need assistance? Contact our support team • © 2025 Academic Conference
-        </p>
+    <div style="background: #f8f9fa; padding: 0; text-align: center; border-radius: 0 0 10px 10px; margin-top: 10px; overflow: hidden;">
+        <!-- PediCritiCon Footer Image -->
+        <img src="https://make-my-event.vercel.app/images/pedicriticon-footer.png" 
+             alt="PediCritiCon 2025 Footer - Scan for Website, Helpline: 63646 90353"
+             style="width: 100%; height: auto; display: block; max-width: 600px;" />
     </div>
 </body>
 </html>`;
