@@ -2263,4 +2263,3 @@ const SessionsCalendarView: React.FC = () => {
 };
 
 export default SessionsCalendarView;
-
