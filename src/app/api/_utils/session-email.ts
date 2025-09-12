@@ -15,93 +15,93 @@ const FACULTY_DATA = {
       }
     ]
   },
-  "praj@abhinavagroup.com": {
-    facultyName: "Prajwal",
-    email: "praj@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-        day: "07/11",
-        role: "Speaker"
-      }
-    ]
-  },
-  "priya.ks@abhinavagroup.com": {
-    facultyName: "Priya", 
-    email: "priya.ks@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Crack the Cardiac Code: Applied Physiology Made Simple",
-        day: "08/11",
-        role: "Speaker"
-      }
-    ]
-  },
-  "shruti@abhinavagroup.com": {
-    facultyName: "Shruti",
-    email: "shruti@abhinavagroup.com", 
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        day: "09/11",
-        role: "Speaker"
-      },
-      {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        day: "09/11",
-        role: "Moderator"
-      }
-    ]
-  },
-  "v@abhinavagroup.com": {
-    facultyName: "Vidyashankar",
-    email: "v@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Oncologic Emergencies: Expert Strategies", 
-        day: "09/11",
-        role: "Speaker"
-      }
-    ]
-  },
-  "drskpanuganti@gmail.com": {
-    facultyName: "Dr Suresh Kumar Panuganti",
-    email: "drskpanuganti@gmail.com",
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        day: "09/11", 
-        role: "Speaker"
-      }
-    ]
-  },
-  "farhanshaikh74@gmail.com": {
-    facultyName: "Dr Farhan Shaikh",
-    email: "farhanshaikh74@gmail.com",
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        day: "09/11",
-        role: "Speaker"
-      },
-      {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        day: "09/11", 
-        role: "Moderator"
-      }
-    ]
-  },
-  "dayalanjul@gmail.com": {
-    facultyName: "Dr Anjul Dayal",
-    email: "dayalanjul@gmail.com",
-    sessions: [
-      {
-        title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-        day: "09/11",
-        role: "Speaker"
-      }
-    ]
-  }
+  // "praj@abhinavagroup.com": {
+  //   facultyName: "Prajwal",
+  //   email: "praj@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
+  //       day: "07/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
+  // "priya.ks@abhinavagroup.com": {
+  //   facultyName: "Priya", 
+  //   email: "priya.ks@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Crack the Cardiac Code: Applied Physiology Made Simple",
+  //       day: "08/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
+  // "shruti@abhinavagroup.com": {
+  //   facultyName: "Shruti",
+  //   email: "shruti@abhinavagroup.com", 
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       day: "09/11",
+  //       role: "Speaker"
+  //     },
+  //     {
+  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+  //       day: "09/11",
+  //       role: "Moderator"
+  //     }
+  //   ]
+  // },
+  // "v@abhinavagroup.com": {
+  //   facultyName: "Vidyashankar",
+  //   email: "v@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Oncologic Emergencies: Expert Strategies", 
+  //       day: "09/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
+  // "drskpanuganti@gmail.com": {
+  //   facultyName: "Dr Suresh Kumar Panuganti",
+  //   email: "drskpanuganti@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       day: "09/11", 
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
+  // "farhanshaikh74@gmail.com": {
+  //   facultyName: "Dr Farhan Shaikh",
+  //   email: "farhanshaikh74@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       day: "09/11",
+  //       role: "Speaker"
+  //     },
+  //     {
+  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+  //       day: "09/11", 
+  //       role: "Moderator"
+  //     }
+  //   ]
+  // },
+  // "dayalanjul@gmail.com": {
+  //   facultyName: "Dr Anjul Dayal",
+  //   email: "dayalanjul@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
+  //       day: "09/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // }
 };
 
 // Generate HTML for a specific faculty member
