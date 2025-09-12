@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui";
+import { Button } from "@/components/ui"; 
 
 import FacultyDocumentsModal from "@/app/modals/FacultyDocumentsModal";
 import UploadDocumentsModal from "@/app/modals/UploadDocumentsModal";

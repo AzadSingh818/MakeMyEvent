@@ -11,7 +11,7 @@ import FeedbackModal from "@/app/modals/Feedback";
 import ContactSupportModal from "@/app/modals/contact-support";
 import TravelInfoModal from "@/app/modals/TravelInfoModal";
 import AccommodationInfoModal from "@/app/modals/AccommodationInfoModal";
-
+ 
 import {
   Calendar,
   Clock,

@@ -110,7 +110,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
     <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
     <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Acceptance & Details:</h4>
     <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-        <strong>Please confirm your acceptance by clicking Yes or No</strong>
+        <strong>Please confirm your acceptance by clicking Yes or No on the faculty dashboard</strong>
     </p>
 </div>
 
@@ -130,7 +130,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
 <div style="background: #f0f9ff; border: 1px solid #3b82f6; border-radius: 6px; padding: 15px; margin: 25px 0;">
     <p style="color: #1e40af; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">
         Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
-        If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> at 
+        If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> on the faculty dashboard at 
         the earliest so we may make suitable adjustments.
     </p>
     <p style="color: #1e40af; font-size: 14px; margin: 0; line-height: 1.6;">
@@ -226,7 +226,7 @@ function renderUpdateHTML(
         <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">End Time:</td>
         <td style="padding:12px; border-bottom:1px solid #ddd;">${formatDate(
           session.endTime
-        )}</td>
+        )}</td> 
       </tr>
       <tr style="background:#fff;">
         <td style="padding:12px; font-weight:bold; border-bottom:1px solid #ddd;">Location:</td>
