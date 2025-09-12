@@ -2,6 +2,41 @@ import { NextRequest, NextResponse } from "next/server";
 import { sendMail } from "@/lib/mailer";
 import { format } from "date-fns";
 
+// Helper function to get proper faculty name
+function getFacultyDisplayName(invitation: any): string {
+  // First, check if we have a proper name field
+  if (invitation.actualName && invitation.actualName.length > 2) {
+    return invitation.actualName;
+  }
+  
+  // Check various name fields that might exist
+  if (invitation.fullName && invitation.fullName.length > 2) {
+    return invitation.fullName;
+  }
+  
+  if (invitation.facultyName && invitation.facultyName.length > 2) {
+    return invitation.facultyName;
+  }
+  
+  // If invitation.name looks like a proper name (contains space or is longer than email prefix)
+  if (invitation.name && (invitation.name.includes(' ') || invitation.name.length > 15)) {
+    return invitation.name;
+  }
+  
+  // If we only have email, extract a better name or use a generic greeting
+  if (invitation.email) {
+    const emailPrefix = invitation.email.split('@')[0];
+    
+    // If the current name is just the email prefix, try to make it better
+    if (invitation.name === emailPrefix) {
+      // Return a generic greeting or extract from email if possible
+      return invitation.name; // For now, we'll use what we have but this needs DB fix
+    }
+  }
+  
+  return invitation.name || 'Faculty Member';
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { event, template, invitations } = await req.json();
@@ -24,6 +59,15 @@ export async function POST(req: NextRequest) {
 
     for (const invitation of invitations) {
       try {
+        // ✅ FIX: Get proper faculty display name
+        const facultyDisplayName = getFacultyDisplayName(invitation);
+        
+        console.log(`🔍 Processing invitation for:`, {
+          email: invitation.email,
+          originalName: invitation.name,
+          displayName: facultyDisplayName
+        });
+
         // Generate unique faculty login link with event context
         const loginParams = new URLSearchParams({
           email: invitation.email,
@@ -48,9 +92,10 @@ export async function POST(req: NextRequest) {
           day: "numeric",
         })}`;
 
-        // Replace placeholders in email template
+        // ✅ FIX: Replace placeholders with proper faculty name
         let personalizedMessage = template.message
-          .replace(/\{\{facultyName\}\}/g, invitation.name)
+          .replace(/\{\{facultyName\}\}/g, facultyDisplayName)
+          .replace(/\{\{recipientName\}\}/g, facultyDisplayName)  // Added this too
           .replace(/\{\{eventDates\}\}/g, eventDates)
           .replace(/\{\{eventLocation\}\}/g, event.location)
           .replace(/\{\{eventVenue\}\}/g, event.venue)
@@ -80,7 +125,7 @@ We look forward to your positive response!
 This invitation was sent by the Conference Management System
 If you have any questions, please contact our support team.`;
 
-        // Create HTML version with BOTH header and footer images
+        // ✅ FIX: Create HTML version with proper name
         const emailHtml = `
 <!DOCTYPE html>
 <html>
@@ -101,7 +146,7 @@ If you have any questions, please contact our support team.`;
     
     <!-- Content -->
     <div style="background: white; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-        <p style="font-size: 16px; margin-bottom: 15px;">Dear <strong style="color: #4299e1;">${invitation.name}</strong>,</p>
+        <p style="font-size: 16px; margin-bottom: 15px;">Dear <strong style="color: #4299e1;">Dr. ${facultyDisplayName}</strong>,</p>
         
         <div style="background: #f7fafc; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #4299e1;">
             <div style="white-space: pre-line; color: #4a5568; line-height: 1.7;">
@@ -211,10 +256,10 @@ If you have any questions, please contact our support team.`;
 </body>
 </html>`;
 
-        // Send the actual email using nodemailer
+        // ✅ FIX: Send email with proper faculty name in subject
         const emailResult = await sendMail({
           to: invitation.email,
-          subject: `${template.subject} - Personal Invitation for ${invitation.name}`,
+          subject: `${template.subject} - Personal Invitation for Dr. ${facultyDisplayName}`,
           text: emailText,
           html: emailHtml,
         });
@@ -223,7 +268,7 @@ If you have any questions, please contact our support team.`;
           sentInvitations.push({
             id: invitation.id,
             email: invitation.email,
-            name: invitation.name,
+            name: facultyDisplayName,  // ✅ Use proper name
             eventId: event.id,
             loginLink: facultyLoginLink,
             sentAt: new Date().toISOString(),
@@ -231,7 +276,7 @@ If you have any questions, please contact our support team.`;
           });
 
           console.log(
-            `✅ REAL email sent to: ${invitation.email} (${invitation.name})`
+            `✅ REAL email sent to: ${invitation.email} (Dr. ${facultyDisplayName})`
           );
         } else {
           failedInvitations.push({

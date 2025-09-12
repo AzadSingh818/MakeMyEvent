@@ -307,7 +307,7 @@ export async function sendBulkInviteEmail(
   const html = renderHTML(sessions, facultyName);
   const text = `Subject: Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad
 
-Dear Dr. ${facultyName}!,
+Dear Dr. ${facultyName},
 
 Greetings from the Scientific Committee, PediCritiCon 2025!
 
