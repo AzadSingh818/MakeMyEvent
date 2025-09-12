@@ -4,6 +4,17 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.verce
 
 // Hardcoded data for all 7 faculty members from PDF
 const FACULTY_DATA = {
+  "anand07amar@gmail.com": {
+    facultyName: "Dr Anand",
+    email: "anand07amar@gmail.com",
+    sessions: [
+      {
+        title: "demo",
+        day: "06/11",
+        role: "Speaker"
+      }
+    ]
+  },
   "praj@abhinavagroup.com": {
     facultyName: "Prajwal",
     email: "praj@abhinavagroup.com",
