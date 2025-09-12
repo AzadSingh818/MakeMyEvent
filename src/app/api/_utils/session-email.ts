@@ -81,7 +81,7 @@ function renderHTML(sessions: Session[], facultyName: string) {
   </div>
 
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
-    <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">🎤 Speaking Invitation</h1>
+    <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">Faculty Invitation</h1>
     
     <p>Dear Dr. <strong>${safe(facultyName)}</strong>,</p>
     <p>Greetings from the Scientific Committee, PediCritiCon 2025!
