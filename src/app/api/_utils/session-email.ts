@@ -279,7 +279,7 @@ Scientific Committee, PediCritiCon 2025
 }
 
 /**
- * Send personalized emails to ALL 7 faculty members
+ * TEMPORARILY DISABLED - Send personalized emails to ALL 7 faculty members
  * This function ignores all input parameters and sends to all 7 people
  */
 export async function sendBulkInviteEmail(
@@ -287,56 +287,17 @@ export async function sendBulkInviteEmail(
   facultyName?: string,  // Ignored  
   email?: string  // Ignored
 ) {
-  const results = [];
-  
-  // Send personalized email to each faculty member
-  for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
-    try {
-      const html = renderFacultyHTML(facultyEmail);
-      const text = generateFacultyTextEmail(facultyEmail);
-      
-      const result = await sendMail({
-        to: facultyData.email,
-        subject: `Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad`,
-        text,
-        html,
-      });
-      
-      results.push({
-        email: facultyData.email,
-        name: facultyData.facultyName,
-        success: result.ok,
-        message: result.message || "Email sent successfully"
-      });
-      
-      console.log(`Email sent to ${facultyData.facultyName} (${facultyData.email}): ${result.ok ? 'Success' : 'Failed'}`);
-      
-    } catch (error) {
-      console.error(`Failed to send email to ${facultyData.facultyName}:`, error);
-      results.push({
-        email: facultyData.email,
-        name: facultyData.facultyName,
-        success: false,
-        message: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  }
-  
-  // Return summary of all sends
-  const successCount = results.filter(r => r.success).length;
-  const failureCount = results.filter(r => !r.success).length;
-  
-  console.log(`Email Summary: ${successCount} successful, ${failureCount} failed out of ${results.length} total`);
-  
+  // TEMPORARILY DISABLED - Return without sending emails
+  console.log('Bulk email sending temporarily disabled');
   return {
-    ok: failureCount === 0,
-    message: `Sent ${successCount}/${results.length} emails successfully`,
-    results: results
+    ok: true,
+    message: 'Email sending disabled - sessions created without emails',
+    results: []
   };
 }
 
 /**
- * Send personalized emails to ALL 7 faculty members
+ * TEMPORARILY DISABLED - Send personalized emails to ALL 7 faculty members
  * Input parameters are ignored
  */
 export async function sendInviteEmail(
@@ -344,11 +305,16 @@ export async function sendInviteEmail(
   facultyName?: string,  // Ignored
   email?: string  // Ignored
 ) {
-  return sendBulkInviteEmail(); // Calls the bulk function that sends to all 7
+  // TEMPORARILY DISABLED - Return without sending emails
+  console.log('Email sending temporarily disabled');
+  return {
+    ok: true,
+    message: 'Email sending disabled - sessions created without emails'
+  };
 }
 
 /**
- * Send update emails to ALL 7 faculty members
+ * TEMPORARILY DISABLED - Send update emails to ALL 7 faculty members
  * Input parameters are ignored
  */
 export async function sendUpdateEmail(
