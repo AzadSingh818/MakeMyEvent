@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { OrganizerLayout } from "@/components/dashboard/layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,13 +30,42 @@ import {
   Timer,
 } from "lucide-react";
 
+// Updated Faculty type to include eventId
 type Faculty = { 
   id: string; 
   name: string;
   email?: string;
   eventName?: string;
+  eventId: string;
+  department?: string;
+  institution?: string;
+  expertise?: string;
+  phone?: string;
 };
+
 type Room = { id: string; name: string };
+
+// Event type (extracted from calendar grid)
+type Event = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  location?: string;
+  status: string;
+  description?: string;
+  eventType?: string;
+  createdByUser?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  _count?: {
+    sessions: number;
+    registrations: number;
+  };
+  facultyCount?: number;
+};
 
 type SessionForm = {
   id: string;
@@ -62,7 +91,11 @@ type ConflictSession = {
 };
 
 const CreateSession: React.FC = () => {
+  // Updated state to include events and event-faculty mapping
+  const [events, setEvents] = useState<Event[]>([]);
+  const [selectedEventId, setSelectedEventId] = useState("");
   const [faculties, setFaculties] = useState<Faculty[]>([]);
+  const [facultiesByEvent, setFacultiesByEvent] = useState<Record<string, Faculty[]>>({});
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
   const [conflicts, setConflicts] = useState<ConflictSession[]>([]);
@@ -93,91 +126,146 @@ const CreateSession: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // FIXED: Load faculty from uploaded Excel data instead of API
+  // Enhanced data loading with events and faculty mapping
+  const loadEventsAndFaculty = useCallback(async () => {
+    try {
+      console.log("🔄 Loading events and faculty data...");
+
+      // Load events from database
+      const eventsResponse = await fetch("/api/events", {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+
+      let eventsList: Event[] = [];
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+
+        if (eventsData.success && eventsData.data?.events) {
+          eventsList = eventsData.data.events;
+        } else if (eventsData.events) {
+          eventsList = eventsData.events;
+        } else if (Array.isArray(eventsData)) {
+          eventsList = eventsData;
+        }
+
+        console.log(`✅ Loaded ${eventsList.length} events from database`);
+      }
+
+      // Load faculty data from localStorage and database
+      const facultyResponse = await fetch("/api/faculties", {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      });
+
+      let allFaculties: Faculty[] = [];
+      if (facultyResponse.ok) {
+        allFaculties = await facultyResponse.json();
+        console.log(`✅ Loaded ${allFaculties.length} faculties from database`);
+      }
+
+      // Also check localStorage for uploaded faculty lists
+      if (typeof window !== "undefined") {
+        const savedFacultyData = localStorage.getItem("eventFacultyData");
+        if (savedFacultyData) {
+          const eventFacultyData = JSON.parse(savedFacultyData);
+          const localFaculties = eventFacultyData.flatMap(
+            (eventData: any) =>
+              eventData.facultyList?.map((faculty: any) => ({
+                ...faculty,
+                eventId: eventData.eventId,
+                eventName: eventData.eventName,
+              })) || []
+          );
+
+          // Merge with database faculties, avoiding duplicates
+          localFaculties.forEach((localFaculty: Faculty) => {
+            if (!allFaculties.find((f) => f.email === localFaculty.email)) {
+              allFaculties.push(localFaculty);
+            }
+          });
+
+          console.log(`✅ Added ${localFaculties.length} faculties from localStorage`);
+        }
+      }
+
+      // Group faculties by event
+      const facultyMapping: Record<string, Faculty[]> = {};
+      allFaculties.forEach((faculty) => {
+        if (faculty.eventId) {
+          if (!facultyMapping[faculty.eventId]) {
+            facultyMapping[faculty.eventId] = [];
+          }
+          (facultyMapping[faculty.eventId] ?? []).push(faculty);
+        }
+      });
+
+      // Update events with faculty counts
+      const eventsWithFacultyCounts = eventsList.map((event: Event) => ({
+        ...event,
+        facultyCount: facultyMapping[event.id]?.length || 0,
+      }));
+
+      console.log("✅ Events and faculty data loaded successfully");
+      return {
+        events: eventsWithFacultyCounts,
+        facultiesByEvent: facultyMapping,
+        allFaculties,
+      };
+    } catch (error) {
+      console.error("❌ Error loading events and faculty:", error);
+      return { events: [], facultiesByEvent: {}, allFaculties: [] };
+    }
+  }, []);
+
+  // Enhanced useEffect for loading all data
   useEffect(() => {
     (async () => {
       try {
-        const loadFacultyFromUploads = () => {
-          try {
-            const savedFacultyData = localStorage.getItem("eventFacultyData");
-            if (savedFacultyData) {
-              const parsedData = JSON.parse(savedFacultyData);
-              console.log('Loaded faculty data from uploads:', parsedData);
-              
-              const allFaculty: Faculty[] = [];
-              parsedData.forEach((eventData: any) => {
-                eventData.facultyList.forEach((faculty: any) => {
-                  allFaculty.push({
-                    id: faculty.id,
-                    name: faculty.name,
-                    email: faculty.email,
-                    eventName: faculty.eventName,
-                  });
-                });
-              });
-              
-              console.log(`Found ${allFaculty.length} faculty members from uploads`);
-              return allFaculty;
-            } else {
-              console.log('No uploaded faculty data found in localStorage');
-              return [];
-            }
-          } catch (error) {
-            console.error('Error loading uploaded faculty data:', error);
-            return [];
-          }
-        };
+        const [
+          { events: eventsFromDb, facultiesByEvent: facultyMapping, allFaculties },
+          roomsResponse
+        ] = await Promise.all([
+          loadEventsAndFaculty(),
+          fetch("/api/rooms")
+        ]);
 
-        const uploadedFaculty = loadFacultyFromUploads();
-        
-        const roomsResponse = await fetch("/api/rooms");
         const rooms = roomsResponse.ok ? await roomsResponse.json() : [];
         
-        if (uploadedFaculty.length === 0) {
-          console.log('No uploaded faculty found, falling back to API...');
-          try {
-            const facultyResponse = await fetch("/api/faculties");
-            const apiFaculty = facultyResponse.ok ? await facultyResponse.json() : [];
-            setFaculties(apiFaculty);
-            console.log(`Loaded ${apiFaculty.length} faculty from API as fallback`);
-          } catch (apiError) {
-            console.error('Failed to load faculty from API:', apiError);
-            setErrorMessage("No faculty data available. Please upload faculty via Faculty Management first.");
+        if (eventsFromDb.length === 0) {
+          console.log('No events found, checking for any available faculty...');
+          // If no events but faculty exists, still show them
+          if (allFaculties.length > 0) {
+            setFaculties(allFaculties);
+          } else {
+            setErrorMessage("No events or faculty data available. Please create events or upload faculty via Faculty Management first.");
           }
         } else {
-          setFaculties(uploadedFaculty);
-          console.log(`Using ${uploadedFaculty.length} faculty from Excel uploads`);
+          setEvents(eventsFromDb);
+          setFacultiesByEvent(facultyMapping);
+          setFaculties(allFaculties);
+          console.log(`Using ${eventsFromDb.length} events with faculty mapping`);
         }
         
         setRooms(rooms);
         
       } catch (error) {
         console.error('Error loading data:', error);
-        setErrorMessage("Failed to load faculties or rooms.");
+        setErrorMessage("Failed to load events, faculties, or rooms.");
       }
     })();
-  }, []);
+  }, [loadEventsAndFaculty]);
 
-  // FIXED: Listen for faculty data updates
+  // Listen for faculty data updates
   useEffect(() => {
     const handleFacultyDataUpdate = (event: CustomEvent) => {
       console.log('Faculty data updated, reloading...');
-      const eventFacultyData = event.detail.eventFacultyData;
-      
-      const allFaculty: Faculty[] = [];
-      eventFacultyData.forEach((eventData: any) => {
-        eventData.facultyList.forEach((faculty: any) => {
-          allFaculty.push({
-            id: faculty.id,
-            name: faculty.name,
-            email: faculty.email,
-            eventName: faculty.eventName,
-          });
-        });
+      loadEventsAndFaculty().then(({ events, facultiesByEvent, allFaculties }) => {
+        setEvents(events);
+        setFacultiesByEvent(facultiesByEvent);
+        setFaculties(allFaculties);
+        console.log(`Updated to ${allFaculties.length} faculty members`);
       });
-      
-      setFaculties(allFaculty);
-      console.log(`Updated to ${allFaculty.length} faculty members`);
     };
 
     window.addEventListener('eventFacultyDataUpdated', handleFacultyDataUpdate as EventListener);
@@ -185,14 +273,40 @@ const CreateSession: React.FC = () => {
     return () => {
       window.removeEventListener('eventFacultyDataUpdated', handleFacultyDataUpdate as EventListener);
     };
-  }, []);
+  }, [loadEventsAndFaculty]);
 
-  // FIXED: Auto-fill email when faculty is selected
+  // Handle event selection
+  const handleEventChange = (eventId: string) => {
+    setSelectedEventId(eventId);
+    setFacultyId(""); // Reset faculty selection
+    setEmail(""); // Reset email
+
+    // Auto-fill place with event location if available
+    const selectedEvent = events.find((e) => e.id === eventId);
+    if (selectedEvent?.location) {
+      updateAllSessions("place", selectedEvent.location);
+    }
+
+    // Clear validation errors
+    if (validationErrors.selectedEventId) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        selectedEventId: "",
+      }));
+    }
+  };
+
+  // Updated faculty selection to work with event-filtered faculty
   const handleFacultyChange = (selectedFacultyId: string) => {
     setFacultyId(selectedFacultyId);
     
+    // Get faculty list for selected event
+    const availableFaculty = selectedEventId 
+      ? facultiesByEvent[selectedEventId] || [] 
+      : faculties; // Fallback to all faculties if no event selected
+    
     // Find the selected faculty and auto-fill email
-    const selectedFaculty = faculties.find(f => f.id === selectedFacultyId);
+    const selectedFaculty = availableFaculty.find(f => f.id === selectedFacultyId);
     if (selectedFaculty && selectedFaculty.email) {
       setEmail(selectedFaculty.email);
     }
@@ -316,9 +430,14 @@ const CreateSession: React.FC = () => {
     return "";
   };
 
+  // Updated validation to include event selection
   const validateForm = () => {
     const errors: Record<string, string> = {};
 
+    // Event validation (only if events are available)
+    if (events.length > 0 && !selectedEventId) {
+      errors.selectedEventId = "Please select an event";
+    }
     if (!facultyId) errors.facultyId = "Please select a faculty";
     if (!email.trim()) errors.email = "Faculty email is required";
     if (!email.includes("@")) errors.email = "Please enter a valid email";
@@ -387,15 +506,13 @@ const CreateSession: React.FC = () => {
             startTime: session.startTime,
             endTime: session.endTime,
             status: session.status,
+            eventId: selectedEventId, // Include event ID
             conflictOnly: true,
           }),
         });
 
-        console.log(`Conflict check response status: ${response.status}`);
-
         if (response.ok) {
           const data = await response.json();
-          console.log(`Conflicts found for ${session.title}:`, data.conflicts);
           if (data.conflicts && data.conflicts.length > 0) {
             allConflicts.push(...data.conflicts);
           }
@@ -443,6 +560,7 @@ const CreateSession: React.FC = () => {
       const createdSessions = [];
 
       console.log("Starting bulk session creation...");
+      console.log("Event ID:", selectedEventId);
       console.log("Faculty ID:", facultyId);
       console.log("Email:", email);
       console.log("Sessions to create:", sessions.length);
@@ -465,6 +583,7 @@ const CreateSession: React.FC = () => {
           endTime: session.endTime,
           status: session.status,
           inviteStatus: "Pending",
+          eventId: selectedEventId, // Include event ID
           travelStatus: "Pending",
         };
 
@@ -510,21 +629,13 @@ const CreateSession: React.FC = () => {
           form.append("poster", posterFile);
         }
 
-        console.log("FormData contents for session:", session.title);
-        for (let [key, value] of form.entries()) {
-          console.log(`  ${key}: ${value}`);
-        }
-
         const response = await fetch("/api/sessions", {
           method: "POST",
           body: form,
         });
 
-        console.log(`Session creation response status: ${response.status}`);
-
         if (response.status === 409 && !overwriteConflicts) {
           const data = await response.json();
-          console.log("Conflicts detected:", data.conflicts);
           setConflicts(data.conflicts || []);
           setShowConflictWarning(true);
           setLoading(false);
@@ -551,6 +662,7 @@ const CreateSession: React.FC = () => {
         `All ${createdSessions.length} sessions created successfully`
       );
 
+      // Send bulk invitation email
       try {
         console.log("Sending bulk invitation email...");
         const emailResponse = await fetch("/api/sessions/bulk-invite", {
@@ -560,10 +672,9 @@ const CreateSession: React.FC = () => {
             facultyId,
             email,
             sessions: createdSessions,
+            eventId: selectedEventId,
           }),
         });
-
-        console.log(`Bulk email response status: ${emailResponse.status}`);
 
         if (emailResponse.ok) {
           const emailResult = await emailResponse.json();
@@ -579,8 +690,10 @@ const CreateSession: React.FC = () => {
         console.warn("Bulk email sending failed:", emailError);
       }
 
-      const facultyName =
-        faculties.find((f) => f.id === facultyId)?.name || "Faculty Member";
+      const facultyName = selectedEventId && facultiesByEvent[selectedEventId]
+        ? facultiesByEvent[selectedEventId].find((f) => f.id === facultyId)?.name
+        : faculties.find((f) => f.id === facultyId)?.name || "Faculty Member";
+        
       setSuccessMessage(
         `Successfully created ${createdSessions.length} session(s) for ${facultyName}! Bulk invitation email has been sent.`
       );
@@ -604,6 +717,7 @@ const CreateSession: React.FC = () => {
   };
 
   const resetForm = () => {
+    setSelectedEventId("");
     setFacultyId("");
     setEmail("");
     setSessions([
@@ -626,13 +740,24 @@ const CreateSession: React.FC = () => {
     setShowConflictWarning(false);
   };
 
+  // Updated step validation
   const nextStep = () => {
     if (formStep === 1) {
-      if (!facultyId || !email) {
-        setValidationErrors({
-          facultyId: !facultyId ? "Please select a faculty" : "",
-          email: !email ? "Email is required" : "",
-        });
+      const stepErrors: Record<string, string> = {};
+      
+      // Only require event if events are available
+      if (events.length > 0 && !selectedEventId) {
+        stepErrors.selectedEventId = "Please select an event";
+      }
+      if (!facultyId) {
+        stepErrors.facultyId = "Please select a faculty";
+      }
+      if (!email) {
+        stepErrors.email = "Email is required";
+      }
+
+      if (Object.keys(stepErrors).length > 0) {
+        setValidationErrors(stepErrors);
         return;
       }
     }
@@ -643,7 +768,13 @@ const CreateSession: React.FC = () => {
     setFormStep(formStep - 1);
   };
 
-  const selectedFaculty = faculties.find((f) => f.id === facultyId);
+  const selectedFaculty = selectedEventId && facultiesByEvent[selectedEventId]
+    ? facultiesByEvent[selectedEventId].find((f) => f.id === facultyId)
+    : faculties.find((f) => f.id === facultyId);
+
+  const availableFaculty = selectedEventId 
+    ? facultiesByEvent[selectedEventId] || [] 
+    : faculties;
 
   return (
     <OrganizerLayout>
@@ -666,7 +797,7 @@ const CreateSession: React.FC = () => {
 
             <div className="flex items-center justify-center gap-4 mb-8">
               {[
-                { step: 1, title: "Faculty & Basic Info", icon: User },
+                { step: 1, title: "Event & Faculty Selection", icon: User },
                 { step: 2, title: "Sessions Details", icon: Calendar },
                 { step: 3, title: "Review & Send", icon: Send },
               ].map(({ step, title, icon: Icon }) => (
@@ -767,7 +898,7 @@ const CreateSession: React.FC = () => {
                     <div className="p-2 rounded-lg bg-blue-600/20">
                       <Settings className="h-5 w-5 text-blue-400" />
                     </div>
-                    {formStep === 1 && "Faculty & Basic Information"}
+                    {formStep === 1 && "Event & Faculty Selection"}
                     {formStep === 2 &&
                       `Sessions for ${selectedFaculty?.name || "Faculty"}`}
                     {formStep === 3 && "Review & Send Bulk Invitation"}
@@ -778,10 +909,52 @@ const CreateSession: React.FC = () => {
                     {formStep === 1 && (
                       <div className="space-y-6">
                         <div className="grid md:grid-cols-2 gap-6">
+                          {/* Event Selection - NEW */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-200 mb-2">
+                              <Calendar className="h-4 w-4 inline mr-2" />
+                              Select Event *
+                              <span className="text-xs text-blue-400 ml-2">
+                                ({events.length} events available)
+                              </span>
+                            </label>
+                            <select
+                              value={selectedEventId}
+                              onChange={(e) => handleEventChange(e.target.value)}
+                              className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white ${
+                                validationErrors.selectedEventId
+                                  ? "border-red-500 bg-red-900/20"
+                                  : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
+                              }`}
+                              required={events.length > 0}
+                            >
+                              <option value="">Choose Event</option>
+                              {events.map((event) => (
+                                <option key={event.id} value={event.id}>
+                                  {event.name} ({event.facultyCount || 0} faculty)
+                                </option>
+                              ))}
+                            </select>
+                            {validationErrors.selectedEventId && (
+                              <p className="text-red-400 text-sm mt-1">
+                                {validationErrors.selectedEventId}
+                              </p>
+                            )}
+                            {events.length === 0 && (
+                              <p className="text-yellow-400 text-xs mt-1">
+                                ⚠️ No events found. You can still create sessions without selecting an event.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Faculty Selection - UPDATED */}
                           <div>
                             <label className="block text-sm font-semibold text-gray-200 mb-2">
                               <User className="h-4 w-4 inline mr-2" />
                               Select Faculty *
+                              <span className="text-xs text-blue-400 ml-2">
+                                ({availableFaculty.length} faculty available{selectedEventId ? " for selected event" : ""})
+                              </span>
                             </label>
                             <select
                               value={facultyId}
@@ -791,12 +964,19 @@ const CreateSession: React.FC = () => {
                                   ? "border-red-500 bg-red-900/20"
                                   : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
                               }`}
+                              required
+                              disabled={events.length > 0 && !selectedEventId}
                             >
-                              <option value="">Choose Faculty Member</option>
-                              {faculties.map((f) => (
-                                <option key={f.id} value={f.id}>
-                                  {f.name}
-                                  {f.eventName && ` (${f.eventName})`}
+                              <option value="">
+                                {events.length > 0 && !selectedEventId 
+                                  ? "Please select an event first" 
+                                  : "Choose Faculty Member"}
+                              </option>
+                              {availableFaculty.map((faculty) => (
+                                <option key={faculty.id} value={faculty.id}>
+                                  {faculty.name}
+                                  {faculty.department && ` (${faculty.department})`}
+                                  {faculty.institution && ` - ${faculty.institution}`}
                                 </option>
                               ))}
                             </select>
@@ -805,39 +985,81 @@ const CreateSession: React.FC = () => {
                                 {validationErrors.facultyId}
                               </p>
                             )}
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-200 mb-2">
-                              <Mail className="h-4 w-4 inline mr-2" />
-                              Faculty Email *
-                            </label>
-                            <input
-                              type="email"
-                              value={email}
-                              onChange={(e) => {
-                                setEmail(e.target.value);
-                                if (validationErrors.email) {
-                                  setValidationErrors((prev) => ({
-                                    ...prev,
-                                    email: "",
-                                  }));
-                                }
-                              }}
-                              placeholder="faculty@university.edu"
-                              className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-gray-400 ${
-                                validationErrors.email
-                                  ? "border-red-500 bg-red-900/20"
-                                  : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                              }`}
-                            />
-                            {validationErrors.email && (
-                              <p className="text-red-400 text-sm mt-1">
-                                {validationErrors.email}
+                            {selectedEventId && availableFaculty.length === 0 && (
+                              <p className="text-yellow-400 text-xs mt-1">
+                                ⚠️ No faculty available for this event. Please upload faculty lists.
+                              </p>
+                            )}
+                            {events.length === 0 && faculties.length === 0 && (
+                              <p className="text-yellow-400 text-xs mt-1">
+                                ⚠️ No faculty data available. Please upload faculty via Faculty Management.
                               </p>
                             )}
                           </div>
                         </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-200 mb-2">
+                            <Mail className="h-4 w-4 inline mr-2" />
+                            Faculty Email *
+                            <span className="text-xs text-gray-400 ml-2">
+                              (auto-filled when faculty is selected)
+                            </span>
+                          </label>
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => {
+                              setEmail(e.target.value);
+                              if (validationErrors.email) {
+                                setValidationErrors((prev) => ({
+                                  ...prev,
+                                  email: "",
+                                }));
+                              }
+                            }}
+                            placeholder="faculty@university.edu"
+                            className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-gray-400 ${
+                              validationErrors.email
+                                ? "border-red-500 bg-red-900/20"
+                                : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
+                            }`}
+                            required
+                            readOnly={!!facultyId}
+                          />
+                          {validationErrors.email && (
+                            <p className="text-red-400 text-sm mt-1">
+                              {validationErrors.email}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Selected Event and Faculty Info */}
+                        {selectedEventId && facultyId && (
+                          <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-4">
+                            <h4 className="text-sm font-medium mb-2 text-blue-200">
+                              Selection Summary:
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-300">
+                              <div>
+                                <span className="font-medium">Event:</span>{" "}
+                                {events.find((e) => e.id === selectedEventId)?.name}
+                              </div>
+                              <div>
+                                <span className="font-medium">Faculty:</span>{" "}
+                                {selectedFaculty?.name}
+                              </div>
+                              <div>
+                                <span className="font-medium">Email:</span>{" "}
+                                {email}
+                              </div>
+                              <div>
+                                <span className="font-medium">Institution:</span>{" "}
+                                {selectedFaculty?.institution || "N/A"}
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-6">
                           <h3 className="text-lg font-semibold text-blue-200 mb-4 flex items-center gap-2">
@@ -852,6 +1074,7 @@ const CreateSession: React.FC = () => {
                               <input
                                 type="text"
                                 placeholder="e.g., Main Campus, Building A"
+                                value={sessions[0]?.place || ""}
                                 className="w-full p-3 border border-blue-600 rounded-lg bg-blue-900/30 text-white placeholder-blue-300 focus:border-blue-400 focus:outline-none"
                                 onChange={(e) =>
                                   updateAllSessions("place", e.target.value)
@@ -863,7 +1086,8 @@ const CreateSession: React.FC = () => {
                                 Default Status
                               </label>
                               <select
-                                className="w-full p-3 border border-blue-600 rounded-lg bg-blue-900/30 text-white focus:border-blue-400 focus-outline-none"
+                                value={sessions[0]?.status || "Draft"}
+                                className="w-full p-3 border border-blue-600 rounded-lg bg-blue-900/30 text-white focus:border-blue-400 focus:outline-none"
                                 onChange={(e) =>
                                   updateAllSessions("status", e.target.value)
                                 }
@@ -1306,34 +1530,36 @@ const CreateSession: React.FC = () => {
                           </h3>
 
                           <div className="grid md:grid-cols-2 gap-4 text-sm mb-6">
+                            {selectedEventId && (
+                              <div>
+                                <span className="font-medium text-gray-300">Event:</span>
+                                <p className="text-white">
+                                  {events.find((e) => e.id === selectedEventId)?.name}
+                                </p>
+                              </div>
+                            )}
                             <div>
-                              <span className="font-medium text-gray-300">
-                                Faculty:
-                              </span>
-                              <p className="text-white">
-                                {selectedFaculty?.name}
-                              </p>
+                              <span className="font-medium text-gray-300">Faculty:</span>
+                              <p className="text-white">{selectedFaculty?.name}</p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-300">
-                                Email:
-                              </span>
+                              <span className="font-medium text-gray-300">Email:</span>
                               <p className="text-white">{email}</p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-300">
-                                Total Sessions:
-                              </span>
+                              <span className="font-medium text-gray-300">Total Sessions:</span>
                               <p className="text-white">{sessions.length}</p>
                             </div>
                             <div>
-                              <span className="font-medium text-gray-300">
-                                Poster:
-                              </span>
-                              <p className="text-white">
-                                {posterFile ? "Included" : "None"}
-                              </p>
+                              <span className="font-medium text-gray-300">Poster:</span>
+                              <p className="text-white">{posterFile ? "Included" : "None"}</p>
                             </div>
+                            {selectedFaculty?.institution && (
+                              <div>
+                                <span className="font-medium text-gray-300">Institution:</span>
+                                <p className="text-white">{selectedFaculty.institution}</p>
+                              </div>
+                            )}
                           </div>
 
                           <div className="space-y-4">
@@ -1358,68 +1584,43 @@ const CreateSession: React.FC = () => {
                                       <h5 className="font-medium text-white">
                                         #{index + 1}: {session.title}
                                       </h5>
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-xs"
-                                      >
+                                      <Badge variant="secondary" className="text-xs">
                                         {session.status}
                                       </Badge>
                                     </div>
                                     <div className="grid md:grid-cols-2 gap-4 text-sm">
                                       <div>
-                                        <span className="text-gray-400">
-                                          Location:
-                                        </span>
-                                        <span className="text-white ml-2">
-                                          {session.place}
-                                        </span>
+                                        <span className="text-gray-400">Location:</span>
+                                        <span className="text-white ml-2">{session.place}</span>
                                       </div>
                                       <div>
-                                        <span className="text-gray-400">
-                                          Room:
-                                        </span>
-                                        <span className="text-white ml-2">
-                                          {selectedRoom?.name}
-                                        </span>
+                                        <span className="text-gray-400">Room:</span>
+                                        <span className="text-white ml-2">{selectedRoom?.name}</span>
                                       </div>
                                       <div>
-                                        <span className="text-gray-400">
-                                          Start:
-                                        </span>
+                                        <span className="text-gray-400">Start:</span>
                                         <span className="text-white ml-2">
                                           {session.startTime
-                                            ? new Date(
-                                                session.startTime
-                                              ).toLocaleString()
+                                            ? new Date(session.startTime).toLocaleString()
                                             : "Not set"}
                                         </span>
                                       </div>
                                       <div>
-                                        <span className="text-gray-400">
-                                          End:
-                                        </span>
+                                        <span className="text-gray-400">End:</span>
                                         <span className="text-white ml-2">
                                           {session.endTime
-                                            ? new Date(
-                                                session.endTime
-                                              ).toLocaleString()
+                                            ? new Date(session.endTime).toLocaleString()
                                             : "Not set"}
                                         </span>
                                       </div>
                                       <div className="md:col-span-2">
-                                        <span className="text-gray-400">
-                                          Duration:
-                                        </span>
-                                        <span className="text-white ml-2">
-                                          {duration || "Invalid"}
-                                        </span>
+                                        <span className="text-gray-400">Duration:</span>
+                                        <span className="text-white ml-2">{duration || "Invalid"}</span>
                                       </div>
                                     </div>
                                     {session.description && (
                                       <div className="mt-2 pt-2 border-t border-gray-700">
-                                        <span className="text-gray-400 text-sm">
-                                          Description:
-                                        </span>
+                                        <span className="text-gray-400 text-sm">Description:</span>
                                         <p className="text-white text-sm mt-1 line-clamp-3">
                                           {session.description}
                                         </p>
@@ -1433,9 +1634,7 @@ const CreateSession: React.FC = () => {
 
                           {posterPreview && (
                             <div className="mt-4">
-                              <span className="font-medium text-gray-300">
-                                Poster Preview:
-                              </span>
+                              <span className="font-medium text-gray-300">Poster Preview:</span>
                               <img
                                 src={posterPreview}
                                 alt="Session poster"
@@ -1496,8 +1695,7 @@ const CreateSession: React.FC = () => {
                             ) : (
                               <>
                                 <Send className="h-4 w-4 mr-2" />
-                                Create {sessions.length} Sessions & Send Bulk
-                                Invite
+                                Create {sessions.length} Sessions & Send Bulk Invite
                               </>
                             )}
                           </Button>
@@ -1523,11 +1721,9 @@ const CreateSession: React.FC = () => {
                       <CheckCircle className="h-4 w-4 text-green-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">
-                        Multiple Sessions
-                      </p>
+                      <p className="font-medium text-white">Event-Based Sessions</p>
                       <p className="text-gray-300 text-xs">
-                        Create unlimited sessions for one faculty
+                        Select events first, then faculty filtered by event
                       </p>
                     </div>
                   </div>
@@ -1549,9 +1745,7 @@ const CreateSession: React.FC = () => {
                       <Copy className="h-4 w-4 text-orange-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">
-                        Session Duplication
-                      </p>
+                      <p className="font-medium text-white">Session Duplication</p>
                       <p className="text-gray-300 text-xs">
                         Copy session details (except timing)
                       </p>
@@ -1563,9 +1757,7 @@ const CreateSession: React.FC = () => {
                       <AlertTriangle className="h-4 w-4 text-purple-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">
-                        Conflict Detection
-                      </p>
+                      <p className="font-medium text-white">Conflict Detection</p>
                       <p className="text-gray-300 text-xs">
                         Checks conflicts across all sessions
                       </p>
@@ -1577,9 +1769,7 @@ const CreateSession: React.FC = () => {
                       <Timer className="h-4 w-4 text-indigo-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">
-                        Duration Calculation
-                      </p>
+                      <p className="font-medium text-white">Duration Calculation</p>
                       <p className="text-gray-300 text-xs">
                         Automatic duration validation and display
                       </p>
@@ -1624,60 +1814,58 @@ const CreateSession: React.FC = () => {
                             style={{
                               width: `${
                                 (sessions.filter(
-                                  (s) => s.title && s.startTime && s.endTime).length /
-                                 sessions.length) *
-                               100
-                             }%`,
-                           }}
-                         ></div>
-                       </div>
-                     </div>
-                   </div>
-                 )}
-               </CardContent>
-             </Card>
+                                  (s) => s.title && s.startTime && s.endTime
+                                ).length /
+                                  sessions.length) *
+                                100
+                              }%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-             <Card className="border-gray-700 shadow-xl bg-gray-900/80 backdrop-blur">
-               <CardHeader>
-                 <CardTitle className="flex items-center gap-2 text-lg text-white">
-                   <Clock className="h-5 w-5 text-green-400" />
-                   Quick Tips
-                 </CardTitle>
-               </CardHeader>
-               <CardContent className="space-y-3 text-sm">
-                 <div className="p-3 bg-blue-900/30 rounded-lg border border-blue-800">
-                   <p className="font-medium text-blue-200">Pro Tip</p>
-                   <p className="text-blue-300 text-xs">
-                     Use "Copy Session" to duplicate session details and only
-                     change the time
-                   </p>
-                 </div>
+              <Card className="border-gray-700 shadow-xl bg-gray-900/80 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg text-white">
+                    <Clock className="h-5 w-5 text-green-400" />
+                    Quick Tips
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div className="p-3 bg-blue-900/30 rounded-lg border border-blue-800">
+                    <p className="font-medium text-blue-200">Event Selection</p>
+                    <p className="text-blue-300 text-xs">
+                      Select an event first to filter faculty by event association
+                    </p>
+                  </div>
 
-                 <div className="p-3 bg-green-900/30 rounded-lg border border-green-800">
-                   <p className="font-medium text-green-200">Quick Setup</p>
-                   <p className="text-green-300 text-xs">
-                     Set common location and status in Step 1 to apply to all
-                     sessions
-                   </p>
-                 </div>
+                  <div className="p-3 bg-green-900/30 rounded-lg border border-green-800">
+                    <p className="font-medium text-green-200">Quick Setup</p>
+                    <p className="text-green-300 text-xs">
+                      Set common location and status in Step 1 to apply to all sessions
+                    </p>
+                  </div>
 
-                 <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-800">
-                   <p className="font-medium text-orange-200">
-                     Check Conflicts
-                   </p>
-                   <p className="text-orange-300 text-xs">
-                     Always run conflict check before submitting to avoid
-                     scheduling issues
-                   </p>
-                 </div>
-               </CardContent>
-             </Card>
-           </div>
-         </div>
-       </div>
-     </div>
-   </OrganizerLayout>
- );
+                  <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-800">
+                    <p className="font-medium text-orange-200">Check Conflicts</p>
+                    <p className="text-orange-300 text-xs">
+                      Always run conflict check before submitting to avoid scheduling issues
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    </OrganizerLayout>
+  );
 };
 
 export default CreateSession;
+
+
