@@ -71,10 +71,18 @@ function renderHTML(sessions: Session[], facultyName: string) {
 <title>Session Invitation</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height:1.5; color:#333; max-width:600px; margin:0 auto; padding:20px;">
-  <div style="background:linear-gradient(135deg, #667eea, #764ba2); padding:30px; border-radius: 8px 8px 0 0; color:#fff; text-align:center;">
-    <h1>🎤 Speaking Invitation</h1>
+  
+  <!-- Header -->
+  <div style="background: #f8f9fa; padding: 0; text-align: center; border-radius: 10px 10px 0 0; overflow: hidden;">
+      <!-- PediCritiCon Header Image -->
+      <img src="https://make-my-event.vercel.app/images/pedicriticon-header.png" 
+           alt="PediCritiCon 2025 Header - 6th to 9th November 2025"
+           style="width: 100%; height: auto; display: block; max-width: 600px;" />
   </div>
-  <div style="background:#fff; padding:30px; border-radius:0 0 8px 8px; border:1px solid #ddd;">
+
+  <div style="background:#fff; padding:30px; border:1px solid #ddd;">
+    <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">🎤 Speaking Invitation</h1>
+    
     <p>Hello <strong>${safe(facultyName)}</strong>,</p>
     <p>You are invited to speak at the following ${sessions.length} session${
     sessions.length > 1 ? "s" : ""
@@ -107,9 +115,42 @@ function renderHTML(sessions: Session[], facultyName: string) {
         🔐 Access Faculty Portal
       </a>
     </p>
-    <p style="font-size:12px; color:#666; text-align:center;">
+
+    <!-- Conference Registration & Participation -->
+    <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
+        <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Registration & Participation:</h4>
+        <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+            <strong>Registration:</strong> Please complete your conference registration at the base rate.
+        </p>
+        <p style="color: #4a5568; font-size: 14px; margin: 0 0 10px 0; line-height: 1.6;">
+            Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
+            If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> at 
+            the earliest so we may make suitable adjustments.
+        </p>
+        <p style="color: #4a5568; font-size: 14px; margin: 0; line-height: 1.6;">
+            We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
+            a memorable success.
+        </p>
+    </div>
+
+    <div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #764ba2; border-radius: 4px;">
+        <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
+            Warm regards,<br>
+            <span style="color: #764ba2;">Scientific Committee, PediCritiCon 2025</span>
+        </p>
+    </div>
+
+    <p style="font-size:12px; color:#666; text-align:center; margin-top:20px;">
       If you have questions, contact your event coordinator. This message was sent automatically.
     </p>
+  </div>
+
+  <!-- Footer -->
+  <div style="background: #f8f9fa; padding: 0; text-align: center; border-radius: 0 0 10px 10px; margin-top: 10px; overflow: hidden;">
+      <!-- PediCritiCon Footer Image -->
+      <img src="https://make-my-event.vercel.app/images/pedicriticon-footer.png" 
+           alt="PediCritiCon 2025 Footer - Scan for Website, Helpline: 63646 90353"
+           style="width: 100%; height: auto; display: block; max-width: 600px;" />
   </div>
 </body>
 </html>
@@ -135,10 +176,18 @@ function renderUpdateHTML(
 <title>Session Updated</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height:1.5; color:#333; max-width:600px; margin:0 auto; padding:20px;">
-  <div style="background:linear-gradient(135deg, #ff9a56, #ff6b35); padding:30px; border-radius: 8px 8px 0 0; color:#fff; text-align:center;">
-    <h1>📅 Session Updated</h1>
+  
+  <!-- Header -->
+  <div style="background: #f8f9fa; padding: 0; text-align: center; border-radius: 10px 10px 0 0; overflow: hidden;">
+      <!-- PediCritiCon Header Image -->
+      <img src="https://make-my-event.vercel.app/images/pedicriticon-header.png" 
+           alt="PediCritiCon 2025 Header - 6th to 9th November 2025"
+           style="width: 100%; height: auto; display: block; max-width: 600px;" />
   </div>
-  <div style="background:#fff; padding:30px; border-radius:0 0 8px 8px; border:1px solid #ddd;">
+
+  <div style="background:#fff; padding:30px; border:1px solid #ddd;">
+    <h1 style="color:#ff6b35; text-align:center; margin-bottom:20px;">📅 Session Updated</h1>
+    
     <p>Hello <strong>${safe(facultyName)}</strong>,</p>
     <p>Your session has been updated with new details:</p>
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
@@ -186,6 +235,38 @@ function renderUpdateHTML(
         🔐 Confirm Availability
       </a>
     </p>
+
+    <!-- Conference Registration & Participation -->
+    <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
+        <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Registration & Participation:</h4>
+        <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
+            <strong>Registration:</strong> Please complete your conference registration at the base rate.
+        </p>
+        <p style="color: #4a5568; font-size: 14px; margin: 0 0 10px 0; line-height: 1.6;">
+            Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. 
+            If you are unable to accept or face a scheduling conflict, please indicate <strong>No</strong> at 
+            the earliest so we may make suitable adjustments.
+        </p>
+        <p style="color: #4a5568; font-size: 14px; margin: 0; line-height: 1.6;">
+            We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 
+            a memorable success.
+        </p>
+    </div>
+
+    <div style="margin: 25px 0; padding: 15px; background: #f7fafc; border-left: 4px solid #ff6b35; border-radius: 4px;">
+        <p style="color: #2d3748; margin: 0; font-size: 14px; font-weight: 500;">
+            Warm regards,<br>
+            <span style="color: #ff6b35;">Scientific Committee, PediCritiCon 2025</span>
+        </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="background: #f8f9fa; padding: 0; text-align: center; border-radius: 0 0 10px 10px; margin-top: 10px; overflow: hidden;">
+      <!-- PediCritiCon Footer Image -->
+      <img src="https://make-my-event.vercel.app/images/pedicriticon-footer.png" 
+           alt="PediCritiCon 2025 Footer - Scan for Website, Helpline: 63646 90353"
+           style="width: 100%; height: auto; display: block; max-width: 600px;" />
   </div>
 </body>
 </html>
@@ -217,6 +298,15 @@ ${sessions
   Location: ${safe(s.place)}`
   )
   .join("\n\n")}
+
+Registration: Please complete your conference registration at the base rate.
+
+Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
+
+We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 a memorable success.
+
+Warm regards,
+Scientific Committee, PediCritiCon 2025
 
 Login here: ${baseUrl.replace(
     /\/+$/,
@@ -269,6 +359,15 @@ Location: ${safe(session.place)} - ${safe(roomName)}
 Description: ${safe(session.description)}
 
 Please confirm your availability again as the schedule has changed.
+
+Registration: Please complete your conference registration at the base rate.
+
+Your participation will be invaluable in enriching the scientific program of PediCritiCon 2025. If you are unable to accept or face a scheduling conflict, please indicate No at the earliest so we may make suitable adjustments.
+
+We sincerely look forward to your acceptance and active contribution in making PediCritiCon 2025 a memorable success.
+
+Warm regards,
+Scientific Committee, PediCritiCon 2025
 
 Login here: ${baseUrl.replace(
       /\/+$/,
