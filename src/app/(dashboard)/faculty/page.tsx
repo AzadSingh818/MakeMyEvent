@@ -673,7 +673,7 @@ export default function FacultyDashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={toggleTheme}
+              // onClick={toggleTheme}
               className={themeClasses.button.secondary}
             >
               {theme === "dark" ? (
@@ -701,7 +701,7 @@ export default function FacultyDashboardPage() {
               />
               Refresh
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               size="sm"
               onClick={handleSchedule}
@@ -709,7 +709,7 @@ export default function FacultyDashboardPage() {
             >
               <Calendar className="h-3 w-3 mr-1" />
               Full Schedule
-            </Button>
+            </Button> */}
           </div>
         </div>
       </CardHeader>
@@ -1075,9 +1075,9 @@ export default function FacultyDashboardPage() {
   // Loading state
   if (profileLoading || userSessionsLoading) {
     return (
-      <div className={themeClasses.container}>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
         <FacultyLayout>
-          <div className="space-y-6">
+          <div className="p-6 space-y-8">
             <SkeletonCard />
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <SkeletonCard />
@@ -1104,36 +1104,34 @@ export default function FacultyDashboardPage() {
           },
           {
             label: "Events",
-            value: facultyEvents?.length ?? 0,
+            value:  1,
             color: "bg-purple-500",
           },
-          {
-            label: "Presentations",
-            value: totalPresentations,
-            color: "bg-green-500",
-          },
-          { label: "CV", value: hasCV ? "Yes" : "No", color: "bg-green-500" },
+          // {
+          //   label: "Presentations",
+          //   value: totalPresentations,
+          //   color: "bg-green-500",
+          // },
+          // { label: "CV", value: hasCV ? "Yes" : "No", color: "bg-green-500" },
         ]}
       >
         <div className="space-y-6">
           {/* FIXED: Welcome Header with light theme */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1
-                className={`text-3xl font-bold tracking-tight ${themeClasses.text.primary}`}
-              >
-                Welcome, {userName}
-              </h1>
-              <p className={themeClasses.text.secondary}>
-                Your academic conference participation hub
-              </p>
-              {profileInstitution && (
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+  <div>
+    <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
+      Welcome to Pedicriticon 2025
+    </h1>
+    <p className="text-lg text-slate-700">
+      Faculty Dashboard - {userName}
+    </p>
+              {/* {profileInstitution && (
                 <p
                   className={`text-sm font-medium ${themeClasses.text.accent}`}
                 >
                   {profileInstitution}
                 </p>
-              )}
+              )} */}
             </div>
           </div>
 
@@ -1156,11 +1154,11 @@ export default function FacultyDashboardPage() {
           )}
 
           {/* FIXED: Stats Grid with light theme */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"> 
             {/* Sessions Card */}
             <Card
               className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
-              onClick={() => router.push("/faculty/sessions")}
+              // onClick={() => router.push("/faculty/sessions")}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle
@@ -1202,9 +1200,9 @@ export default function FacultyDashboardPage() {
             </Card>
 
             {/* Events Card */}
-            <Card
+            {/* <Card
               className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
-              onClick={() => router.push("/faculty/events")}
+              // onClick={() => router.push("/faculty/events")}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle
@@ -1248,67 +1246,50 @@ export default function FacultyDashboardPage() {
                   Multi-day events
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Accommodation & Travel Card */}
-            <Card
-              className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
-              onClick={handleViewProfile}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={`text-sm font-medium ${themeClasses.text.primary}`}
-                >
-                  Accommodation & Travel Status
-                </CardTitle>
-                <Hotel className={`h-4 w-4 ${themeClasses.text.muted}`} />
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
-                >
-                  <Bed className="h-3 w-3 mr-1 text-purple-600" />
-                  Accommodation:{" "}
-                  {profileData?.accommodations?.length > 0 ? (
-                    <span
-                      className={`ml-1 font-medium ${themeClasses.text.success}`}
-                    >
-                      Provided
-                    </span>
-                  ) : (
-                    <span
-                      className={`ml-1 font-medium ${themeClasses.text.error}`}
-                    >
-                      Not Provided
-                    </span>
-                  )}
-                </div>
-                <div
-                  className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
-                >
-                  <Plane className="h-3 w-3 mr-1 text-blue-600" />
-                  Travel Details:{" "}
-                  {profileData?.travelDetails?.length > 0 ? (
-                    <span
-                      className={`ml-1 font-medium ${themeClasses.text.success}`}
-                    >
-                      Provided
-                    </span>
-                  ) : (
-                    <span
-                      className={`ml-1 font-medium ${themeClasses.text.error}`}
-                    >
-                      Not Provided
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
+            {/* Accommodation & Travel Card - MODIFIED: Hardcoded values */}
+<Card
+  className={`${themeClasses.background.card}`} // REMOVED: cursor-pointer hover:shadow-md transition-shadow and onClick
+>
+  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <CardTitle
+      className={`text-sm font-medium ${themeClasses.text.primary}`}
+    >
+      Accommodation & Travel Status
+    </CardTitle>
+    <Hotel className={`h-4 w-4 ${themeClasses.text.muted}`} />
+  </CardHeader>
+  <CardContent>
+    <div
+      className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
+    >
+      <Bed className="h-3 w-3 mr-1 text-purple-600" />
+      Accommodation:{" "}
+      <span
+        className={`ml-1 font-medium ${themeClasses.text.success}`}
+      >
+        Provided on twin-sharing basis
+      </span>
+    </div>
+    <div
+      className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
+    >
+      <Plane className="h-3 w-3 mr-1 text-blue-600" />
+      Travel Details:{" "}
+      <span
+        className={`ml-1 font-medium ${themeClasses.text.warning}`}
+      >
+        Self Arranged
+      </span>
+    </div>
+  </CardContent>
+</Card>
             {/* Documents Card */}
-            <Card
+            {/* <Card
               className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
-              onClick={handlePresentations}
+              // onClick={handlePresentations}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle
@@ -1343,7 +1324,7 @@ export default function FacultyDashboardPage() {
                   {profileCV ? "CV uploaded" : "CV pending"}
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
 
           {/* Main Content Grid */}

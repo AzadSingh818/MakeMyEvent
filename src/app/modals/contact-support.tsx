@@ -18,15 +18,15 @@ export default function ContactSupportModal({
         <div className="flex flex-col items-start gap-4 text-gray-700">
           <div className="flex items-center gap-2">
             <Building className="h-5 w-5 text-blue-600" />
-            <span className="font-semibold">Conference Organizing Team</span>
+            <span className="font-semibold">Conference Managing Team</span>
           </div>
           <div className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-green-600" />
-            <span>support@conference.com</span>
+            <span>shruti@abhinavagroup.com</span>
           </div>
           <div className="flex items-center gap-2">
             <Phone className="h-5 w-5 text-yellow-600" />
-            <span>+91 98765 43210</span>
+            <span>+91 9148001818</span>
           </div>
         </div>
         <p className="text-sm text-gray-500 mt-6">

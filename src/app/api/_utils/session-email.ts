@@ -10,7 +10,7 @@ const FACULTY_DATA = {
     sessions: [
       {
         title: "Demonstration",
-        day: "07/11",
+        date: "07/11",
         role: "Speaker"
       }
     ]
@@ -21,98 +21,98 @@ const FACULTY_DATA = {
     sessions: [
       {
         title: "Introduction",
-        day: "07/11",
+        date: "07/11",
         role: "Speaker"
       }
     ]
   },
-  "praj@abhinavagroup.com": {
-    facultyName: "Prajwal",
-    email: "praj@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-        day: "07/11",
-        role: "Speaker"
-      }
-    ]
-  },
-  "priya.ks@abhinavagroup.com": {
-    facultyName: "Priya", 
-    email: "priya.ks@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Crack the Cardiac Code: Applied Physiology Made Simple",
-        day: "08/11",
-        role: "Speaker"
-      }
-    ]
-  },
+  // "praj@abhinavagroup.com": {
+  //   facultyName: "Prajwal",
+  //   email: "praj@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
+  //       date: "07/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
+  // "priya.ks@abhinavagroup.com": {
+  //   facultyName: "Priya", 
+  //   email: "priya.ks@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Crack the Cardiac Code: Applied Physiology Made Simple",
+  //       date: "08/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
   "shruti@abhinavagroup.com": {
     facultyName: "Shruti",
     email: "shruti@abhinavagroup.com", 
     sessions: [
       {
         title: "Pediatric Research Networking",
-        day: "09/11",
+        date: "09/11",
         role: "Speaker"
       },
       {
         title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        day: "09/11",
+        date: "09/11",
         role: "Moderator"
       }
     ]
   },
-  "v@abhinavagroup.com": {
-    facultyName: "Vidyashankar",
-    email: "v@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Oncologic Emergencies: Expert Strategies", 
-        day: "09/11",
-        role: "Speaker"
-      }
-    ]
-  },
-  "drskpanuganti@gmail.com": {
-    facultyName: "Dr Suresh Kumar Panuganti",
-    email: "drskpanuganti@gmail.com",
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        day: "09/11", 
-        role: "Speaker"
-      }
-    ]
-  },
-  "farhanshaikh74@gmail.com": {
-    facultyName: "Dr Farhan Shaikh",
-    email: "farhanshaikh74@gmail.com",
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        day: "09/11",
-        role: "Speaker"
-      },
-      {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        day: "09/11", 
-        role: "Moderator"
-      }
-    ]
-  },
-  "dayalanjul@gmail.com": {
-    facultyName: "Dr Anjul Dayal",
-    email: "dayalanjul@gmail.com",
-    sessions: [
-      {
-        title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-        day: "09/11",
-        role: "Speaker"
-      }
-    ]
-  }
+  // "v@abhinavagroup.com": {
+  //   facultyName: "Vidyashankar",
+  //   email: "v@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Oncologic Emergencies: Expert Strategies", 
+  //       date: "09/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
+  // "drskpanuganti@gmail.com": {
+  //   facultyName: "Suresh Kumar Panuganti",
+  //   email: "drskpanuganti@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       date: "09/11", 
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
+  // "farhanshaikh74@gmail.com": {
+  //   facultyName: "Farhan Shaikh",
+  //   email: "farhanshaikh74@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       date: "09/11",
+  //       role: "Speaker"
+  //     },
+  //     {
+  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+  //       date: "09/11", 
+  //       role: "Moderator"
+  //     }
+  //   ]
+  // },
+  // "dayalanjul@gmail.com": {
+  //   facultyName: "Anjul Dayal",
+  //   email: "dayalanjul@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
+  //       date: "09/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // }
 };
 
 // Generate HTML for a specific faculty member
@@ -134,7 +134,7 @@ function renderFacultyHTML(facultyEmail: string) {
       (s) => `
       <tr style="border-bottom: 1px solid #eaeaea;">
         <td style="padding:12px; border-right:1px solid #ddd;">${s.title}</td>
-        <td style="padding:12px; border-right:1px solid #ddd;">${s.day}</td>
+        <td style="padding:12px; border-right:1px solid #ddd;">${s.date}</td>
         <td style="padding:12px;">${s.role}</td>
       </tr>`
     )
@@ -184,9 +184,25 @@ function renderFacultyHTML(facultyEmail: string) {
     <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 6px; padding: 15px; margin: 25px 0;">
       <h4 style="color: #e65100; margin: 0 0 10px 0; font-size: 14px;">📋 Conference Acceptance & Details:</h4>
       <p style="color: #bf360c; margin: 0 0 10px 0; font-size: 14px; line-height: 1.5;">
-          <strong>Please confirm your acceptance by clicking Yes or No on the faculty dashboard</strong>
+          <strong>Please confirm your acceptance by clicking Accept or Decline on the faculty dashboard</strong>
       </p>
     </div>
+
+    <!-- Access Faculty Dashboard Button -->
+    <p style="text-align:center; margin: 30px 0;">
+      <a href="${loginUrl}" target="_blank" style="
+        background:#764ba2;
+        color:#fff;
+        padding:15px 25px;
+        border-radius:25px;
+        text-decoration:none;
+        font-weight:bold;
+        font-size:16px;
+        box-shadow:0 4px 15px rgba(118,75,162,0.4);
+        ">
+        🔐 Access Faculty Dashboard
+      </a>
+    </p>
 
     <div style="background: #e8f5e8; border: 1px solid #4caf50; border-radius: 6px; padding: 15px; margin: 25px 0;">
         <h4 style="color: #2e7d32; margin: 0 0 10px 0; font-size: 14px;">🔹 Hospitality & Travel:</h4>
@@ -220,20 +236,6 @@ function renderFacultyHTML(facultyEmail: string) {
         </p>
     </div>
     
-    <p style="text-align:center; margin: 30px 0;">
-      <a href="${loginUrl}" target="_blank" style="
-        background:#764ba2;
-        color:#fff;
-        padding:15px 25px;
-        border-radius:25px;
-        text-decoration:none;
-        font-weight:bold;
-        font-size:16px;
-        box-shadow:0 4px 15px rgba(118,75,162,0.4);
-        ">
-        🔐 Access Faculty Portal
-      </a>
-    </p>
     <p style="font-size:12px; color:#666; text-align:center; margin-top:20px;">
       If you have questions, contact your event coordinator. This message was sent automatically.
     </p>
@@ -260,7 +262,7 @@ function generateFacultyTextEmail(facultyEmail: string) {
   }
 
   const sessionsText = facultyData.sessions
-    .map((s, index) => `Day ${s.day}:
+    .map((s, index) => `Day ${s.date}:
 Session: ${s.title}
 Role: ${s.role}`)
     .join("\n\n");
@@ -387,7 +389,7 @@ export async function sendUpdateEmail(
     for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
       try {
         const sessionsText = facultyData.sessions
-          .map(s => `Session: "${s.title}" - ${s.day} - ${s.role}`)
+          .map(s => `Session: "${s.title}" - ${s.date} - ${s.role}`)
           .join('\n');
 
         const text = `Hello ${facultyData.facultyName},
@@ -446,7 +448,7 @@ Login here: ${baseUrl.replace(
     console.error("Failed to send update emails:", error);
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Email sending failed",
+      message: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }

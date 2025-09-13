@@ -349,22 +349,22 @@ const getNavigationItems = (
           href: "/faculty/sessions",
           icon: Monitor,
         },
-        {
-          label: "Documents",
-          icon: FileText,
-          children: [
-            {
-              label: "Upload Documents",
-              icon: Upload,
-              action: "openUploadDocumentsModal", // FIXED: Changed from "uploadDocumentsModal"
-            },
-            {
-              label: "View/Edit Documents",
-              icon: Upload,
-              action: "openDocumentsModal",
-            },
-          ],
-        },
+        // {
+        //   label: "Documents",
+        //   icon: FileText,
+        //   children: [
+        //     {
+        //       label: "Upload Documents",
+        //       icon: Upload,
+        //       action: "openUploadDocumentsModal", // FIXED: Changed from "uploadDocumentsModal"
+        //     },
+        //     {
+        //       label: "View/Edit Documents",
+        //       icon: Upload,
+        //       action: "openDocumentsModal",
+        //     },
+        //   ],
+        // },
         // {
         //   label: "Travel & Stay",
         //   href: "",
