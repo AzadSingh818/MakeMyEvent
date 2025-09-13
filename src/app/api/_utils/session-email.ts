@@ -59,33 +59,33 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-  "shruti@abhinavagroup.com": {
-    facultyName: "Shruti",
-    email: "shruti@abhinavagroup.com", 
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        date: "07/11",
-        role: "Speaker"
-      },
-      {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        date: "07/11",
-        role: "Moderator"
-      }
-    ]
-  },
-  "v@abhinavagroup.com": {
-    facultyName: "Vidyashankar",
-    email: "v@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Oncologic Emergencies: Expert Strategies", 
-        date: "07/11",
-        role: "Speaker"
-      }
-    ]
-  },
+  // "shruti@abhinavagroup.com": {
+  //   facultyName: "Shruti",
+  //   email: "shruti@abhinavagroup.com", 
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       date: "07/11",
+  //       role: "Speaker"
+  //     },
+  //     {
+  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+  //       date: "07/11",
+  //       role: "Moderator"
+  //     }
+  //   ]
+  // },
+  // "v@abhinavagroup.com": {
+  //   facultyName: "Vidyashankar",
+  //   email: "v@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Oncologic Emergencies: Expert Strategies", 
+  //       date: "07/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
   // "drskpanuganti@gmail.com": {
   //   facultyName: "Suresh Kumar Panuganti",
   //   email: "drskpanuganti@gmail.com",
@@ -97,22 +97,22 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-  // "farhanshaikh74@gmail.com": {
-  //   facultyName: "Farhan Shaikh",
-  //   email: "farhanshaikh74@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Research Networking",
-  //       date: "07/11",
-  //       role: "Speaker"
-  //     },
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "07/11", 
-  //       role: "Moderator"
-  //     }
-  //   ]
-  // },
+  "farhanshaikh74@gmail.com": {
+    facultyName: "Farhan Shaikh",
+    email: "farhanshaikh74@gmail.com",
+    sessions: [
+      {
+        title: "Pediatric Research Networking",
+        date: "07/11",
+        role: "Speaker"
+      },
+      {
+        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+        date: "07/11", 
+        role: "Moderator"
+      }
+    ]
+  },
   // "dayalanjul@gmail.com": {
   //   facultyName: "Anjul Dayal",
   //   email: "dayalanjul@gmail.com",
