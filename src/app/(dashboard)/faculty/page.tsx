@@ -824,7 +824,7 @@ export default function FacultyDashboardPage() {
         month: '2-digit', 
         year: 'numeric'
       })
-    : "Date pending"
+    :""
   }
 </div>
 
