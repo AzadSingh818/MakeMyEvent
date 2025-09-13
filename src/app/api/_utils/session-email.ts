@@ -4,13 +4,13 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.verce
 
 // Hardcoded data for all 7 faculty members from PDF
 const FACULTY_DATA = {
-  "anand07amar@gmail.com": {
+  "azad818n.s@gmail.com": {
     facultyName: "Anand",
-    email: "anand07amar@gmail.com",
+    email: "azad818n.s@gmail.com",
     sessions: [
       {
         title: "Demonstration",
-        date: "07/11",
+        date: "06/11",
         role: "Speaker"
       }
     ]
@@ -21,7 +21,18 @@ const FACULTY_DATA = {
     sessions: [
       {
         title: "Introduction",
-        date: "07/11",
+        date: "06/11",
+        role: "Speaker"
+      }
+    ]
+  },
+  "guptaansh641@gmail.com": {
+    facultyName: "Anand",
+    email: "guptaansh641@gmail.com",
+    sessions: [
+      {
+        title: "Demonstration",
+        date: "06/11",
         role: "Speaker"
       }
     ]
@@ -48,33 +59,33 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-  "shruti@abhinavagroup.com": {
-    facultyName: "Shruti",
-    email: "shruti@abhinavagroup.com", 
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        date: "07/11",
-        role: "Speaker"
-      },
-      {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        date: "07/11",
-        role: "Moderator"
-      }
-    ]
-  },
-  // "v@abhinavagroup.com": {
-  //   facultyName: "Vidyashankar",
-  //   email: "v@abhinavagroup.com",
+  // "shruti@abhinavagroup.com": {
+  //   facultyName: "Shruti",
+  //   email: "shruti@abhinavagroup.com", 
   //   sessions: [
   //     {
-  //       title: "Oncologic Emergencies: Expert Strategies", 
+  //       title: "Pediatric Research Networking",
   //       date: "07/11",
   //       role: "Speaker"
+  //     },
+  //     {
+  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+  //       date: "07/11",
+  //       role: "Moderator"
   //     }
   //   ]
   // },
+  "v@abhinavagroup.com": {
+    facultyName: "Vidyashankar",
+    email: "v@abhinavagroup.com",
+    sessions: [
+      {
+        title: "Oncologic Emergencies: Expert Strategies", 
+        date: "07/11",
+        role: "Speaker"
+      }
+    ]
+  },
   // "drskpanuganti@gmail.com": {
   //   facultyName: "Suresh Kumar Panuganti",
   //   email: "drskpanuganti@gmail.com",
