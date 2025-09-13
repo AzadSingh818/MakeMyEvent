@@ -59,7 +59,7 @@ const FACULTY_DATA = {
       },
       {
         title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        date: "08/11",
+        date: "07/11",
         role: "Moderator"
       }
     ]
@@ -92,12 +92,12 @@ const FACULTY_DATA = {
     sessions: [
       {
         title: "Pediatric Research Networking",
-        date: "09/11",
+        date: "07/11",
         role: "Speaker"
       },
       {
         title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        date: "09/11", 
+        date: "07/11", 
         role: "Moderator"
       }
     ]
