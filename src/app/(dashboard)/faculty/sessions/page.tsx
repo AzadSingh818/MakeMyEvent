@@ -381,6 +381,7 @@ export default function FacultyAllSessionsPage() {
                     ? "border-rose-400/30 bg-rose-900/20 hover:bg-rose-900/30"
                     : "border-slate-700/60 bg-slate-900/30 hover:bg-slate-900/40"
                 }`}
+                onClick={() => router.push('/faculty/sessions')}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">

@@ -375,10 +375,12 @@ export default function FacultyDashboardPage() {
   // Your existing navigation and file handlers (keeping the same logic, just commenting for brevity)
   const handleViewProfile = () => router.push("/faculty/profile");
   const handlePresentations = () => router.push("/faculty/presentations");
-  const handleSchedule = () => router.push("/faculty/schedule");
+  const handleSchedule = () => {
+  window.open('https://pedicriticon2025.com/scientific-session/', '_blank', 'noopener,noreferrer');
+};
   const handleCertificates = () => router.push("/faculty/certificates");
-  const handleSessionClick = (sessionId: string) =>
-    router.push(`/faculty/sessions/${sessionId}`);
+  const handleSessionClick = () =>
+    router.push(`/faculty/sessions`);
 
   // Your existing file upload handlers go here (unchanged)
   // ... handlePresentationFileSelect, handlePresentationUpload, etc.
@@ -701,7 +703,7 @@ export default function FacultyDashboardPage() {
               />
               Refresh
             </Button>
-            {/* <Button
+            <Button
               variant="outline"
               size="sm"
               onClick={handleSchedule}
@@ -709,7 +711,7 @@ export default function FacultyDashboardPage() {
             >
               <Calendar className="h-3 w-3 mr-1" />
               Full Schedule
-            </Button> */}
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -1119,12 +1121,12 @@ export default function FacultyDashboardPage() {
           {/* FIXED: Welcome Header with light theme */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
   <div>
-    <h1 className="text-4xl font-bold tracking-tight text-slate-900 mb-2">
-      Welcome to Pedicriticon 2025
-    </h1>
-    <p className="text-lg text-slate-700">
-      Faculty Dashboard - {userName}
-    </p>
+   <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-2">
+  Welcome to Pedicriticon 2025
+</h1>
+<p className="text-lg text-slate-700 dark:text-slate-300">
+  Faculty Dashboard, {userName}
+</p>
               {/* {profileInstitution && (
                 <p
                   className={`text-sm font-medium ${themeClasses.text.accent}`}
