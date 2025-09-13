@@ -1243,14 +1243,14 @@ export default function FacultyDashboardPage() {
                     </span>
                   </div>
                 </div>
-                <div
+                {/* <div
                   className={`flex items-center text-xs ${themeClasses.text.muted}`}
                 >
                   <Activity
                     className={`h-3 w-3 mr-1 ${themeClasses.text.accent}`}
                   />
                   {sessionsStats?.upcoming ?? 0} upcoming
-                </div>
+                </div> */}
               </CardContent>
             </Card>
 
