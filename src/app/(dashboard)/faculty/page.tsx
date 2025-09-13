@@ -728,7 +728,7 @@ export default function FacultyDashboardPage() {
             className={`text-center p-3 rounded-lg border ${themeClasses.stats.events}`}
           >
             <div className="text-xl font-bold">
-              {facultyEvents?.length ?? 0}
+              {/* {facultyEvents?.length ?? 0} */} 1
             </div>
             <div className="text-xs font-medium">Event Invitations</div>
           </div>
@@ -790,9 +790,9 @@ export default function FacultyDashboardPage() {
                   <div
                     key={session.id}
                     className={getSessionCardClass(session.inviteStatus)}
-                    onClick={() =>
-                      router.push(`/faculty/sessions/${session.id}`)
-                    }
+                    // onClick={() =>
+                    //   router.push(`/faculty/sessions`)
+                    // }
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">

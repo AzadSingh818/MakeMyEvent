@@ -381,7 +381,6 @@ export default function FacultyAllSessionsPage() {
                     ? "border-rose-400/30 bg-rose-900/20 hover:bg-rose-900/30"
                     : "border-slate-700/60 bg-slate-900/30 hover:bg-slate-900/40"
                 }`}
-                onClick={() => router.push('/faculty/sessions')}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -406,33 +405,55 @@ export default function FacultyAllSessionsPage() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-300">
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {session.formattedTime ||
-                            `${session.formattedStartTime || ""}${
-                              session.formattedEndTime
-                                ? ` - ${session.formattedEndTime}`
-                                : ""
-                            }`}
-                        </div>
-                        <div className="flex items-center">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {session.place} - {session.roomName}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {session.daysUntil > 0
-                            ? `${session.daysUntil} days to go`
-                            : session.daysUntil === 0
-                            ? "Today"
-                            : "Past session"}
-                        </div>
-                        <div className="flex items-center">
-                          <Activity className="h-3 w-3 mr-1" />
-                          {session.sessionStatus || session.status}
-                        </div>
-                      </div>
-
+  {/* COMMENTED OUT: Time display */}
+  {/* 
+  <div className="flex items-center">
+    <Calendar className="h-3 w-3 mr-1" />
+    {session.formattedTime ||
+      `${session.formattedStartTime || ""}${
+        session.formattedEndTime
+          ? ` - ${session.formattedEndTime}`
+          : ""
+      }`}
+  </div>
+  */}
+  
+  {/* NEW: Date in dd/mm/yyyy format */}
+  <div className="flex items-center">
+    <Calendar className="h-3 w-3 mr-1" />
+    {session.startTime 
+      ? new Date(session.startTime).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit', 
+          year: 'numeric'
+        })
+      : session.sessionDate
+      ? new Date(session.sessionDate).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit', 
+          year: 'numeric'
+        })
+      : "Date pending"
+    }
+  </div>
+  
+  <div className="flex items-center">
+    <MapPin className="h-3 w-3 mr-1" />
+    {session.place}
+  </div>
+  <div className="flex items-center">
+    <Clock className="h-3 w-3 mr-1" />
+    {session.daysUntil > 0
+      ? `${session.daysUntil} days to go`
+      : session.daysUntil === 0
+      ? "Today"
+      : "Past session"}
+  </div>
+  <div className="flex items-center">
+    <Activity className="h-3 w-3 mr-1" />
+    {session.sessionStatus || session.status}
+  </div>
+</div>
                       {session.description && (
                         <p className="text-xs text-slate-400 mt-2 line-clamp-2">
                           {session.description}

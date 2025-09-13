@@ -48,22 +48,22 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-  "shruti@abhinavagroup.com": {
-    facultyName: "Shruti",
-    email: "shruti@abhinavagroup.com", 
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        date: "09/11",
-        role: "Speaker"
-      },
-      {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        date: "09/11",
-        role: "Moderator"
-      }
-    ]
-  },
+  // "shruti@abhinavagroup.com": {
+  //   facultyName: "Shruti",
+  //   email: "shruti@abhinavagroup.com", 
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       date: "09/11",
+  //       role: "Speaker"
+  //     },
+  //     {
+  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+  //       date: "09/11",
+  //       role: "Moderator"
+  //     }
+  //   ]
+  // },
   // "v@abhinavagroup.com": {
   //   facultyName: "Vidyashankar",
   //   email: "v@abhinavagroup.com",
