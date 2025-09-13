@@ -672,7 +672,7 @@ export default function FacultyDashboardPage() {
             My Sessions & Event Invitations
           </CardTitle>
           <div className="flex space-x-2">
-            <Button
+            {/* <Button
               variant="outline"
               size="sm"
               // onClick={toggleTheme}
@@ -683,7 +683,7 @@ export default function FacultyDashboardPage() {
               ) : (
                 <Moon className="h-3 w-3" />
               )}
-            </Button>
+            </Button> */}
             <Button
               variant="outline"
               size="sm"

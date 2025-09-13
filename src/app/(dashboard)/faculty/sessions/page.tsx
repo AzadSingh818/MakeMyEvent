@@ -266,7 +266,7 @@ export default function FacultyAllSessionsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push("/faculty/dashboard")}
+              onClick={() => router.push("/faculty")}
               className="border-slate-700 text-slate-300 hover:bg-slate-800"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />
