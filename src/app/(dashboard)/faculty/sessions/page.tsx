@@ -422,24 +422,55 @@ export default function FacultyAllSessionsPage() {
   {/* FIXED: Date in dd/mm/yyyy format from formattedTime */}
 <div className="flex items-center">
   <Calendar className="h-3 w-3 mr-1" />
-  {session.formattedTime 
-    ? (() => {
-        try {
-          const date = new Date(session.formattedTime);
-          if (!isNaN(date.getTime())) {
-            return date.toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: '2-digit', 
-              year: 'numeric'
-            });
-          }
-        } catch (e) {
-          return session.formattedTime.split(' ')[0];
-        }
-        return session.formattedTime;
-      })()
-    : "Date not available"
-  }
+  {(() => {
+    if (!session.formattedTime) return "Date not available";
+    
+    try {
+      // Try to parse the formattedTime as a date
+      const date = new Date(session.formattedTime);
+      if (!isNaN(date.getTime())) {
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit', 
+          year: 'numeric'
+        });
+      }
+    } catch (e) {
+      // If parsing fails, try to extract date patterns
+    }
+    
+    // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
+    const datePattern1 = session.formattedTime.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+    if (datePattern1) {
+      return datePattern1[1]; // Already in dd/mm/yyyy format
+    }
+    
+    // If formattedTime is in format like "March 15, 2025 2:30 PM"
+    const datePattern2 = session.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
+    if (datePattern2) {
+      const date = new Date(datePattern2[1]);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      });
+    }
+    
+    // If formattedTime is in format like "2025-03-15 14:30"
+    const datePattern3 = session.formattedTime.match(/(\d{4}-\d{1,2}-\d{1,2})/);
+    if (datePattern3) {
+      const date = new Date(datePattern3[1]);
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      });
+    }
+    
+    // If all else fails, try to take the first part before space/comma
+    const firstPart = session.formattedTime.split(/[\s,]+/)[0];
+    return firstPart || session.formattedTime;
+  })()}
 </div>
   
   <div className="flex items-center">
