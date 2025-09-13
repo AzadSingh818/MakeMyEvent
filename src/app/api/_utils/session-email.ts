@@ -114,7 +114,6 @@ const FACULTY_DATA = {
     ]
   }
 };
-
 // Generate HTML for a specific faculty member
 function renderFacultyHTML(facultyEmail: string) {
   const facultyData = FACULTY_DATA[facultyEmail as keyof typeof FACULTY_DATA];
