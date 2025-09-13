@@ -376,11 +376,14 @@ export default function FacultyDashboardPage() {
   const handleViewProfile = () => router.push("/faculty/profile");
   const handlePresentations = () => router.push("/faculty/presentations");
   const handleSchedule = () => {
-  window.open('https://pedicriticon2025.com/scientific-session/', '_blank', 'noopener,noreferrer');
-};
+    window.open(
+      "https://pedicriticon2025.com/scientific-session/",
+      "_blank",
+      "noopener,noreferrer"
+    );
+  };
   const handleCertificates = () => router.push("/faculty/certificates");
-  const handleSessionClick = () =>
-    router.push(`/faculty/sessions`);
+  const handleSessionClick = () => router.push(`/faculty/sessions`);
 
   // Your existing file upload handlers go here (unchanged)
   // ... handlePresentationFileSelect, handlePresentationUpload, etc.
@@ -810,71 +813,88 @@ export default function FacultyDashboardPage() {
                           </Badge>
                         </div>
                         {/* FIXED: Date in dd/mm/yyyy format instead of time */}
-<div className="flex items-center">
-  <Calendar className="h-3 w-3 mr-1" />
-  {(() => {
-    if (!session.formattedTime) return "Date not available";
-    
-    try {
-      // Try to parse the formattedTime as a date
-      const date = new Date(session.formattedTime);
-      if (!isNaN(date.getTime())) {
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric'
-        });
-      }
-    } catch (e) {
-      // If parsing fails, try to extract date patterns
-    }
-    
-    // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
-    const datePattern1 = session.formattedTime.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-    if (datePattern1) {
-      return datePattern1[1]; // Already in dd/mm/yyyy format
-    }
-    
-    // If formattedTime is in format like "March 15, 2025 2:30 PM"
-    const datePattern2 = session.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
-    if (datePattern2) {
-      const date = new Date(datePattern2[1]);
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit', 
-        year: 'numeric'
-      });
-    }
-    
-    // If formattedTime is in format like "2025-03-15 14:30"
-    const datePattern3 = session.formattedTime.match(/(\d{4}-\d{1,2}-\d{1,2})/);
-    if (datePattern3) {
-      const date = new Date(datePattern3[1]);
-      return date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit', 
-        year: 'numeric'
-      });
-    }
-    
-    // If all else fails, try to take the first part before space/comma
-    const firstPart = session.formattedTime.split(/[\s,]+/)[0];
-    return firstPart || session.formattedTime;
-  })()}
-</div>
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {(() => {
+                            if (!session.formattedTime)
+                              return "Date not available";
 
-{/* FIXED: Location without TBD */}
-<div className="flex items-center">
-  <MapPin className="h-3 w-3 mr-1" />
-  {(() => {
-    const place = session.place && !session.place.toLowerCase().includes('tbd') ? session.place : '';
-    const room = session.roomName && !session.roomName.toLowerCase().includes('tbd') ? session.roomName : '';
-    
-    if (place) return place;
-    // if (room) return room;
-    return 'Location pending';
-  })()}
-</div>
+                            try {
+                              // Try to parse the formattedTime as a date
+                              const date = new Date(session.formattedTime);
+                              if (!isNaN(date.getTime())) {
+                                return date.toLocaleDateString("en-GB", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                });
+                              }
+                            } catch (e) {
+                              // If parsing fails, try to extract date patterns
+                            }
+
+                            // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
+                            const datePattern1 = session.formattedTime.match(
+                              /(\d{1,2}\/\d{1,2}\/\d{4})/
+                            );
+                            if (datePattern1) {
+                              return datePattern1[1]; // Already in dd/mm/yyyy format
+                            }
+
+                            // If formattedTime is in format like "March 15, 2025 2:30 PM"
+                            const datePattern2 =
+                              session.formattedTime.match(
+                                /(\w+ \d{1,2}, \d{4})/
+                              );
+                            if (datePattern2) {
+                              const date = new Date(datePattern2[1]);
+                              return date.toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              });
+                            }
+
+                            // If formattedTime is in format like "2025-03-15 14:30"
+                            const datePattern3 = session.formattedTime.match(
+                              /(\d{4}-\d{1,2}-\d{1,2})/
+                            );
+                            if (datePattern3) {
+                              const date = new Date(datePattern3[1]);
+                              return date.toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              });
+                            }
+
+                            // If all else fails, try to take the first part before space/comma
+                            const firstPart =
+                              session.formattedTime.split(/[\s,]+/)[0];
+                            return firstPart || session.formattedTime;
+                          })()}
+                        </div>
+
+                        {/* FIXED: Location without TBD */}
+                        <div className="flex items-center">
+                          <MapPin className="h-3 w-3 mr-1" />
+                          {(() => {
+                            const place =
+                              session.place &&
+                              !session.place.toLowerCase().includes("tbd")
+                                ? session.place
+                                : "";
+                            const room =
+                              session.roomName &&
+                              !session.roomName.toLowerCase().includes("tbd")
+                                ? session.roomName
+                                : "";
+
+                            if (place) return place;
+                            // if (room) return room;
+                            return "Location pending";
+                          })()}
+                        </div>
                         {session.inviteStatus === "Pending" && (
                           <div className="flex items-center gap-2 mt-3">
                             <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -944,127 +964,141 @@ export default function FacultyDashboardPage() {
                     className={getSessionCardClass(event.status)}
                   >
                     <div className="flex-1 min-w-0">
-  <div className="flex items-center gap-3 mb-2">
-    <h4
-      className={`font-semibold truncate ${themeClasses.text.primary}`}
-    >
-      {event.title || "Untitled Event"}
-    </h4>
-    <Badge
-      variant={getBadgeVariant(event.status)}
-      className="text-xs"
-    >
-      {event.status || "Unknown"}
-    </Badge>
-  </div>
-  {/* FIXED: Date in dd/mm/yyyy format instead of time */}
-  <div className="flex items-center">
-    <Calendar className="h-3 w-3 mr-1" />
-    {(() => {
-      if (!event.formattedTime) return "Date not available";
-      
-      try {
-        // Try to parse the formattedTime as a date
-        const date = new Date(event.formattedTime);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit', 
-            year: 'numeric'
-          });
-        }
-      } catch (e) {
-        // If parsing fails, try to extract date patterns
-      }
-      
-      // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
-      const datePattern1 = event.formattedTime.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-      if (datePattern1) {
-        return datePattern1[1]; // Already in dd/mm/yyyy format
-      }
-      
-      // If formattedTime is in format like "March 15, 2025 2:30 PM"
-      const datePattern2 = event.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
-      if (datePattern2) {
-        const date = new Date(datePattern2[1]);
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric'
-        });
-      }
-      
-      // If formattedTime is in format like "2025-03-15 14:30"
-      const datePattern3 = event.formattedTime.match(/(\d{4}-\d{1,2}-\d{1,2})/);
-      if (datePattern3) {
-        const date = new Date(datePattern3[1]);
-        return date.toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric'
-        });
-      }
-      
-      // If all else fails, try to take the first part before space/comma
-      const firstPart = event.formattedTime.split(/[\s,]+/)[0];
-      return firstPart || event.formattedTime;
-    })()}
-  </div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4
+                          className={`font-semibold truncate ${themeClasses.text.primary}`}
+                        >
+                          {event.title || "Untitled Event"}
+                        </h4>
+                        <Badge
+                          variant={getBadgeVariant(event.status)}
+                          className="text-xs"
+                        >
+                          {event.status || "Unknown"}
+                        </Badge>
+                      </div>
+                      {/* FIXED: Date in dd/mm/yyyy format instead of time */}
+                      <div className="flex items-center">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {(() => {
+                          if (!event.formattedTime) return "Date not available";
 
-  {/* FIXED: Location without TBD */}
-  <div className="flex items-center">
-    <MapPin className="h-3 w-3 mr-1" />
-    {(() => {
-      const place = event.place && !event.place.toLowerCase().includes('tbd') ? event.place : '';
-      const room = event.roomName && !event.roomName.toLowerCase().includes('tbd') ? event.roomName : '';
-      
-      if (place) return place;
-      // if (room) return room;
-      return 'Location pending';
-    })()}
-  </div>
+                          try {
+                            // Try to parse the formattedTime as a date
+                            const date = new Date(event.formattedTime);
+                            if (!isNaN(date.getTime())) {
+                              return date.toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              });
+                            }
+                          } catch (e) {
+                            // If parsing fails, try to extract date patterns
+                          }
 
-  {/* MOVED: Buttons below location */}
-  {event.status === "PENDING" && (
-    <div className="flex gap-2 mt-3">
-      <Button
-        size="sm"
-        disabled={respondSubmitting}
-        onClick={(e) => {
-          e.stopPropagation();
-          acceptEventInvite(event.id);
-        }}
-        className={themeClasses.button.success}
-      >
-        Accept
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={respondSubmitting}
-        onClick={(e) => {
-          e.stopPropagation();
-          openDecline(event.id, "event");
-        }}
-        className={themeClasses.button.secondary}
-      >
-        Decline
-      </Button>
-    </div>
-  )}
+                          // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
+                          const datePattern1 = event.formattedTime.match(
+                            /(\d{1,2}\/\d{1,2}\/\d{4})/
+                          );
+                          if (datePattern1) {
+                            return datePattern1[1]; // Already in dd/mm/yyyy format
+                          }
 
-  {/* Response required message below buttons */}
-  {event.status === "PENDING" && (
-    <div className="flex items-center gap-2 mt-2">
-      <AlertTriangle className="h-4 w-4 text-amber-500" />
-      <span
-        className={`text-sm font-medium ${themeClasses.text.warning}`}
-      >
-        Response required
-      </span>
-    </div>
-  )}
-</div>
+                          // If formattedTime is in format like "March 15, 2025 2:30 PM"
+                          const datePattern2 =
+                            event.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
+                          if (datePattern2) {
+                            const date = new Date(datePattern2[1]);
+                            return date.toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            });
+                          }
+
+                          // If formattedTime is in format like "2025-03-15 14:30"
+                          const datePattern3 = event.formattedTime.match(
+                            /(\d{4}-\d{1,2}-\d{1,2})/
+                          );
+                          if (datePattern3) {
+                            const date = new Date(datePattern3[1]);
+                            return date.toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            });
+                          }
+
+                          // If all else fails, try to take the first part before space/comma
+                          const firstPart =
+                            event.formattedTime.split(/[\s,]+/)[0];
+                          return firstPart || event.formattedTime;
+                        })()}
+                      </div>
+
+                      {/* FIXED: Location without TBD */}
+                      <div className="flex items-center">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {(() => {
+                          const place =
+                            event.place &&
+                            !event.place.toLowerCase().includes("tbd")
+                              ? event.place
+                              : "";
+                          const room =
+                            event.roomName &&
+                            !event.roomName.toLowerCase().includes("tbd")
+                              ? event.roomName
+                              : "";
+
+                          if (place) return place;
+                          // if (room) return room;
+                          return "Location pending";
+                        })()}
+                      </div>
+
+                      {/* MOVED: Buttons below location */}
+                      {event.status === "PENDING" && (
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            size="sm"
+                            disabled={respondSubmitting}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              acceptEventInvite(event.id);
+                            }}
+                            className={themeClasses.button.success}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={respondSubmitting}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDecline(event.id, "event");
+                            }}
+                            className={themeClasses.button.secondary}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Response required message below buttons */}
+                      {event.status === "PENDING" && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          <span
+                            className={`text-sm font-medium ${themeClasses.text.warning}`}
+                          >
+                            Response required
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1160,7 +1194,7 @@ export default function FacultyDashboardPage() {
           },
           {
             label: "Events",
-            value:  1,
+            value: 1,
             color: "bg-purple-500",
           },
           // {
@@ -1174,13 +1208,13 @@ export default function FacultyDashboardPage() {
         <div className="space-y-6">
           {/* FIXED: Welcome Header with light theme */}
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-  <div>
-   <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-2">
-  Welcome to Pedicriticon 2025
-</h1>
-<p className="text-lg text-slate-700 dark:text-slate-300">
-  Faculty Dashboard, {userName}
-</p>
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100 mb-2">
+                Welcome to Pedicriticon 2025
+              </h1>
+              <p className="text-lg text-slate-700 dark:text-slate-300">
+                Faculty Dashboard, {userName}
+              </p>
               {/* {profileInstitution && (
                 <p
                   className={`text-sm font-medium ${themeClasses.text.accent}`}
@@ -1210,7 +1244,7 @@ export default function FacultyDashboardPage() {
           )}
 
           {/* FIXED: Stats Grid with light theme */}
-         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"> 
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {/* Sessions Card */}
             <Card
               className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
@@ -1306,42 +1340,42 @@ export default function FacultyDashboardPage() {
 
             {/* Accommodation & Travel Card */}
             {/* Accommodation & Travel Card - MODIFIED: Hardcoded values */}
-<Card
-  className={`${themeClasses.background.card}`} // REMOVED: cursor-pointer hover:shadow-md transition-shadow and onClick
->
-  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-    <CardTitle
-      className={`text-sm font-medium ${themeClasses.text.primary}`}
-    >
-      Accommodation & Travel Status
-    </CardTitle>
-    <Hotel className={`h-4 w-4 ${themeClasses.text.muted}`} />
-  </CardHeader>
-  <CardContent>
-    <div
-      className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
-    >
-      <Bed className="h-3 w-3 mr-1 text-purple-600" />
-      Accommodation:{" "}
-      <span
-        className={`ml-1 font-medium ${themeClasses.text.success}`}
-      >
-        Provided on twin-sharing basis
-      </span>
-    </div>
-    <div
-      className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
-    >
-      <Plane className="h-3 w-3 mr-1 text-blue-600" />
-      Travel Details:{" "}
-      <span
-        className={`ml-1 font-medium ${themeClasses.text.warning}`}
-      >
-        Self Arranged
-      </span>
-    </div>
-  </CardContent>
-</Card>
+            <Card
+              className={`${themeClasses.background.card}`} // REMOVED: cursor-pointer hover:shadow-md transition-shadow and onClick
+            >
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle
+                  className={`text-sm font-medium ${themeClasses.text.primary}`}
+                >
+                  Accommodation & Travel Status
+                </CardTitle>
+                <Hotel className={`h-4 w-4 ${themeClasses.text.muted}`} />
+              </CardHeader>
+              <CardContent>
+                <div
+                  className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
+                >
+                  <Bed className="h-3 w-3 mr-1 text-purple-600" />
+                  Accommodation:{" "}
+                  <span
+                    className={`ml-1 font-medium ${themeClasses.text.success}`}
+                  >
+                    Provided on twin-sharing basis
+                  </span>
+                </div>
+                <div
+                  className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
+                >
+                  <Plane className="h-3 w-3 mr-1 text-blue-600" />
+                  Travel Details:{" "}
+                  <span
+                    className={`ml-1 font-medium ${themeClasses.text.warning}`}
+                  >
+                    Self Arranged
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
             {/* Documents Card */}
             {/* <Card
               className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
