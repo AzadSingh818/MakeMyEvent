@@ -809,19 +809,37 @@ export default function FacultyDashboardPage() {
                             {session.inviteStatus || "Unknown"}
                           </Badge>
                         </div>
-                        <div
-                          className={`grid grid-cols-1 md:grid-cols-2 gap-2 text-sm ${themeClasses.text.secondary}`}
-                        >
-                          <div className="flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {session.formattedTime || "Time TBD"}
-                          </div>
-                          <div className="flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {session.place || "Location TBD"} -{" "}
-                            {session.roomName || "Room TBD"}
-                          </div>
-                        </div>
+                        {/* FIXED: Date in dd/mm/yyyy format instead of time */}
+<div className="flex items-center">
+  <Calendar className="h-3 w-3 mr-1" />
+  {session.startTime 
+    ? new Date(session.startTime).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      })
+    : session.sessionDate
+    ? new Date(session.sessionDate).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      })
+    : "Date pending"
+  }
+</div>
+
+{/* FIXED: Location without TBD */}
+<div className="flex items-center">
+  <MapPin className="h-3 w-3 mr-1" />
+  {(() => {
+    const place = session.place && !session.place.toLowerCase().includes('tbd') ? session.place : '';
+    const room = session.roomName && !session.roomName.toLowerCase().includes('tbd') ? session.roomName : '';
+    
+    if (place) return place;
+    // if (room) return room;
+    return 'Location pending';
+  })()}
+</div>
                         {session.inviteStatus === "Pending" && (
                           <div className="flex items-center gap-2 mt-3">
                             <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -913,7 +931,7 @@ export default function FacultyDashboardPage() {
                             {event.startDate
                               ? format(
                                   new Date(event.startDate),
-                                  "MMM dd, yyyy"
+                                  "dd MM, yyyy"
                                 )
                               : "Date TBD"}
                           </div>
