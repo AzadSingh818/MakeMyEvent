@@ -62,176 +62,84 @@ import { useMyRegistrations } from "@/hooks/use-registrations";
 import { useAuth, useNotifications } from "@/hooks/use-auth";
 import { useFacultyEvents } from "@/hooks/use-faculty-events";
 
-// Theme Type
-type Theme = "light" | "dark";
+const themeClasses = {
+  // Main container - light gray background
+  container: "min-h-screen bg-gray-100",
 
-// FIXED: Complete theme classes with proper light mode implementation
-const getThemeClasses = (theme: Theme) => {
-  if (theme === "light") {
-    return {
-      // Main container - light gray background
-      container: "min-h-screen bg-gray-100",
+  // Text colors - dark text on light backgrounds
+  text: {
+    primary: "text-gray-900", // Very dark for headings
+    secondary: "text-gray-700", // Medium dark for body text
+    muted: "text-gray-500", // Light gray for muted text
+    accent: "text-blue-600", // Blue for links/accents
+    success: "text-green-700", // Dark green for success
+    warning: "text-yellow-700", // Dark yellow for warnings
+    error: "text-red-700", // Dark red for errors
+  },
 
-      // Text colors - dark text on light backgrounds
-      text: {
-        primary: "text-gray-900", // Very dark for headings
-        secondary: "text-gray-700", // Medium dark for body text
-        muted: "text-gray-500", // Light gray for muted text
-        accent: "text-blue-600", // Blue for links/accents
-        success: "text-green-700", // Dark green for success
-        warning: "text-yellow-700", // Dark yellow for warnings
-        error: "text-red-700", // Dark red for errors
-      },
+  // Background colors - light backgrounds
+  background: {
+    primary: "bg-white", // White for main content
+    secondary: "bg-gray-50", // Very light gray for secondary areas
+    tertiary: "bg-gray-100", // Light gray for disabled/inactive
+    card: "bg-white border-gray-200 shadow-sm", // White cards with light borders
+    modal: "bg-white border-gray-200", // White modals
+    hover: "hover:bg-gray-50", // Light hover state
+  },
 
-      // Background colors - light backgrounds
-      background: {
-        primary: "bg-white", // White for main content
-        secondary: "bg-gray-50", // Very light gray for secondary areas
-        tertiary: "bg-gray-100", // Light gray for disabled/inactive
-        card: "bg-white border-gray-200 shadow-sm", // White cards with light borders
-        modal: "bg-white border-gray-200", // White modals
-        hover: "hover:bg-gray-50", // Light hover state
-      },
+  // Border colors
+  border: "border-gray-200",
 
-      // Border colors
-      border: "border-gray-200",
+  // Button styles
+  button: {
+    primary: "bg-blue-600 hover:bg-blue-700 text-white shadow-sm",
+    secondary: "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm",
+    success: "bg-green-600 hover:bg-green-700 text-white shadow-sm",
+    danger: "bg-red-600 hover:bg-red-700 text-white shadow-sm",
+    warning: "bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm",
+  },
 
-      // Button styles
-      button: {
-        primary: "bg-blue-600 hover:bg-blue-700 text-white shadow-sm",
-        secondary:
-          "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm",
-        success: "bg-green-600 hover:bg-green-700 text-white shadow-sm",
-        danger: "bg-red-600 hover:bg-red-700 text-white shadow-sm",
-        warning: "bg-yellow-600 hover:bg-yellow-700 text-white shadow-sm",
-      },
+  // Input styles
+  input: "bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500",
 
-      // Input styles
-      input:
-        "bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-blue-500",
+  // Alert styles
+  alert: {
+    info: "bg-blue-50 border-blue-200 text-blue-900",
+    success: "bg-green-50 border-green-200 text-green-900",
+    warning: "bg-yellow-50 border-yellow-200 text-yellow-900",
+    error: "bg-red-50 border-red-200 text-red-900",
+  },
 
-      // Alert styles
-      alert: {
-        info: "bg-blue-50 border-blue-200 text-blue-900",
-        success: "bg-green-50 border-green-200 text-green-900",
-        warning: "bg-yellow-50 border-yellow-200 text-yellow-900",
-        error: "bg-red-50 border-red-200 text-red-900",
-      },
+  // Badge styles
+  badge: {
+    primary: "bg-blue-100 text-blue-900 border-blue-200",
+    success: "bg-green-100 text-green-900 border-green-200",
+    warning: "bg-yellow-100 text-yellow-900 border-yellow-200",
+    danger: "bg-red-100 text-red-900 border-red-200",
+    outline: "bg-white text-gray-700 border-gray-300",
+    secondary: "bg-gray-100 text-gray-800 border-gray-200",
+  },
 
-      // Badge styles
-      badge: {
-        primary: "bg-blue-100 text-blue-900 border-blue-200",
-        success: "bg-green-100 text-green-900 border-green-200",
-        warning: "bg-yellow-100 text-yellow-900 border-yellow-200",
-        danger: "bg-red-100 text-red-900 border-red-200",
-        outline: "bg-white text-gray-700 border-gray-300",
-        secondary: "bg-gray-100 text-gray-800 border-gray-200",
-      },
+  // Stats card styles
+  stats: {
+    sessions: "bg-indigo-50 border-indigo-200 text-indigo-900",
+    events: "bg-purple-50 border-purple-200 text-purple-900",
+    accepted: "bg-emerald-50 border-emerald-200 text-emerald-900",
+    pending: "bg-amber-50 border-amber-200 text-amber-900",
+  },
 
-      // Stats card styles
-      stats: {
-        sessions: "bg-indigo-50 border-indigo-200 text-indigo-900",
-        events: "bg-purple-50 border-purple-200 text-purple-900",
-        accepted: "bg-emerald-50 border-emerald-200 text-emerald-900",
-        pending: "bg-amber-50 border-amber-200 text-amber-900",
-      },
-
-      // Session card styles by status
-      sessionCard: {
-        pending:
-          "bg-amber-50 border-amber-200 hover:bg-amber-100 text-amber-900",
-        accepted:
-          "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-900",
-        declined: "bg-red-50 border-red-200 hover:bg-red-100 text-red-900",
-        default: "bg-white border-gray-200 hover:bg-gray-50 text-gray-900",
-      },
-    };
-  } else {
-    return {
-      // Dark theme (unchanged from your original)
-      container: "min-h-screen bg-gray-950",
-      text: {
-        primary: "text-white",
-        secondary: "text-gray-300",
-        muted: "text-gray-400",
-        accent: "text-blue-400",
-        success: "text-green-400",
-        warning: "text-yellow-400",
-        error: "text-red-400",
-      },
-      background: {
-        primary: "bg-gray-900",
-        secondary: "bg-gray-800",
-        tertiary: "bg-gray-700",
-        card: "bg-gray-900 border-gray-700",
-        modal: "bg-gray-900 border-gray-700",
-        hover: "hover:bg-gray-800",
-      },
-      border: "border-gray-700",
-      button: {
-        primary: "bg-blue-600 hover:bg-blue-700 text-white",
-        secondary:
-          "border-gray-600 text-gray-300 hover:bg-gray-800 bg-gray-900",
-        success: "bg-green-600 hover:bg-green-700 text-white",
-        danger: "bg-red-600 hover:bg-red-700 text-white",
-        warning: "bg-yellow-600 hover:bg-yellow-700 text-white",
-      },
-      input: "bg-gray-800 border-gray-600 text-white focus:border-blue-500",
-      alert: {
-        info: "bg-blue-900/20 border-blue-700 text-blue-300",
-        success: "bg-green-900/20 border-green-700 text-green-300",
-        warning: "bg-yellow-900/20 border-yellow-700 text-yellow-300",
-        error: "bg-red-900/20 border-red-800 text-red-400",
-      },
-      badge: {
-        primary: "bg-blue-900/30 text-blue-300 border-blue-700",
-        success: "bg-green-900/30 text-green-300 border-green-700",
-        warning: "bg-yellow-900/30 text-yellow-300 border-yellow-700",
-        danger: "bg-red-900/30 text-red-300 border-red-700",
-        outline: "bg-gray-800 text-gray-300 border-gray-600",
-        secondary: "bg-gray-800 text-gray-200 border-gray-600",
-      },
-      stats: {
-        sessions: "bg-indigo-900/20 border-indigo-700/30 text-indigo-300",
-        events: "bg-purple-900/20 border-purple-700/30 text-purple-300",
-        accepted: "bg-emerald-900/20 border-emerald-700/30 text-emerald-300",
-        pending: "bg-amber-900/20 border-amber-700/30 text-amber-300",
-      },
-      sessionCard: {
-        pending:
-          "bg-amber-900/20 border-amber-400/30 hover:bg-amber-900/30 text-white",
-        accepted:
-          "bg-emerald-900/20 border-emerald-400/30 hover:bg-emerald-900/30 text-white",
-        declined:
-          "bg-red-900/20 border-red-400/30 hover:bg-red-900/30 text-white",
-        default:
-          "bg-slate-900/30 border-slate-700/60 hover:bg-slate-900/40 text-white",
-      },
-    };
-  }
+  // Session card styles by status
+  sessionCard: {
+    pending: "bg-amber-50 border-amber-200 hover:bg-amber-100 text-amber-900",
+    accepted: "bg-emerald-50 border-emerald-200 hover:bg-emerald-100 text-emerald-900",
+    declined: "bg-red-50 border-red-200 hover:bg-red-100 text-red-900",
+    default: "bg-white border-gray-200 hover:bg-gray-50 text-gray-900",
+  },
 };
 
 export default function FacultyDashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
-
-  // FIXED: Initialize with light theme by default
-  const [theme, setTheme] = useState<Theme>("light");
-
-  // Load theme from localStorage on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("facultyTheme") as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, []);
-
-  // Save theme to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem("facultyTheme", theme);
-    // Apply theme class to document root for global theming
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
 
   // Rest of your state variables (unchanged)
   const [presentationFiles, setPresentationFiles] = useState<File[]>([]);
@@ -263,14 +171,6 @@ export default function FacultyDashboardPage() {
     declined: 0,
     upcoming: 0,
   });
-
-  // Get theme classes
-  const themeClasses = getThemeClasses(theme);
-
-  // Theme toggle
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-  };
 
   // Your existing handlers and data fetching logic (unchanged)
   const handleTravelModalOpen = () => setIsTravelModalOpen(true);
@@ -376,17 +276,11 @@ export default function FacultyDashboardPage() {
   const handleViewProfile = () => router.push("/faculty/profile");
   const handlePresentations = () => router.push("/faculty/presentations");
   const handleSchedule = () => {
-    window.open(
-      "https://pedicriticon2025.com/scientific-session/",
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
+  window.open('https://pedicriticon2025.com/scientific-session/', '_blank', 'noopener,noreferrer');
+};
   const handleCertificates = () => router.push("/faculty/certificates");
-  const handleSessionClick = () => router.push(`/faculty/sessions`);
-
-  // Your existing file upload handlers go here (unchanged)
-  // ... handlePresentationFileSelect, handlePresentationUpload, etc.
+  const handleSessionClick = () =>
+    router.push(`/faculty/sessions`);
 
   // Your existing stats calculations (unchanged)
   const mySessionsCount = mySessions?.data?.sessions?.length || 0;
@@ -675,18 +569,6 @@ export default function FacultyDashboardPage() {
             My Sessions & Event Invitations
           </CardTitle>
           <div className="flex space-x-2">
-            {/* <Button
-              variant="outline"
-              size="sm"
-              // onClick={toggleTheme}
-              className={themeClasses.button.secondary}
-            >
-              {theme === "dark" ? (
-                <Sun className="h-3 w-3" />
-              ) : (
-                <Moon className="h-3 w-3" />
-              )}
-            </Button> */}
             <Button
               variant="outline"
               size="sm"
@@ -772,7 +654,7 @@ export default function FacultyDashboardPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* FIXED: Sessions Section with light theme */}
+            {/* FIXED: Sessions Section with buttons below location */}
             {facultySessions?.length > 0 && (
               <div className="space-y-4">
                 <div
@@ -793,155 +675,129 @@ export default function FacultyDashboardPage() {
                   <div
                     key={session.id}
                     className={getSessionCardClass(session.inviteStatus)}
-                    // onClick={() =>
-                    //   router.push(`/faculty/sessions`)
-                    // }
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4
-                            className={`font-semibold truncate ${themeClasses.text.primary}`}
-                          >
-                            {session.title || "Untitled Session"}
-                          </h4>
-                          <Badge
-                            variant={getBadgeVariant(session.inviteStatus)}
-                            className="text-xs"
-                          >
-                            {session.inviteStatus || "Unknown"}
-                          </Badge>
-                        </div>
-                        {/* FIXED: Date in dd/mm/yyyy format instead of time */}
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 mr-1" />
-                          {(() => {
-                            if (!session.formattedTime)
-                              return "Date not available";
-
-                            try {
-                              // Try to parse the formattedTime as a date
-                              const date = new Date(session.formattedTime);
-                              if (!isNaN(date.getTime())) {
-                                return date.toLocaleDateString("en-GB", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  year: "numeric",
-                                });
-                              }
-                            } catch (e) {
-                              // If parsing fails, try to extract date patterns
-                            }
-
-                            // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
-                            const datePattern1 = session.formattedTime.match(
-                              /(\d{1,2}\/\d{1,2}\/\d{4})/
-                            );
-                            if (datePattern1) {
-                              return datePattern1[1]; // Already in dd/mm/yyyy format
-                            }
-
-                            // If formattedTime is in format like "March 15, 2025 2:30 PM"
-                            const datePattern2 =
-                              session.formattedTime.match(
-                                /(\w+ \d{1,2}, \d{4})/
-                              );
-                            if (datePattern2) {
-                              const date = new Date(datePattern2[1]);
-                              return date.toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                              });
-                            }
-
-                            // If formattedTime is in format like "2025-03-15 14:30"
-                            const datePattern3 = session.formattedTime.match(
-                              /(\d{4}-\d{1,2}-\d{1,2})/
-                            );
-                            if (datePattern3) {
-                              const date = new Date(datePattern3[1]);
-                              return date.toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                              });
-                            }
-
-                            // If all else fails, try to take the first part before space/comma
-                            const firstPart =
-                              session.formattedTime.split(/[\s,]+/)[0];
-                            return firstPart || session.formattedTime;
-                          })()}
-                        </div>
-
-                        {/* FIXED: Location without TBD */}
-                        <div className="flex items-center">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {(() => {
-                            const place =
-                              session.place &&
-                              !session.place.toLowerCase().includes("tbd")
-                                ? session.place
-                                : "";
-                            const room =
-                              session.roomName &&
-                              !session.roomName.toLowerCase().includes("tbd")
-                                ? session.roomName
-                                : "";
-
-                            if (place) return place;
-                            // if (room) return room;
-                            return "Location pending";
-                          })()}
-                        </div>
-                        {session.inviteStatus === "Pending" && (
-                          <div className="flex items-center gap-2 mt-3">
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
-                            <span
-                              className={`text-sm font-medium ${themeClasses.text.warning}`}
-                            >
-                              Response required
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {session.inviteStatus === "Pending" && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              disabled={respondSubmitting}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                acceptSessionInvite(session.id);
-                              }}
-                              className={themeClasses.button.success}
-                            >
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={respondSubmitting}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDecline(session.id, "session");
-                              }}
-                              className={themeClasses.button.secondary}
-                            >
-                              Decline
-                            </Button>
-                          </div>
-                        )}
-                      </div>
+                    {/* Title and Badge */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <h4
+                        className={`font-semibold truncate flex-1 ${themeClasses.text.primary}`}
+                      >
+                        {session.title || "Untitled Session"}
+                      </h4>
+                      <Badge
+                        variant={getBadgeVariant(session.inviteStatus)}
+                        className="text-xs"
+                      >
+                        {session.inviteStatus || "Unknown"}
+                      </Badge>
                     </div>
+
+                    {/* Date */}
+                    <div className="flex items-center mb-2">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {(() => {
+                        if (!session.formattedTime) return "Date not available";
+                        
+                        try {
+                          const date = new Date(session.formattedTime);
+                          if (!isNaN(date.getTime())) {
+                            return date.toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit', 
+                              year: 'numeric'
+                            });
+                          }
+                        } catch (e) {
+                          // If parsing fails, try to extract date patterns
+                        }
+                        
+                        const datePattern1 = session.formattedTime.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                        if (datePattern1) {
+                          return datePattern1[1];
+                        }
+                        
+                        const datePattern2 = session.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
+                        if (datePattern2) {
+                          const date = new Date(datePattern2[1]);
+                          return date.toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric'
+                          });
+                        }
+                        
+                        const datePattern3 = session.formattedTime.match(/(\d{4}-\d{1,2}-\d{1,2})/);
+                        if (datePattern3) {
+                          const date = new Date(datePattern3[1]);
+                          return date.toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric'
+                          });
+                        }
+                        
+                        const firstPart = session.formattedTime.split(/[\s,]+/)[0];
+                        return firstPart || session.formattedTime;
+                      })()}
+                    </div>
+
+                    {/* Location */}
+                    <div className="flex items-center mb-3">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {(() => {
+                        const place = session.place && !session.place.toLowerCase().includes('tbd') ? session.place : '';
+                        const room = session.roomName && !session.roomName.toLowerCase().includes('tbd') ? session.roomName : '';
+                        
+                        if (place) return place;
+                        return 'Location pending';
+                      })()}
+                    </div>
+
+                    {/* FIXED: Buttons - Both Accept AND Decline below location */}
+                    {session.inviteStatus === "Pending" && (
+                      <div className="flex gap-2 mb-3">
+                        <Button
+                          size="sm"
+                          disabled={respondSubmitting}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            acceptSessionInvite(session.id);
+                          }}
+                          className={`${themeClasses.button.success} flex-1`}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={respondSubmitting}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDecline(session.id, "session");
+                          }}
+                          className={`${themeClasses.button.secondary} flex-1`}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Response Required Message */}
+                    {session.inviteStatus === "Pending" && (
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <span
+                          className={`text-sm font-medium ${themeClasses.text.warning}`}
+                        >
+                          Response required
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* FIXED: Events Section with light theme */}
+            {/* FIXED: Events Section with buttons below location */}
             {facultyEvents?.length > 0 && (
               <div className="space-y-4">
                 <div
@@ -963,142 +819,122 @@ export default function FacultyDashboardPage() {
                     key={event.id}
                     className={getSessionCardClass(event.status)}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4
-                          className={`font-semibold truncate ${themeClasses.text.primary}`}
-                        >
-                          {event.title || "Untitled Event"}
-                        </h4>
-                        <Badge
-                          variant={getBadgeVariant(event.status)}
-                          className="text-xs"
-                        >
-                          {event.status || "Unknown"}
-                        </Badge>
-                      </div>
-                      {/* FIXED: Date in dd/mm/yyyy format instead of time */}
-                      <div className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {(() => {
-                          if (!event.formattedTime) return "Date not available";
-
-                          try {
-                            // Try to parse the formattedTime as a date
-                            const date = new Date(event.formattedTime);
-                            if (!isNaN(date.getTime())) {
-                              return date.toLocaleDateString("en-GB", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                              });
-                            }
-                          } catch (e) {
-                            // If parsing fails, try to extract date patterns
-                          }
-
-                          // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
-                          const datePattern1 = event.formattedTime.match(
-                            /(\d{1,2}\/\d{1,2}\/\d{4})/
-                          );
-                          if (datePattern1) {
-                            return datePattern1[1]; // Already in dd/mm/yyyy format
-                          }
-
-                          // If formattedTime is in format like "March 15, 2025 2:30 PM"
-                          const datePattern2 =
-                            event.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
-                          if (datePattern2) {
-                            const date = new Date(datePattern2[1]);
-                            return date.toLocaleDateString("en-GB", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            });
-                          }
-
-                          // If formattedTime is in format like "2025-03-15 14:30"
-                          const datePattern3 = event.formattedTime.match(
-                            /(\d{4}-\d{1,2}-\d{1,2})/
-                          );
-                          if (datePattern3) {
-                            const date = new Date(datePattern3[1]);
-                            return date.toLocaleDateString("en-GB", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                            });
-                          }
-
-                          // If all else fails, try to take the first part before space/comma
-                          const firstPart =
-                            event.formattedTime.split(/[\s,]+/)[0];
-                          return firstPart || event.formattedTime;
-                        })()}
-                      </div>
-
-                      {/* FIXED: Location without TBD */}
-                      <div className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {(() => {
-                          const place =
-                            event.place &&
-                            !event.place.toLowerCase().includes("tbd")
-                              ? event.place
-                              : "";
-                          const room =
-                            event.roomName &&
-                            !event.roomName.toLowerCase().includes("tbd")
-                              ? event.roomName
-                              : "";
-
-                          if (place) return place;
-                          // if (room) return room;
-                          return "Location pending";
-                        })()}
-                      </div>
-
-                      {/* MOVED: Buttons below location */}
-                      {event.status === "PENDING" && (
-                        <div className="flex gap-2 mt-3">
-                          <Button
-                            size="sm"
-                            disabled={respondSubmitting}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              acceptEventInvite(event.id);
-                            }}
-                            className={themeClasses.button.success}
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={respondSubmitting}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDecline(event.id, "event");
-                            }}
-                            className={themeClasses.button.secondary}
-                          >
-                            Decline
-                          </Button>
-                        </div>
-                      )}
-
-                      {/* Response required message below buttons */}
-                      {event.status === "PENDING" && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-500" />
-                          <span
-                            className={`text-sm font-medium ${themeClasses.text.warning}`}
-                          >
-                            Response required
-                          </span>
-                        </div>
-                      )}
+                    {/* Title and Badge */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <h4
+                        className={`font-semibold truncate flex-1 ${themeClasses.text.primary}`}
+                      >
+                        {event.title || "Untitled Event"}
+                      </h4>
+                      <Badge
+                        variant={getBadgeVariant(event.status)}
+                        className="text-xs"
+                      >
+                        {event.status || "Unknown"}
+                      </Badge>
                     </div>
+
+                    {/* Date */}
+                    <div className="flex items-center mb-2">
+                      <Calendar className="h-3 w-3 mr-1" />
+                      {(() => {
+                        if (!event.formattedTime) return "Date not available";
+                        
+                        try {
+                          const date = new Date(event.formattedTime);
+                          if (!isNaN(date.getTime())) {
+                            return date.toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: '2-digit', 
+                              year: 'numeric'
+                            });
+                          }
+                        } catch (e) {
+                          // If parsing fails, try to extract date patterns
+                        }
+                        
+                        const datePattern1 = event.formattedTime.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                        if (datePattern1) {
+                          return datePattern1[1];
+                        }
+                        
+                        const datePattern2 = event.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
+                        if (datePattern2) {
+                          const date = new Date(datePattern2[1]);
+                          return date.toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric'
+                          });
+                        }
+                        
+                        const datePattern3 = event.formattedTime.match(/(\d{4}-\d{1,2}-\d{1,2})/);
+                        if (datePattern3) {
+                          const date = new Date(datePattern3[1]);
+                          return date.toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: '2-digit', 
+                            year: 'numeric'
+                          });
+                        }
+                        
+                        const firstPart = event.formattedTime.split(/[\s,]+/)[0];
+                        return firstPart || event.formattedTime;
+                      })()}
+                    </div>
+
+                    {/* Location */}
+                    <div className="flex items-center mb-3">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {(() => {
+                        const place = event.place && !event.place.toLowerCase().includes('tbd') ? event.place : '';
+                        const room = event.roomName && !event.roomName.toLowerCase().includes('tbd') ? event.roomName : '';
+                        
+                        if (place) return place;
+                        return 'Location pending';
+                      })()}
+                    </div>
+
+                    {/* Buttons - NOW BELOW LOCATION */}
+                    {event.status === "PENDING" && (
+                      <div className="flex gap-2 mb-3">
+                        <Button
+                          size="sm"
+                          disabled={respondSubmitting}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            acceptEventInvite(event.id);
+                          }}
+                          className={`${themeClasses.button.success} flex-1`}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={respondSubmitting}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDecline(event.id, "event");
+                          }}
+                          className={`${themeClasses.button.secondary} flex-1`}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Response Required Message */}
+                    {event.status === "PENDING" && (
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        <span
+                          className={`text-sm font-medium ${themeClasses.text.warning}`}
+                        >
+                          Response required
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1146,14 +982,6 @@ export default function FacultyDashboardPage() {
                     Session and event invitations will appear here when
                     organizers assign you
                   </p>
-                  {/* <Button
-                    variant="outline"
-                    onClick={() => router.push("/faculty/contact")}
-                    className={themeClasses.button.secondary}
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Contact Organizers
-                  </Button> */}
                 </div>
               )}
           </div>
@@ -1194,15 +1022,9 @@ export default function FacultyDashboardPage() {
           },
           {
             label: "Events",
-            value: 1,
+            value:  1,
             color: "bg-purple-500",
           },
-          // {
-          //   label: "Presentations",
-          //   value: totalPresentations,
-          //   color: "bg-green-500",
-          // },
-          // { label: "CV", value: hasCV ? "Yes" : "No", color: "bg-green-500" },
         ]}
       >
         <div className="space-y-6">
@@ -1215,13 +1037,6 @@ export default function FacultyDashboardPage() {
               <p className="text-lg text-slate-700 dark:text-slate-300">
                 Faculty Dashboard, {userName}
               </p>
-              {/* {profileInstitution && (
-                <p
-                  className={`text-sm font-medium ${themeClasses.text.accent}`}
-                >
-                  {profileInstitution}
-                </p>
-              )} */}
             </div>
           </div>
 
@@ -1244,11 +1059,10 @@ export default function FacultyDashboardPage() {
           )}
 
           {/* FIXED: Stats Grid with light theme */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"> 
             {/* Sessions Card */}
             <Card
               className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
-              // onClick={() => router.push("/faculty/sessions")}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle
@@ -1278,70 +1092,12 @@ export default function FacultyDashboardPage() {
                     </span>
                   </div>
                 </div>
-                {/* <div
-                  className={`flex items-center text-xs ${themeClasses.text.muted}`}
-                >
-                  <Activity
-                    className={`h-3 w-3 mr-1 ${themeClasses.text.accent}`}
-                  />
-                  {sessionsStats?.upcoming ?? 0} upcoming
-                </div> */}
               </CardContent>
             </Card>
 
-            {/* Events Card */}
-            {/* <Card
-              className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
-              // onClick={() => router.push("/faculty/events")}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={`text-sm font-medium ${themeClasses.text.primary}`}
-                >
-                  Event Invitations
-                </CardTitle>
-                <CalendarDays
-                  className={`h-4 w-4 ${themeClasses.text.muted}`}
-                />
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`text-2xl font-bold ${themeClasses.text.primary}`}
-                >
-                  {facultyEvents?.length ?? 0}
-                </div>
-                <div
-                  className={`flex items-center text-xs ${themeClasses.text.muted} mt-1`}
-                >
-                  <div className="flex items-center space-x-4">
-                    <span className={themeClasses.text.success}>
-                      Accepted:{" "}
-                      {facultyEvents?.filter(
-                        (e: any) => e.status === "ACCEPTED"
-                      )?.length ?? 0}
-                    </span>
-                    <span className={themeClasses.text.warning}>
-                      Pending:{" "}
-                      {facultyEvents?.filter((e: any) => e.status === "PENDING")
-                        ?.length ?? 0}
-                    </span>
-                  </div>
-                </div>
-                <div
-                  className={`flex items-center text-xs ${themeClasses.text.muted}`}
-                >
-                  <Clock4
-                    className={`h-3 w-3 mr-1 ${themeClasses.text.accent}`}
-                  />
-                  Multi-day events
-                </div>
-              </CardContent>
-            </Card> */}
-
             {/* Accommodation & Travel Card */}
-            {/* Accommodation & Travel Card - MODIFIED: Hardcoded values */}
             <Card
-              className={`${themeClasses.background.card}`} // REMOVED: cursor-pointer hover:shadow-md transition-shadow and onClick
+              className={`${themeClasses.background.card}`}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle
@@ -1376,45 +1132,6 @@ export default function FacultyDashboardPage() {
                 </div>
               </CardContent>
             </Card>
-            {/* Documents Card */}
-            {/* <Card
-              className={`cursor-pointer hover:shadow-md transition-shadow ${themeClasses.background.card}`}
-              // onClick={handlePresentations}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle
-                  className={`text-sm font-medium ${themeClasses.text.primary}`}
-                >
-                  My Documents
-                </CardTitle>
-                <FileText className={`h-4 w-4 ${themeClasses.text.muted}`} />
-              </CardHeader>
-              <CardContent>
-                <div
-                  className={`text-2xl font-bold ${themeClasses.text.primary}`}
-                >
-                  {totalDocuments}
-                </div>
-                <div
-                  className={`flex items-center text-xs ${themeClasses.text.muted}`}
-                >
-                  <Upload
-                    className={`h-3 w-3 mr-1 ${themeClasses.text.success}`}
-                  />
-                  {profileData?.presentations?.length > 0
-                    ? "Presentation uploaded"
-                    : "Presentation pending"}
-                </div>
-                <div
-                  className={`flex items-center text-xs ${themeClasses.text.muted}`}
-                >
-                  <Shield
-                    className={`h-3 w-3 mr-1 ${themeClasses.text.success}`}
-                  />
-                  {profileCV ? "CV uploaded" : "CV pending"}
-                </div>
-              </CardContent>
-            </Card> */}
           </div>
 
           {/* Main Content Grid */}
