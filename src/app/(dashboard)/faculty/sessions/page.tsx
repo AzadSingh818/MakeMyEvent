@@ -236,7 +236,7 @@ export default function FacultyAllSessionsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push("/faculty/dashboard")}
+                onClick={() => router.push("/faculty")}
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
@@ -419,23 +419,28 @@ export default function FacultyAllSessionsPage() {
   */}
   
   {/* NEW: Date in dd/mm/yyyy format */}
-  <div className="flex items-center">
-    <Calendar className="h-3 w-3 mr-1" />
-    {session.startTime 
-      ? new Date(session.startTime).toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric'
-        })
-      : session.sessionDate
-      ? new Date(session.sessionDate).toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit', 
-          year: 'numeric'
-        })
-      : "Date pending"
-    }
-  </div>
+  {/* FIXED: Date in dd/mm/yyyy format from formattedTime */}
+<div className="flex items-center">
+  <Calendar className="h-3 w-3 mr-1" />
+  {session.formattedTime 
+    ? (() => {
+        try {
+          const date = new Date(session.formattedTime);
+          if (!isNaN(date.getTime())) {
+            return date.toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit', 
+              year: 'numeric'
+            });
+          }
+        } catch (e) {
+          return session.formattedTime.split(' ')[0];
+        }
+        return session.formattedTime;
+      })()
+    : "Date not available"
+  }
+</div>
   
   <div className="flex items-center">
     <MapPin className="h-3 w-3 mr-1" />
