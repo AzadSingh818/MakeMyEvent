@@ -5,7 +5,7 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.verce
 // Hardcoded data for all 7 faculty members from PDF
 const FACULTY_DATA = {
   "anand07amar@gmail.com": {
-    facultyName: "Dr Anand",
+    facultyName: "Anand",
     email: "anand07amar@gmail.com",
     sessions: [
       {
@@ -16,7 +16,7 @@ const FACULTY_DATA = {
     ]
   },
   "muigoku42@gmail.com" : {
-    facultyName: "Dr Goku",
+    facultyName: "Goku",
     email: "muigoku42@gmail.com",
     sessions: [
       {
@@ -171,7 +171,7 @@ function renderFacultyHTML(facultyEmail: string) {
       <thead style="background:#efefef;">
         <tr>
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Title</th>
-          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Day</th>
+          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Date</th>
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Role</th>
         </tr>
       </thead>
@@ -262,7 +262,7 @@ function generateFacultyTextEmail(facultyEmail: string) {
   }
 
   const sessionsText = facultyData.sessions
-    .map((s, index) => `Day ${s.date}:
+    .map((s, index) => `Date ${s.date}:
 Session: ${s.title}
 Role: ${s.role}`)
     .join("\n\n");
