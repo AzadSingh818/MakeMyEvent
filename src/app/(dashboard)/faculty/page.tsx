@@ -943,127 +943,128 @@ export default function FacultyDashboardPage() {
                     key={event.id}
                     className={getSessionCardClass(event.status)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h4
-                            className={`font-semibold truncate ${themeClasses.text.primary}`}
-                          >
-                            {event.title || "Untitled Event"}
-                          </h4>
-                          <Badge
-                            variant={getBadgeVariant(event.status)}
-                            className="text-xs"
-                          >
-                            {event.status || "Unknown"}
-                          </Badge>
-                        </div>
-                        <div
-                          className={`grid grid-cols-1 md:grid-cols-2 gap-2 text-sm ${themeClasses.text.secondary} mb-2`}
-                        >
-                          <div className="flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {event.startDate
-                              ? format(
-                                  new Date(event.startDate),
-                                  "dd MM, yyyy"
-                                )
-                              : "Date TBD"}
-                          </div>
-                          <div className="flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {event.location || "Location TBD"} -{" "}
-                            {event.venue || "Venue TBD"}
-                          </div>
-                          <div className="flex items-center">
-                            <Clock4 className="h-3 w-3 mr-1" />
-                            {event.duration || "Duration TBD"}
-                          </div>
-                          <div className="flex items-center">
-                            <Users className="h-3 w-3 mr-1" />
-                            {event.sessionCount || 0} sessions
-                          </div>
-                        </div>
-                        {event.description && (
-                          <p
-                            className={`text-xs ${themeClasses.text.muted} line-clamp-2 mb-2`}
-                          >
-                            {event.description}
-                          </p>
-                        )}
-                        {event.status === "PENDING" && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
-                            <span
-                              className={`text-sm font-medium ${themeClasses.text.warning}`}
-                            >
-                              Response required
-                            </span>
-                          </div>
-                        )}
-                        {event.status === "DECLINED" &&
-                          event.rejectionReason === "SuggestedTopic" &&
-                          event.suggestedTopic && (
-                            <div
-                              className={`mt-2 p-2 rounded border ${
-                                theme === "light"
-                                  ? "bg-blue-50 border-blue-200"
-                                  : "bg-blue-900/20 border-blue-700/30"
-                              }`}
-                            >
-                              <div
-                                className={`text-sm ${
-                                  theme === "light"
-                                    ? "text-blue-900"
-                                    : "text-blue-200"
-                                }`}
-                              >
-                                <strong>Your suggestion:</strong>{" "}
-                                {event.suggestedTopic}
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        {event.status === "PENDING" && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              disabled={respondSubmitting}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                acceptEventInvite(event.id);
-                              }}
-                              className={themeClasses.button.success}
-                            >
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Accept
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={respondSubmitting}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openDecline(event.id, "event");
-                              }}
-                              className={themeClasses.button.secondary}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Decline
-                            </Button>
-                          </div>
-                        )}
-                        {event.status === "ACCEPTED" && (
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${themeClasses.badge.success}`}
-                          >
-                            Confirmed
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+                    <div className="flex-1 min-w-0">
+  <div className="flex items-center gap-3 mb-2">
+    <h4
+      className={`font-semibold truncate ${themeClasses.text.primary}`}
+    >
+      {event.title || "Untitled Event"}
+    </h4>
+    <Badge
+      variant={getBadgeVariant(event.status)}
+      className="text-xs"
+    >
+      {event.status || "Unknown"}
+    </Badge>
+  </div>
+  {/* FIXED: Date in dd/mm/yyyy format instead of time */}
+  <div className="flex items-center">
+    <Calendar className="h-3 w-3 mr-1" />
+    {(() => {
+      if (!event.formattedTime) return "Date not available";
+      
+      try {
+        // Try to parse the formattedTime as a date
+        const date = new Date(event.formattedTime);
+        if (!isNaN(date.getTime())) {
+          return date.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit', 
+            year: 'numeric'
+          });
+        }
+      } catch (e) {
+        // If parsing fails, try to extract date patterns
+      }
+      
+      // If formattedTime is in format like "15/03/2025 14:30" or "15/03/2025, 14:30"
+      const datePattern1 = event.formattedTime.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+      if (datePattern1) {
+        return datePattern1[1]; // Already in dd/mm/yyyy format
+      }
+      
+      // If formattedTime is in format like "March 15, 2025 2:30 PM"
+      const datePattern2 = event.formattedTime.match(/(\w+ \d{1,2}, \d{4})/);
+      if (datePattern2) {
+        const date = new Date(datePattern2[1]);
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit', 
+          year: 'numeric'
+        });
+      }
+      
+      // If formattedTime is in format like "2025-03-15 14:30"
+      const datePattern3 = event.formattedTime.match(/(\d{4}-\d{1,2}-\d{1,2})/);
+      if (datePattern3) {
+        const date = new Date(datePattern3[1]);
+        return date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit', 
+          year: 'numeric'
+        });
+      }
+      
+      // If all else fails, try to take the first part before space/comma
+      const firstPart = event.formattedTime.split(/[\s,]+/)[0];
+      return firstPart || event.formattedTime;
+    })()}
+  </div>
+
+  {/* FIXED: Location without TBD */}
+  <div className="flex items-center">
+    <MapPin className="h-3 w-3 mr-1" />
+    {(() => {
+      const place = event.place && !event.place.toLowerCase().includes('tbd') ? event.place : '';
+      const room = event.roomName && !event.roomName.toLowerCase().includes('tbd') ? event.roomName : '';
+      
+      if (place) return place;
+      // if (room) return room;
+      return 'Location pending';
+    })()}
+  </div>
+
+  {/* MOVED: Buttons below location */}
+  {event.status === "PENDING" && (
+    <div className="flex gap-2 mt-3">
+      <Button
+        size="sm"
+        disabled={respondSubmitting}
+        onClick={(e) => {
+          e.stopPropagation();
+          acceptEventInvite(event.id);
+        }}
+        className={themeClasses.button.success}
+      >
+        Accept
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={respondSubmitting}
+        onClick={(e) => {
+          e.stopPropagation();
+          openDecline(event.id, "event");
+        }}
+        className={themeClasses.button.secondary}
+      >
+        Decline
+      </Button>
+    </div>
+  )}
+
+  {/* Response required message below buttons */}
+  {event.status === "PENDING" && (
+    <div className="flex items-center gap-2 mt-2">
+      <AlertTriangle className="h-4 w-4 text-amber-500" />
+      <span
+        className={`text-sm font-medium ${themeClasses.text.warning}`}
+      >
+        Response required
+      </span>
+    </div>
+  )}
+</div>
                   </div>
                 ))}
               </div>
@@ -1111,14 +1112,14 @@ export default function FacultyDashboardPage() {
                     Session and event invitations will appear here when
                     organizers assign you
                   </p>
-                  <Button
+                  {/* <Button
                     variant="outline"
                     onClick={() => router.push("/faculty/contact")}
                     className={themeClasses.button.secondary}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     Contact Organizers
-                  </Button>
+                  </Button> */}
                 </div>
               )}
           </div>
