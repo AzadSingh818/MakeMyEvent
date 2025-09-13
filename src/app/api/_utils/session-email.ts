@@ -26,17 +26,17 @@ const FACULTY_DATA = {
       }
     ]
   },
-  "guptaansh641@gmail.com": {
-    facultyName: "Anand",
-    email: "guptaansh641@gmail.com",
-    sessions: [
-      {
-        title: "Demonstration",
-        date: "06/11",
-        role: "Speaker"
-      }
-    ]
-  },
+  // "guptaansh641@gmail.com": {
+  //   facultyName: "Anand",
+  //   email: "guptaansh641@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Demonstration",
+  //       date: "06/11",
+  //       role: "Speaker"
+  //     }
+  //   ]
+  // },
   // "praj@abhinavagroup.com": {
   //   facultyName: "Prajwal",
   //   email: "praj@abhinavagroup.com",
@@ -97,22 +97,22 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-  "farhanshaikh74@gmail.com": {
-    facultyName: "Farhan Shaikh",
-    email: "farhanshaikh74@gmail.com",
-    sessions: [
-      {
-        title: "Pediatric Research Networking",
-        date: "07/11",
-        role: "Speaker"
-      },
-      {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        date: "07/11", 
-        role: "Moderator"
-      }
-    ]
-  },
+  // "farhanshaikh74@gmail.com": {
+  //   facultyName: "Farhan Shaikh",
+  //   email: "farhanshaikh74@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Pediatric Research Networking",
+  //       date: "07/11",
+  //       role: "Speaker"
+  //     },
+  //     {
+  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+  //       date: "07/11", 
+  //       role: "Moderator"
+  //     }
+  //   ]
+  // },
   // "dayalanjul@gmail.com": {
   //   facultyName: "Anjul Dayal",
   //   email: "dayalanjul@gmail.com",
@@ -124,6 +124,17 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // }
+  "drarunbansal@gmail.com": {
+    facultyName: "Arun Bansal",
+    email: "drarunbansal@gmail.com",
+    sessions: [
+      {
+        title: "Mapping 500 PICUs Across India: Insights from the National PICU Database Initiative",
+        date: "08/11",
+        role: "Speaker"
+      }
+    ]
+  }
 };
 // Generate HTML for a specific faculty member
 function renderFacultyHTML(facultyEmail: string) {
