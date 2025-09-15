@@ -13,7 +13,7 @@ const FACULTY_DATA = {
         title: "Introduction",
         date: "5/11",
         role: "Creator",
-        description: "Bulk Email Sender",
+        description: "Bulk Email Sender test",
       },
     ],
   },
