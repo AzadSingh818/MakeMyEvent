@@ -4,36 +4,36 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.verce
 
 // Hardcoded data for Shruti and Vidyashankar
 const FACULTY_DATA = {
-  "shruti@abhinavagroup.com": {
-    facultyName: "Shruti",
-    email: "shruti@abhinavagroup.com",
-    sessions: [
-      {
-        title: "HSCT: Navigating HSCT Challenges",
-        date: "07/11",
-        role: "Panelist",
-        description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
-      },
-      {
-        title: "POCUS (Advanced)",
-        date: "06/11",
-        role: "Workshop Faculty",
-        description: "---"
-      }
-    ]
-  },
-  "v@abhinavagroup.com": {
-    facultyName: "VidyaShankar",
-    email: "v@abhinavagroup.com",
-    sessions: [
-      {
-        title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
-        date: "09/11",
-        role: "Debater - Clinical Wisdom",
-        description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
-      }
-    ]
-  },
+  // "shruti@abhinavagroup.com": {
+  //   facultyName: "Shruti",
+  //   email: "shruti@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "HSCT: Navigating HSCT Challenges",
+  //       date: "07/11",
+  //       role: "Panelist",
+  //       description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
+  //     },
+  //     {
+  //       title: "POCUS (Advanced)",
+  //       date: "06/11",
+  //       role: "Workshop Faculty",
+  //       description: "---"
+  //     }
+  //   ]
+  // },
+  // "v@abhinavagroup.com": {
+  //   facultyName: "VidyaShankar",
+  //   email: "v@abhinavagroup.com",
+  //   sessions: [
+  //     {
+  //       title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
+  //       date: "09/11",
+  //       role: "Debater - Clinical Wisdom",
+  //       description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
+  //     }
+  //   ]
+  // },
   "azad818n.s@gmail.com": {
     facultyName: "Azad Singh",
     email: "azad818n.s@gmail.com",
@@ -63,7 +63,55 @@ const FACULTY_DATA = {
         description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
       }
     ]
-  }
+  },
+  // "drarunbansal@gmail.com": {
+  //   facultyName: "Arun Bansal",
+  //   email: "drarunbansal@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Non-Invasive Respiratory Support",
+  //       date: "06/11",
+  //       role: "National Coordinator",
+  //       description: "---"
+  //     },
+  //     {
+  //       title: "Mapping 500 PICUS across India: Insight from the National PICU Dashboard Initiative",
+  //       date: "08/11",
+  //       role: "Key note Lecture",
+  //       description: "---"
+  //     }
+  //   ]
+  // },
+  // "dayalanjul@gmail.com": {
+  //   facultyName: "Anjul Dayal",
+  //   email: "amangla101@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
+  //       date: "08/11",
+  //       role: "Panelist",
+  //       description: "Panelists - Dr. Pradeep Sharma, Dr. Rashmi Kapoor, Dr. Kaushik Maulik, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Bijay Kumar Meher"
+  //     }
+  //   ]
+  // },
+  // "farhanshaikh74@gmail.com": {
+  //   facultyName: "Farhan Shaikh",
+  //   email: "farhanshaikh74@gmail.com",
+  //   sessions: [
+  //     {
+  //       title: "Monitoring of Strain and Stress without Using Oesophageal Manometry – Are We There Yet?",
+  //       date: "07/11",
+  //       role: "Speaker",
+  //       description: "---"
+  //     },
+  //     {
+  //       title: "PICU Brain Buzzer",
+  //       date: "07/11",
+  //       role: "QuizMaster",
+  //       description: "---"
+  //     }
+  //   ]
+  // },
 };
 
 // Generate HTML for a specific faculty member
@@ -111,7 +159,7 @@ function renderFacultyHTML(facultyEmail: string) {
   </div>
 
   <div style="background:#fff; padding:30px; border:1px solid #ddd;">
-    <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad</h1>
+    <h1 style="color:#764ba2; text-align:center; margin-bottom:20px;">PediCritiCon 2025, Hyderabad</h1>
     
     <p>Dear Dr. <strong>${facultyData.facultyName}</strong>,</p>
     <p>Greetings from the Scientific Committee, PediCritiCon 2025!</p>
