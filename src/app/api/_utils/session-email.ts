@@ -9,31 +9,31 @@ const FACULTY_DATA = {
   //   email: "shruti@abhinavagroup.com",
   //   sessions: [
   //     {
-  //       title: "Pediatric Research Networking",
+  //       title: "HSCT: Navigating HSCT Challenges",
   //       date: "07/11",
-  //       role: "Speaker",
-  //       description: "Dr. Vinay Nadkarni, Dr. Nilesh Mehta, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Hiroshi Kurosawa, Dr. Rakshay Shetty"
+  //       role: "Panelist",
+  //       description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
   //     },
   //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "08/11",
-  //       role: "Moderator",
-  //       description: "Panelists: Dr. Banani Poddar, Dr. GV Basavaraja, Dr. Hari Krishanan, Dr. Karthik Naryanan"
+  //       title: "POCUS (Advanced)",
+  //       date: "06/11",
+  //       role: "Workshop Faculty",
+  //       description: "---"
   //     }
   //   ]
   // },
   // "v@abhinavagroup.com": {
-  //   facultyName: "Vidyashankar",
+  //   facultyName: "VidyaShankar",
   //   email: "v@abhinavagroup.com",
   //   sessions: [
   //     {
-  //       title: "Oncologic Emergencies: Expert Strategies",
-  //       date: "08/11",
-  //       role: "Speaker",
-  //       description: "Critical care management of pediatric oncology emergencies and complications"
+  //       title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
+  //       date: "09/11",
+  //       role: "Debater - Clinical Wisdom",
+  //       description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
   //     }
   //   ]
-  // }
+  // },
   "azad818n.s@gmail.com": {
     facultyName: "Azad Singh",
     email: "azad818n.s@gmail.com",
@@ -45,7 +45,7 @@ const FACULTY_DATA = {
         description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
       },
       {
-        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+        title: "POCUS (Advanced)",
         date: "06/11",
         role: "Workshop Faculty",
         description: "---"
