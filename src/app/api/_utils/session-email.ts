@@ -4,36 +4,36 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.verce
 
 // Hardcoded data for Shruti and Vidyashankar
 const FACULTY_DATA = {
-  // "shruti@abhinavagroup.com": {
-  //   facultyName: "Shruti",
-  //   email: "shruti@abhinavagroup.com",
-  //   sessions: [
-  //     {
-  //       title: "HSCT: Navigating HSCT Challenges",
-  //       date: "07/11",
-  //       role: "Panelist",
-  //       description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
-  //     },
-  //     {
-  //       title: "POCUS (Advanced)",
-  //       date: "06/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "v@abhinavagroup.com": {
-  //   facultyName: "VidyaShankar",
-  //   email: "v@abhinavagroup.com",
-  //   sessions: [
-  //     {
-  //       title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
-  //       date: "09/11",
-  //       role: "Debater - Clinical Wisdom",
-  //       description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
-  //     }
-  //   ]
-  // },
+  "shruti@abhinavagroup.com": {
+    facultyName: "Shruti",
+    email: "shruti@abhinavagroup.com",
+    sessions: [
+      {
+        title: "HSCT: Navigating HSCT Challenges",
+        date: "07/11",
+        role: "Panelist",
+        description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
+      },
+      {
+        title: "POCUS (Advanced)",
+        date: "06/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "v@abhinavagroup.com": {
+    facultyName: "VidyaShankar",
+    email: "v@abhinavagroup.com",
+    sessions: [
+      {
+        title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
+        date: "09/11",
+        role: "Debater - Clinical Wisdom",
+        description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
+      }
+    ]
+  },
   "azad818n.s@gmail.com": {
     facultyName: "Azad Singh",
     email: "azad818n.s@gmail.com",
