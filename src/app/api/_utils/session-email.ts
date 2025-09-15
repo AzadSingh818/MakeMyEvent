@@ -2,76 +2,23 @@ import { sendMail } from "@/lib/mailer";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
-// Hardcoded data for all 7 faculty members from PDF
+// Hardcoded data for Shruti and Vidyashankar
 const FACULTY_DATA = {
-  "azad818n.s@gmail.com": {
-    facultyName: "Anand",
-    email: "azad818n.s@gmail.com",
-    sessions: [
-      {
-        title: "Demonstration",
-        date: "06/11",
-        role: "Speaker"
-      }
-    ]
-  },
-  "muigoku42@gmail.com" : {
-    facultyName: "Goku",
-    email: "muigoku42@gmail.com",
-    sessions: [
-      {
-        title: "Introduction",
-        date: "06/11",
-        role: "Speaker"
-      }
-    ]
-  },
-  // "guptaansh641@gmail.com": {
-  //   facultyName: "Anand",
-  //   email: "guptaansh641@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Demonstration",
-  //       date: "06/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "praj@abhinavagroup.com": {
-  //   facultyName: "Prajwal",
-  //   email: "praj@abhinavagroup.com",
-  //   sessions: [
-  //     {
-  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-  //       date: "07/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "priya.ks@abhinavagroup.com": {
-  //   facultyName: "Priya", 
-  //   email: "priya.ks@abhinavagroup.com",
-  //   sessions: [
-  //     {
-  //       title: "Crack the Cardiac Code: Applied Physiology Made Simple",
-  //       date: "07/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
   // "shruti@abhinavagroup.com": {
   //   facultyName: "Shruti",
-  //   email: "shruti@abhinavagroup.com", 
+  //   email: "shruti@abhinavagroup.com",
   //   sessions: [
   //     {
   //       title: "Pediatric Research Networking",
   //       date: "07/11",
-  //       role: "Speaker"
+  //       role: "Speaker",
+  //       description: "Dr. Vinay Nadkarni, Dr. Nilesh Mehta, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Hiroshi Kurosawa, Dr. Rakshay Shetty"
   //     },
   //     {
   //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "07/11",
-  //       role: "Moderator"
+  //       date: "08/11",
+  //       role: "Moderator",
+  //       description: "Panelists: Dr. Banani Poddar, Dr. GV Basavaraja, Dr. Hari Krishanan, Dr. Karthik Naryanan"
   //     }
   //   ]
   // },
@@ -80,62 +27,45 @@ const FACULTY_DATA = {
   //   email: "v@abhinavagroup.com",
   //   sessions: [
   //     {
-  //       title: "Oncologic Emergencies: Expert Strategies", 
-  //       date: "07/11",
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "drskpanuganti@gmail.com": {
-  //   facultyName: "Suresh Kumar Panuganti",
-  //   email: "drskpanuganti@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Research Networking",
-  //       date: "09/11", 
-  //       role: "Speaker"
-  //     }
-  //   ]
-  // },
-  // "farhanshaikh74@gmail.com": {
-  //   facultyName: "Farhan Shaikh",
-  //   email: "farhanshaikh74@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Research Networking",
-  //       date: "07/11",
-  //       role: "Speaker"
-  //     },
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "07/11", 
-  //       role: "Moderator"
-  //     }
-  //   ]
-  // },
-  // "dayalanjul@gmail.com": {
-  //   facultyName: "Anjul Dayal",
-  //   email: "dayalanjul@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-  //       date: "09/11",
-  //       role: "Speaker"
+  //       title: "Oncologic Emergencies: Expert Strategies",
+  //       date: "08/11",
+  //       role: "Speaker",
+  //       description: "Critical care management of pediatric oncology emergencies and complications"
   //     }
   //   ]
   // }
-  "drarunbansal@gmail.com": {
-    facultyName: "Arun Bansal",
-    email: "drarunbansal@gmail.com",
+  "azad818n.s@gmail.com": {
+    facultyName: "Azad Singh",
+    email: "azad818n.s@gmail.com",
     sessions: [
       {
-        title: "Mapping 500 PICUs Across India: Insights from the National PICU Database Initiative",
+        title: "Pediatric Research Networking",
+        date: "07/11",
+        role: "Speaker",
+        description: "Dr. Vinay Nadkarni, Dr. Nilesh Mehta, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Hiroshi Kurosawa, Dr. Rakshay Shetty"
+      },
+      {
+        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
         date: "08/11",
-        role: "Speaker"
+        role: "Moderator",
+        description: "Panelists: Dr. Banani Poddar, Dr. GV Basavaraja, Dr. Hari Krishanan, Dr. Karthik Naryanan"
+      }
+    ]
+  },
+  "muigoku42@gmail.com": {
+    facultyName: "Arunaditya lal",
+    email: "muigoku42@gmail.com",
+    sessions: [
+      {
+        title: "Oncologic Emergencies: Expert Strategies",
+        date: "08/11",
+        role: "Speaker",
+        description: "Critical care management of pediatric oncology emergencies and complications"
       }
     ]
   }
 };
+
 // Generate HTML for a specific faculty member
 function renderFacultyHTML(facultyEmail: string) {
   const facultyData = FACULTY_DATA[facultyEmail as keyof typeof FACULTY_DATA];
@@ -156,7 +86,8 @@ function renderFacultyHTML(facultyEmail: string) {
       <tr style="border-bottom: 1px solid #eaeaea;">
         <td style="padding:12px; border-right:1px solid #ddd;">${s.title}</td>
         <td style="padding:12px; border-right:1px solid #ddd;">${s.date}</td>
-        <td style="padding:12px;">${s.role}</td>
+        <td style="padding:12px; border-right:1px solid #ddd;">${s.role}</td>
+        <td style="padding:12px;">${s.description}</td>
       </tr>`
     )
     .join("");
@@ -187,13 +118,14 @@ function renderFacultyHTML(facultyEmail: string) {
     <p>It gives us immense pleasure to invite you as a distinguished faculty member to PediCritiCon 2025 – the 27th National Conference of the IAP Intensive Care Chapter, hosted by the Pediatric Intensive Care Chapter—Kakatiya, Telangana State.</p>
     <p>Your proposed faculty role${facultyData.sessions.length > 1 ? "s are" : " is"} outlined below:</p>
     
-    <!-- 3-column table -->
+    <!-- 4-column table with description -->
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
       <thead style="background:#efefef;">
         <tr>
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Title</th>
           <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Date</th>
-          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Role</th>
+          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd; border-right:1px solid #ddd;">Role</th>
+          <th style="text-align:left; padding:12px; border-bottom:1px solid #ddd;">Description</th>
         </tr>
       </thead>
       <tbody>
@@ -285,7 +217,8 @@ function generateFacultyTextEmail(facultyEmail: string) {
   const sessionsText = facultyData.sessions
     .map((s, index) => `Date ${s.date}:
 Session: ${s.title}
-Role: ${s.role}`)
+Role: ${s.role}
+Description: ${s.description}`)
     .join("\n\n");
 
   return `Subject: Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad
@@ -326,8 +259,7 @@ Scientific Committee, PediCritiCon 2025
 }
 
 /**
- * Send personalized emails to ALL 7 faculty members
- * This function ignores all input parameters and sends to all 7 people
+ * Send personalized emails to Shruti and Vidyashankar
  */
 export async function sendBulkInviteEmail(
   sessions?: any[],  // Ignored
@@ -336,7 +268,7 @@ export async function sendBulkInviteEmail(
 ) {
   const results = [];
   
-  // Send personalized email to each faculty member
+  // Send personalized email to each faculty member (only Shruti and Vidyashankar)
   for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
     try {
       const html = renderFacultyHTML(facultyEmail);
@@ -383,7 +315,7 @@ export async function sendBulkInviteEmail(
 }
 
 /**
- * Send personalized emails to ALL 7 faculty members
+ * Send personalized emails to Shruti and Vidyashankar
  * Input parameters are ignored
  */
 export async function sendInviteEmail(
@@ -391,11 +323,11 @@ export async function sendInviteEmail(
   facultyName?: string,  // Ignored
   email?: string  // Ignored
 ) {
-  return sendBulkInviteEmail(); // Calls the bulk function that sends to all 7
+  return sendBulkInviteEmail(); // Calls the bulk function that sends to both
 }
 
 /**
- * Send update emails to ALL 7 faculty members
+ * Send update emails to Shruti and Vidyashankar
  * Input parameters are ignored
  */
 export async function sendUpdateEmail(
@@ -410,8 +342,9 @@ export async function sendUpdateEmail(
     for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
       try {
         const sessionsText = facultyData.sessions
-          .map(s => `Session: "${s.title}" - ${s.date} - ${s.role}`)
-          .join('\n');
+          .map(s => `Session: "${s.title}" - ${s.date} - ${s.role}
+Description: ${s.description}`)
+          .join('\n\n');
 
         const text = `Hello ${facultyData.facultyName},
 
