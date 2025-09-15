@@ -1,20 +1,21 @@
 import { sendMail } from "@/lib/mailer";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
+const baseUrl =
+  process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
 // Hardcoded data for Shruti and Vidyashankar
 const FACULTY_DATA = {
- "muigoku42@gmail.com": {
-    facultyName: "MUI Goku",
-    email: "muigoku42@gmail.com",
+  "anand07amar@gmail.com": {
+    facultyName: "ANAND AMAR",
+    email: "anand07amar@gmail.com",
     sessions: [
       {
         title: "Introduction",
         date: "5/11",
         role: "Creator",
-        description: "Bulk Email Sender"
-      }
-    ]
+        description: "Bulk Email Sender",
+      },
+    ],
   },
   // "abdrauf06@gmail.com": {
   //   facultyName: "Abdul Rauf",
@@ -148,24 +149,24 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-//   "drarunbansal@gmail.com": {
-//     facultyName: "Arun Bansal",
-//     email: "drarunbansal@gmail.com",
-//     sessions: [
-//       {
-//         title: "Mapping 500 PICUs Across India: Insights from the National PICU Dashboard Initiative",
-//         date: "8/11",
-//         role: "Key note Lecture",
-//         description: "---"
-//       },
-//       {
-//         title: "Non-Invasive Respiratory Support",
-//         date: "6/11",
-//         role: "National Coordinator",
-//         description: "---"
-//       }
-//     ]
-//   },
+  //   "drarunbansal@gmail.com": {
+  //     facultyName: "Arun Bansal",
+  //     email: "drarunbansal@gmail.com",
+  //     sessions: [
+  //       {
+  //         title: "Mapping 500 PICUs Across India: Insights from the National PICU Dashboard Initiative",
+  //         date: "8/11",
+  //         role: "Key note Lecture",
+  //         description: "---"
+  //       },
+  //       {
+  //         title: "Non-Invasive Respiratory Support",
+  //         date: "6/11",
+  //         role: "National Coordinator",
+  //         description: "---"
+  //       }
+  //     ]
+  //   },
   // "anilcriticare@gmail.com": {
   //   facultyName: "Anil Sachdeva",
   //   email: "anilcriticare@gmail.com",
@@ -184,18 +185,18 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-//   "dayalanjul@gmail.com": {
-//     facultyName: "Anjul Dayal",
-//     email: "dayalanjul@gmail.com",
-//     sessions: [
-//       {
-//         title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
-//         date: "8/11",
-//         role: "Panelist",
-//         description: "Panelists, Pradeep Sharma, Rashmi Kapoor, Kaushik Maulik, Sebastian Gonzalez-Dambrauskas, Bijay Kumar Meher"
-//       }
-//     ]
-//   },
+  //   "dayalanjul@gmail.com": {
+  //     facultyName: "Anjul Dayal",
+  //     email: "dayalanjul@gmail.com",
+  //     sessions: [
+  //       {
+  //         title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
+  //         date: "8/11",
+  //         role: "Panelist",
+  //         description: "Panelists, Pradeep Sharma, Rashmi Kapoor, Kaushik Maulik, Sebastian Gonzalez-Dambrauskas, Bijay Kumar Meher"
+  //       }
+  //     ]
+  //   },
   // "amangla101@gmail.com": {
   //   facultyName: "Ankit Mangla",
   //   email: "amangla101@gmail.com",
@@ -262,54 +263,54 @@ const FACULTY_DATA = {
   //     }
   //   ]
   // },
-//   "bakulparekh55@gmail.com": {
-//     facultyName: "Bakul Parikh",
-//     email: "bakulparekh55@gmail.com",
-//     sessions: [
-//       {
-//         title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
-//         date: "8/11",
-//         role: "Panelist",
-//         description: "Panelists, Dr. Puneet Pooni, Dr. Nirmal Choraria, Dr. Hariharan Seetharaman, Dr. Kwame Boateng"
-//       }
-//     ]
-//   },
-//   "bmdoc2002@rediffmail.com": {
-//     facultyName: "Bal Mukund",
-//     email: "bmdoc2002@rediffmail.com",
-//     sessions: [
-//       {
-//         title: "Hemorrhage Control in Polytrauma: Precision in Pressure, Clotting & Care",
-//         date: "9/11",
-//         role: "Speaker",
-//         description: "---"
-//       }
-//     ]
-//   },
-//   "mdpicu@hotmail.com": {
-//     facultyName: "Bala Ramachandaran",
-//     email: "mdpicu@hotmail.com",
-//     sessions: [
-//       {
-//         title: "Breathless Battles: Viral Pneumonia That Won't Back Down: What's the Trend in Pediatric Viral Pneumonia?",
-//         date: "8/11",
-//         role: "Panelist",
-//         description: "Dr. Manish Sharma (Moderator), Panelists, Dr. Anil Sachdeva, Dr. Hiroshi Kurosawa, Dr. Ranganath Iyer"
-//       },
-//       {
-//         title: "Burnout in PICU: Caring for the Caring Team",
-//         date: "9/11",
-//         role: "Moderator",
-//         description: "Panelists, Dr. Avishek Poddar, Dr. Muthuvel, Dr. Neeraj Verma, Dr. Asha Shenoi"
-//       }
-//     ]
-//   },
+  //   "bakulparekh55@gmail.com": {
+  //     facultyName: "Bakul Parikh",
+  //     email: "bakulparekh55@gmail.com",
+  //     sessions: [
+  //       {
+  //         title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
+  //         date: "8/11",
+  //         role: "Panelist",
+  //         description: "Panelists, Dr. Puneet Pooni, Dr. Nirmal Choraria, Dr. Hariharan Seetharaman, Dr. Kwame Boateng"
+  //       }
+  //     ]
+  //   },
+  //   "bmdoc2002@rediffmail.com": {
+  //     facultyName: "Bal Mukund",
+  //     email: "bmdoc2002@rediffmail.com",
+  //     sessions: [
+  //       {
+  //         title: "Hemorrhage Control in Polytrauma: Precision in Pressure, Clotting & Care",
+  //         date: "9/11",
+  //         role: "Speaker",
+  //         description: "---"
+  //       }
+  //     ]
+  //   },
+  //   "mdpicu@hotmail.com": {
+  //     facultyName: "Bala Ramachandaran",
+  //     email: "mdpicu@hotmail.com",
+  //     sessions: [
+  //       {
+  //         title: "Breathless Battles: Viral Pneumonia That Won't Back Down: What's the Trend in Pediatric Viral Pneumonia?",
+  //         date: "8/11",
+  //         role: "Panelist",
+  //         description: "Dr. Manish Sharma (Moderator), Panelists, Dr. Anil Sachdeva, Dr. Hiroshi Kurosawa, Dr. Ranganath Iyer"
+  //       },
+  //       {
+  //         title: "Burnout in PICU: Caring for the Caring Team",
+  //         date: "9/11",
+  //         role: "Moderator",
+  //         description: "Panelists, Dr. Avishek Poddar, Dr. Muthuvel, Dr. Neeraj Verma, Dr. Asha Shenoi"
+  //       }
+  //     ]
+  //   },
 };
 
 // Generate HTML for a specific faculty member
 function renderFacultyHTML(facultyEmail: string) {
   const facultyData = FACULTY_DATA[facultyEmail as keyof typeof FACULTY_DATA];
-  
+
   if (!facultyData) {
     console.error(`No data found for faculty: ${facultyEmail}`);
     return "";
@@ -356,7 +357,9 @@ function renderFacultyHTML(facultyEmail: string) {
     <p>Dear Dr. <strong>${facultyData.facultyName}</strong>,</p>
     <p>Greetings from the Scientific Committee, PediCritiCon 2025!</p>
     <p>It gives us immense pleasure to invite you as a distinguished faculty member to PediCritiCon 2025 – the 27th National Conference of the IAP Intensive Care Chapter, hosted by the Pediatric Intensive Care Chapter—Kakatiya, Telangana State.</p>
-    <p>Your proposed faculty role${facultyData.sessions.length > 1 ? "s are" : " is"} outlined below:</p>
+    <p>Your proposed faculty role${
+      facultyData.sessions.length > 1 ? "s are" : " is"
+    } outlined below:</p>
     
     <!-- 4-column table with description -->
     <table style="width:100%; border-collapse: collapse; margin:20px 0;">
@@ -449,16 +452,18 @@ function renderFacultyHTML(facultyEmail: string) {
 // Generate plain text email for a specific faculty member
 function generateFacultyTextEmail(facultyEmail: string) {
   const facultyData = FACULTY_DATA[facultyEmail as keyof typeof FACULTY_DATA];
-  
+
   if (!facultyData) {
     return "";
   }
 
   const sessionsText = facultyData.sessions
-    .map((s, index) => `Date ${s.date}:
+    .map(
+      (s, index) => `Date ${s.date}:
 Session: ${s.title}
 Role: ${s.role}
-Description: ${s.description}`)
+Description: ${s.description}`
+    )
     .join("\n\n");
 
   return `Subject: PediCritiCon 2025 - Faculty Invitation
@@ -472,7 +477,9 @@ It gives us immense pleasure to invite you as a distinguished faculty member to 
 📅 Dates: November 6–9, 2025
 📍 Venue: Hyderabad International Convention Centre (HICC), Hyderabad, India
 
-Your proposed faculty role${facultyData.sessions.length > 1 ? "s are" : " is"} outlined below:
+Your proposed faculty role${
+    facultyData.sessions.length > 1 ? "s are" : " is"
+  } outlined below:
 
 Your Faculty Invitation – PediCritiCon 2025
 
@@ -502,55 +509,63 @@ Scientific Committee, PediCritiCon 2025
  * Send personalized emails to Shruti and Vidyashankar
  */
 export async function sendBulkInviteEmail(
-  sessions?: any[],  // Ignored
-  facultyName?: string,  // Ignored  
-  email?: string  // Ignored
+  sessions?: any[], // Ignored
+  facultyName?: string, // Ignored
+  email?: string // Ignored
 ) {
   const results = [];
-  
+
   // Send personalized email to each faculty member (only Shruti and Vidyashankar)
   for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
     try {
       const html = renderFacultyHTML(facultyEmail);
       const text = generateFacultyTextEmail(facultyEmail);
-      
+
       const result = await sendMail({
         to: facultyData.email,
         subject: `PediCritiCon 2025 - Faculty Invitation`,
         text,
         html,
       });
-      
+
       results.push({
         email: facultyData.email,
         name: facultyData.facultyName,
         success: result.ok,
-        message: result.message || "Email sent successfully"
+        message: result.message || "Email sent successfully",
       });
-      
-      console.log(`Email sent to ${facultyData.facultyName} (${facultyData.email}): ${result.ok ? 'Success' : 'Failed'}`);
-      
+
+      console.log(
+        `Email sent to ${facultyData.facultyName} (${facultyData.email}): ${
+          result.ok ? "Success" : "Failed"
+        }`
+      );
     } catch (error) {
-      console.error(`Failed to send email to ${facultyData.facultyName}:`, error);
+      console.error(
+        `Failed to send email to ${facultyData.facultyName}:`,
+        error
+      );
       results.push({
         email: facultyData.email,
         name: facultyData.facultyName,
         success: false,
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: error instanceof Error ? error.message : "Unknown error",
       });
     }
   }
-  
+
   // Return summary of all sends
-  const successCount = results.filter(r => r.success).length;
-  const failureCount = results.filter(r => !r.success).length;
-  
-  console.log(`Email Summary: ${successCount} successful, ${failureCount} failed out of ${results.length} total`);
-  
+  const successCount = results.filter((r) => r.success).length;
+  const failureCount = results.filter((r) => !r.success).length;
+
+  console.log(
+    `Email Summary: ${successCount} successful, ${failureCount} failed out of ${results.length} total`
+  );
+
   return {
     ok: failureCount === 0,
     message: `Sent ${successCount}/${results.length} emails successfully`,
-    results: results
+    results: results,
   };
 }
 
@@ -559,9 +574,9 @@ export async function sendBulkInviteEmail(
  * Input parameters are ignored
  */
 export async function sendInviteEmail(
-  session?: any,  // Ignored
-  facultyName?: string,  // Ignored
-  email?: string  // Ignored
+  session?: any, // Ignored
+  facultyName?: string, // Ignored
+  email?: string // Ignored
 ) {
   return sendBulkInviteEmail(); // Calls the bulk function that sends to both
 }
@@ -571,24 +586,26 @@ export async function sendInviteEmail(
  * Input parameters are ignored
  */
 export async function sendUpdateEmail(
-  session?: any,  // Ignored
-  facultyName?: string,  // Ignored
-  roomName?: string  // Ignored
+  session?: any, // Ignored
+  facultyName?: string, // Ignored
+  roomName?: string // Ignored
 ): Promise<{ ok: boolean; message?: string }> {
   try {
     const results = [];
-    
+
     // Send update email to each faculty member
     for (const [facultyEmail, facultyData] of Object.entries(FACULTY_DATA)) {
       try {
         const sessionsText = facultyData.sessions
-          .map(s => `Session: "${s.title}" - ${s.date} - ${s.role}
-Description: ${s.description}`)
-          .join('\n\n');
+          .map(
+            (s) => `Session: "${s.title}" - ${s.date} - ${s.role}
+Description: ${s.description}`
+          )
+          .join("\n\n");
 
         const text = `Hello ${facultyData.facultyName},
 
-Your session${facultyData.sessions.length > 1 ? 's have' : ' has'} been updated:
+Your session${facultyData.sessions.length > 1 ? "s have" : " has"} been updated:
 
 ${sessionsText}
 
@@ -615,29 +632,30 @@ Login here: ${baseUrl.replace(
           text,
           html: renderFacultyHTML(facultyEmail), // Use their personalized HTML
         });
-        
+
         results.push({
           email: facultyData.email,
-          success: result.ok
+          success: result.ok,
         });
-        
       } catch (error) {
-        console.error(`Failed to send update email to ${facultyData.facultyName}:`, error);
+        console.error(
+          `Failed to send update email to ${facultyData.facultyName}:`,
+          error
+        );
         results.push({
           email: facultyData.email,
-          success: false
+          success: false,
         });
       }
     }
-    
-    const successCount = results.filter(r => r.success).length;
-    const failureCount = results.filter(r => !r.success).length;
-    
+
+    const successCount = results.filter((r) => r.success).length;
+    const failureCount = results.filter((r) => !r.success).length;
+
     return {
       ok: failureCount === 0,
-      message: `Update emails: ${successCount}/${results.length} sent successfully`
+      message: `Update emails: ${successCount}/${results.length} sent successfully`,
     };
-    
   } catch (error) {
     console.error("Failed to send update emails:", error);
     return {
