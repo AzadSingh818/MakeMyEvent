@@ -39,16 +39,16 @@ const FACULTY_DATA = {
     email: "azad818n.s@gmail.com",
     sessions: [
       {
-        title: "Pediatric Research Networking",
+        title: "HSCT: Navigating HSCT Challenges",
         date: "07/11",
-        role: "Speaker",
-        description: "Dr. Vinay Nadkarni, Dr. Nilesh Mehta, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Hiroshi Kurosawa, Dr. Rakshay Shetty"
+        role: "Panelist",
+        description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
       },
       {
         title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-        date: "08/11",
-        role: "Moderator",
-        description: "Panelists: Dr. Banani Poddar, Dr. GV Basavaraja, Dr. Hari Krishanan, Dr. Karthik Naryanan"
+        date: "06/11",
+        role: "Workshop Faculty",
+        description: "---"
       }
     ]
   },
@@ -57,10 +57,10 @@ const FACULTY_DATA = {
     email: "muigoku42@gmail.com",
     sessions: [
       {
-        title: "Oncologic Emergencies: Expert Strategies",
-        date: "08/11",
-        role: "Speaker",
-        description: "Critical care management of pediatric oncology emergencies and complications"
+        title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
+        date: "09/11",
+        role: "Debater - Clinical Wisdom",
+        description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
       }
     ]
   }
