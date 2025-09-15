@@ -4,36 +4,306 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.verce
 
 // Hardcoded data for Shruti and Vidyashankar
 const FACULTY_DATA = {
-  "azad818n.s@gmail.com": {
-    facultyName: "Azad Singh",
-    email: "azad818n.s@gmail.com",
+ "muigoku42@gmail.com": {
+    facultyName: "MUI Goku",
+    email: "muigoku42@gmail.com",
+    sessions: [
+      {
+        title: "Introduction",
+        date: "5/11",
+        role: "Creator",
+        description: "Bulk Email Sender"
+      }
+    ]
+  },
+  "abdrauf06@gmail.com": {
+    facultyName: "Abdul Rauf",
+    email: "abdrauf06@gmail.com",
     sessions: [
       {
         title: "HSCT: Navigating HSCT Challenges",
-        date: "07/11",
+        date: "7/11",
         role: "Panelist",
-        description: "Dr. Indira Jayakumar (Moderator), Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R (CMC Vellore)"
+        description: "Dr. Indira Jayakumar (Moderator), Panelists - Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Sanket R"
       },
       {
         title: "POCUS (Advanced)",
-        date: "06/11",
+        date: "6/11",
         role: "Workshop Faculty",
         description: "---"
       }
     ]
   },
-  "muigoku42@gmail.com": {
-    facultyName: "Arunaditya lal",
-    email: "muigoku42@gmail.com",
+  "drabhijitbagde@gmail.com": {
+    facultyName: "Abhijit Bagde",
+    email: "drabhijitbagde@gmail.com",
     sessions: [
       {
-        title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
-        date: "09/11",
+        title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
+        date: "9/11",
         role: "Debater - Clinical Wisdom",
-        description: "Other Debater: Dr Veena Ranganathan - Protocol Precision"
+        description: "Other Debater, Dr Veena Ranganathan - Protocol Precision"
       }
     ]
   },
+  "abhijit.choudhary85@gmail.com": {
+    facultyName: "Abhijit Chaudhary",
+    email: "abhijit.choudhary85@gmail.com",
+    sessions: [
+      {
+        title: "Transfuse or Tolerate? Finding the Balance in Pediatric Critical Care",
+        date: "9/11",
+        role: "Panelist",
+        description: "Panelists - Dr. Lakshmi Shobhavat, Dr. Anand Bhutada, Dr. Chetan Mundada, Dr. Lalit Takia"
+      },
+      {
+        title: "POCUS (Basic)",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "agnisekhar@hotmail.com": {
+    facultyName: "Agni Sekar Saha",
+    email: "agnisekhar@hotmail.com",
+    sessions: [
+      {
+        title: "Perfuse, Protect, Preserve: The New Mantra for AKI Management",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "dr_akashbang@rediffmail.com": {
+    facultyName: "Akash Bang",
+    email: "dr_akashbang@rediffmail.com",
+    sessions: [
+      {
+        title: "Saving Lives, Saving Costs: Can We Do Both?",
+        date: "9/11",
+        role: "Panelist",
+        description: "Dr. Nirmal Choraria (Moderator), Panelists - Dr. Somnath Gorain, Dr. Manju Kedarnath, Dr. Kshama Daphtary"
+      }
+    ]
+  },
+  "voraamish@yahoo.com": {
+    facultyName: "Amish Vora",
+    email: "voraamish@yahoo.com",
+    sessions: [
+      {
+        title: "Palliative Cardiac Surgery in Resource-Limited Settings: Ethical Necessity or Compromise?",
+        date: "8/11",
+        role: "Debater - on Compromise",
+        description: "Co Debater, Dr. Preetha Joshi - Ethical Necessity"
+      },
+      {
+        title: "ECMO",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "amitakaul@hotmail.com": {
+    facultyName: "Amita Kaul",
+    email: "amitakaul@hotmail.com",
+    sessions: [
+      {
+        title: "Beyond Consent: Navigating Ethical Minefields in Pediatric Research",
+        date: "9/11",
+        role: "Panelist",
+        description: "Dr. Madhu Otiv (Moderator), Panelists - Dr. Bhakti Sarangi, Dr. Michael Canarie, Dr. Yasser Kazzaz"
+      },
+      {
+        title: "POCUS (Basic)",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drbhutada@gmail.com": {
+    facultyName: "Anand Bhutada",
+    email: "drbhutada@gmail.com",
+    sessions: [
+      {
+        title: "Transfuse or Tolerate? Finding the Balance in Pediatric Critical Care",
+        date: "9/11",
+        role: "Panelist",
+        description: "Moderator, Dr Lakshmi Shobhavat, Co-Panelists: Dr Chetan Mundada, Dr Lalit Takia, Dr Abhijeet Chaudhary"
+      },
+      {
+        title: "Buying Smart: Equipping Your PICU for Function, Not Fashion",
+        date: "9/11",
+        role: "Panelist",
+        description: "Moderator, Dr VSV Prasad, Co Panelists, Dr G. Ramesh, Dr Rafiq Ahmed, Dr Nirmal Choraria, Dr Preetam"
+      },
+      {
+        title: "BPICC",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+//   "drarunbansal@gmail.com": {
+//     facultyName: "Arun Bansal",
+//     email: "drarunbansal@gmail.com",
+//     sessions: [
+//       {
+//         title: "Mapping 500 PICUs Across India: Insights from the National PICU Dashboard Initiative",
+//         date: "8/11",
+//         role: "Key note Lecture",
+//         description: "---"
+//       },
+//       {
+//         title: "Non-Invasive Respiratory Support",
+//         date: "6/11",
+//         role: "National Coordinator",
+//         description: "---"
+//       }
+//     ]
+//   },
+  "anilcriticare@gmail.com": {
+    facultyName: "Anil Sachdeva",
+    email: "anilcriticare@gmail.com",
+    sessions: [
+      {
+        title: "Pediatric respiratory critical care research and promoting the development of a research network in India- identifying key gaps",
+        date: "7/11",
+        role: "Panelist",
+        description: "Dr. Jhuma Sankar (Moderator), Co Panelists, Dr Martin Kneyber, Dr. Lalita AV, Dr. Praveen Khilnani, Dr. Sunit Singhi"
+      },
+      {
+        title: "The Art and Science of Liberation from Mechanical Ventilation",
+        date: "8/11",
+        role: "Plenary",
+        description: "---"
+      }
+    ]
+  },
+//   "dayalanjul@gmail.com": {
+//     facultyName: "Anjul Dayal",
+//     email: "dayalanjul@gmail.com",
+//     sessions: [
+//       {
+//         title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
+//         date: "8/11",
+//         role: "Panelist",
+//         description: "Panelists, Pradeep Sharma, Rashmi Kapoor, Kaushik Maulik, Sebastian Gonzalez-Dambrauskas, Bijay Kumar Meher"
+//       }
+//     ]
+//   },
+  "amangla101@gmail.com": {
+    facultyName: "Ankit Mangla",
+    email: "amangla101@gmail.com",
+    sessions: [
+      {
+        title: "CRRT and SLED",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "puttaanu@gmail.com": {
+    facultyName: "Anupama Yerra",
+    email: "puttaanu@gmail.com",
+    sessions: [
+      {
+        title: "RRT Timing: Act Fast or Wait Smart?",
+        date: "8/11",
+        role: "Debater - ACT FAST",
+        description: "Co Debater, Dr. Supraja C - WAIT SMART"
+      }
+    ]
+  },
+  "baranwal1970@gmail.com": {
+    facultyName: "Arun K Baranwal",
+    email: "baranwal1970@gmail.com",
+    sessions: [
+      {
+        title: "The Race Against Time: Early Recognition in \"Malignancy-Induced Cytokine Release Syndrome\"",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "ashishsimalti@rediffmail.com": {
+    facultyName: "Ashish Simalti",
+    email: "ashishsimalti@rediffmail.com",
+    sessions: [
+      {
+        title: "Start Slow or Start Smart? Should Golden Hour DKA Management Be Aggressively Standardized ?",
+        date: "8/11",
+        role: "Debater -START SMART",
+        description: "Co Debater, Dr. Vijai Williams - START SLOW"
+      }
+    ]
+  },
+  "dratuljindal@gmail.com": {
+    facultyName: "Atul Jindle",
+    email: "dratuljindal@gmail.com",
+    sessions: [
+      {
+        title: "Super-Refractory Status Epilepticus: How Far Should We Go?",
+        date: "7/11",
+        role: "Moderator",
+        description: "Panelists, Dr. Matthew Kirschen, Dr. Siva Vyasam, Dr. Deepika Gandhi, Dr. Pushpraj Awasthi"
+      },
+      {
+        title: "Advanced Ventilation",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+//   "bakulparekh55@gmail.com": {
+//     facultyName: "Bakul Parikh",
+//     email: "bakulparekh55@gmail.com",
+//     sessions: [
+//       {
+//         title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
+//         date: "8/11",
+//         role: "Panelist",
+//         description: "Panelists, Dr. Puneet Pooni, Dr. Nirmal Choraria, Dr. Hariharan Seetharaman, Dr. Kwame Boateng"
+//       }
+//     ]
+//   },
+//   "bmdoc2002@rediffmail.com": {
+//     facultyName: "Bal Mukund",
+//     email: "bmdoc2002@rediffmail.com",
+//     sessions: [
+//       {
+//         title: "Hemorrhage Control in Polytrauma: Precision in Pressure, Clotting & Care",
+//         date: "9/11",
+//         role: "Speaker",
+//         description: "---"
+//       }
+//     ]
+//   },
+//   "mdpicu@hotmail.com": {
+//     facultyName: "Bala Ramachandaran",
+//     email: "mdpicu@hotmail.com",
+//     sessions: [
+//       {
+//         title: "Breathless Battles: Viral Pneumonia That Won't Back Down: What's the Trend in Pediatric Viral Pneumonia?",
+//         date: "8/11",
+//         role: "Panelist",
+//         description: "Dr. Manish Sharma (Moderator), Panelists, Dr. Anil Sachdeva, Dr. Hiroshi Kurosawa, Dr. Ranganath Iyer"
+//       },
+//       {
+//         title: "Burnout in PICU: Caring for the Caring Team",
+//         date: "9/11",
+//         role: "Moderator",
+//         description: "Panelists, Dr. Avishek Poddar, Dr. Muthuvel, Dr. Neeraj Verma, Dr. Asha Shenoi"
+//       }
+//     ]
+//   },
 };
 
 // Generate HTML for a specific faculty member
@@ -191,7 +461,7 @@ Role: ${s.role}
 Description: ${s.description}`)
     .join("\n\n");
 
-  return `Subject: Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad
+  return `Subject: PediCritiCon 2025 - Faculty Invitation
 
 Dear Dr. ${facultyData.facultyName},
 
@@ -246,7 +516,7 @@ export async function sendBulkInviteEmail(
       
       const result = await sendMail({
         to: facultyData.email,
-        subject: `Invitation to Join as Faculty – PediCritiCon 2025, Hyderabad`,
+        subject: `PediCritiCon 2025 - Faculty Invitation`,
         text,
         html,
       });
