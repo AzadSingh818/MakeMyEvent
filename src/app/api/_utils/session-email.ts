@@ -64,54 +64,54 @@ const FACULTY_DATA = {
       }
     ]
   },
-  // "drarunbansal@gmail.com": {
-  //   facultyName: "Arun Bansal",
-  //   email: "drarunbansal@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Non-Invasive Respiratory Support",
-  //       date: "06/11",
-  //       role: "National Coordinator",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Mapping 500 PICUS across India: Insight from the National PICU Dashboard Initiative",
-  //       date: "08/11",
-  //       role: "Key note Lecture",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "dayalanjul@gmail.com": {
-  //   facultyName: "Anjul Dayal",
-  //   email: "amangla101@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
-  //       date: "08/11",
-  //       role: "Panelist",
-  //       description: "Panelists - Dr. Pradeep Sharma, Dr. Rashmi Kapoor, Dr. Kaushik Maulik, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Bijay Kumar Meher"
-  //     }
-  //   ]
-  // },
-  // "farhanshaikh74@gmail.com": {
-  //   facultyName: "Farhan Shaikh",
-  //   email: "farhanshaikh74@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Monitoring of Strain and Stress without Using Oesophageal Manometry – Are We There Yet?",
-  //       date: "07/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "PICU Brain Buzzer",
-  //       date: "07/11",
-  //       role: "QuizMaster",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
+  "drarunbansal@gmail.com": {
+    facultyName: "Arun Bansal",
+    email: "drarunbansal@gmail.com",
+    sessions: [
+      {
+        title: "Non-Invasive Respiratory Support",
+        date: "06/11",
+        role: "National Coordinator",
+        description: "---"
+      },
+      {
+        title: "Mapping 500 PICUS across India: Insight from the National PICU Dashboard Initiative",
+        date: "08/11",
+        role: "Key note Lecture",
+        description: "---"
+      }
+    ]
+  },
+  "dayalanjul@gmail.com": {
+    facultyName: "Anjul Dayal",
+    email: "amangla101@gmail.com",
+    sessions: [
+      {
+        title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
+        date: "08/11",
+        role: "Panelist",
+        description: "Panelists - Dr. Pradeep Sharma, Dr. Rashmi Kapoor, Dr. Kaushik Maulik, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Bijay Kumar Meher"
+      }
+    ]
+  },
+  "farhanshaikh74@gmail.com": {
+    facultyName: "Farhan Shaikh",
+    email: "farhanshaikh74@gmail.com",
+    sessions: [
+      {
+        title: "Monitoring of Strain and Stress without Using Oesophageal Manometry – Are We There Yet?",
+        date: "07/11",
+        role: "Speaker",
+        description: "---"
+      },
+      {
+        title: "PICU Brain Buzzer",
+        date: "07/11",
+        role: "QuizMaster",
+        description: "---"
+      }
+    ]
+  },
 };
 
 // Generate HTML for a specific faculty member
