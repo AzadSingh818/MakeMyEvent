@@ -2,7 +2,20 @@ import { sendMail } from "@/lib/mailer";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
-{/*const FACULTY_DATA = {
+const FACULTY_DATA = {
+  "muigoku42@gmail.com": {
+    facultyName: "Bakul Parikh",
+    email: "muigoku42@gmail.com",
+    sessions: [
+      {
+        title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
+        date: "8/11",
+        role: "Panelist",
+        description: "Panelists, Dr. Puneet Pooni, Dr. Nirmal Choraria, Dr. Hariharan Seetharaman, Dr. Kwame Boateng"
+      }
+    ]
+  },
+  {/*
   "bakulparekh55@gmail.com": {
     facultyName: "Bakul Parikh",
     email: "bakulparekh55@gmail.com",
