@@ -1,4 +1,4 @@
-// src/app/api/sessions/route.ts - FIXED DatabaseSession property access
+// src/app/api/sessions/route.ts - FIXED Template Literal Error
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import {
@@ -147,7 +147,7 @@ export async function GET() {
         roomName: s.roomName || room?.name || s.hallId || "Unknown Room",
         roomId: s.hallId, // ✅ FIXED: Map hallId to roomId for frontend compatibility
         email: s.facultyEmail || faculty?.email || "",
-        duration: durationMin > 0 ? ${durationMin} minutes : "",
+        duration: durationMin > 0 ? `${durationMin} minutes` : "", // ✅ FIXED: Template literal with backticks
         formattedStartTime: s.startTime || "",
         formattedEndTime: s.endTime || "",
         eventName: s.eventName || "Unknown Event",
@@ -268,7 +268,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: Missing required fields: ${missingFields.join(", ")},
+          error: `Missing required fields: ${missingFields.join(", ")}`,
           receivedFields: Object.fromEntries(formData.entries()),
           missingFields,
         },
@@ -347,7 +347,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: Time parsing failed: ${timeError},
+          error: `Time parsing failed: ${timeError}`,
           providedTimes: { startTime, endTime },
         },
         { status: 400 }
@@ -428,7 +428,7 @@ export async function POST(req: NextRequest) {
       eventId,
       invitationSent: true,
       canTrackResponse: true,
-      responseUrl: /api/faculty/respond?sessionId=${createdSessionId}&facultyEmail=${email},
+      responseUrl: `/api/faculty/respond?sessionId=${createdSessionId}&facultyEmail=${email}`,
       travel: travelRequired,
       accommodation: accommodationRequired,
     };
