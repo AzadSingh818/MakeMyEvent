@@ -2,7 +2,7 @@ import { sendMail } from "@/lib/mailer";
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
-const FACULTY_DATA = {
+{/*const FACULTY_DATA = {
   "bakulparekh55@gmail.com": {
     facultyName: "Bakul Parikh",
     email: "bakulparekh55@gmail.com",
@@ -1257,6 +1257,7 @@ const FACULTY_DATA = {
       }
     ]
   }
+  */}
 };
 
 // Generate HTML for a specific faculty member
