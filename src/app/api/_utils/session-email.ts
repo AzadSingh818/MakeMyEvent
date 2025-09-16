@@ -3,9 +3,9 @@ import { sendMail } from "@/lib/mailer";
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
 const FACULTY_DATA = {
-  "azad818n.s@gmail.com": {
+  "muigoku42@gmail.com": {
     facultyName: "Azad Singh",
-    email: "azad818n.s@gmail.com",
+    email: "muigoku42@gmail.com",
     sessions: [
       {
         title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
