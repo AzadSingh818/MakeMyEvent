@@ -11,25 +11,20 @@ import {
   Users,
   MapPin,
   FileText,
-  Image,
+  Upload,
   AlertTriangle,
   CheckCircle,
   X,
-  Upload,
   Eye,
   Settings,
+  FileSpreadsheet,
+  Download,
   Sparkles,
-  Mail,
-  Building2,
-  User,
-  Plus,
-  Trash2,
-  Copy,
-  Send,
-  CalendarDays,
+  RefreshCw,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
-// Updated Faculty type to include eventId
+// Types
 type Faculty = {
   id: string;
   name: string;
@@ -44,7 +39,6 @@ type Faculty = {
 
 type Room = { id: string; name: string };
 
-// Event type (extracted from calendar grid)
 type Event = {
   id: string;
   name: string;
@@ -66,386 +60,211 @@ type Event = {
   facultyCount?: number;
 };
 
-type SessionForm = {
+type ExcelSessionData = {
   id: string;
-  title: string;
+  facultyName: string;
+  email: string;
   place: string;
+  sessionTitle: string;
+  date: string;
+  role: string;
   roomId: string;
-  description: string;
-  sessionDate: string; // Date-based scheduling
   status: "Draft" | "Confirmed";
 };
 
-const CreateSession: React.FC = () => {
-  // Updated state to include events and event-faculty mapping
+const ExcelSessionCreator: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
-  const [faculties, setFaculties] = useState<Faculty[]>([]);
-  const [facultiesByEvent, setFacultiesByEvent] = useState<
-    Record<string, Faculty[]>
-  >({});
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(false);
-
-  const [facultyId, setFacultyId] = useState("");
-  const [email, setEmail] = useState("");
-  const [sessions, setSessions] = useState<SessionForm[]>([
-    {
-      id: "session-1",
-      title: "",
-      place: "",
-      roomId: "",
-      description: "",
-      sessionDate: "",
-      status: "Draft",
-    },
-  ]);
-  const [posterFile, setPosterFile] = useState<File | null>(null);
-  const [posterPreview, setPosterPreview] = useState<string>("");
-
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [parsedSessions, setParsedSessions] = useState<ExcelSessionData[]>([]);
   const [formStep, setFormStep] = useState(1);
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [createdSessions, setCreatedSessions] = useState<any[]>([]);
 
-  // Enhanced data loading with events and faculty mapping
-  const loadEventsAndFaculty = useCallback(async () => {
+  // Load events and rooms
+  const loadEventsAndRooms = useCallback(async () => {
     try {
-      console.log("🔄 Loading events and faculty data...");
-
-      // Load events from database
-      const eventsResponse = await fetch("/api/events", {
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-      });
+      const [eventsResponse, roomsResponse] = await Promise.all([
+        fetch("/api/events", { cache: "no-store" }),
+        fetch("/api/rooms", { cache: "no-store" }),
+      ]);
 
       let eventsList: Event[] = [];
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
-
         if (eventsData.success && eventsData.data?.events) {
           eventsList = eventsData.data.events;
-        } else if (eventsData.events) {
-          eventsList = eventsData.events;
         } else if (Array.isArray(eventsData)) {
           eventsList = eventsData;
         }
-
-        console.log(`✅ Loaded ${eventsList.length} events from database`);
       }
 
-      // Load faculty data from localStorage and database
-      const facultyResponse = await fetch("/api/faculties", {
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-      });
+      const roomsList = roomsResponse.ok ? await roomsResponse.json() : [];
 
-      let allFaculties: Faculty[] = [];
-      if (facultyResponse.ok) {
-        allFaculties = await facultyResponse.json();
-        console.log(`✅ Loaded ${allFaculties.length} faculties from database`);
-      }
-
-      // Also check localStorage for uploaded faculty lists
-      if (typeof window !== "undefined") {
-        const savedFacultyData = localStorage.getItem("eventFacultyData");
-        if (savedFacultyData) {
-          const eventFacultyData = JSON.parse(savedFacultyData);
-          const localFaculties = eventFacultyData.flatMap(
-            (eventData: any) =>
-              eventData.facultyList?.map((faculty: any) => ({
-                ...faculty,
-                eventId: eventData.eventId,
-                eventName: eventData.eventName,
-              })) || []
-          );
-
-          // Merge with database faculties, avoiding duplicates
-          localFaculties.forEach((localFaculty: Faculty) => {
-            if (!allFaculties.find((f) => f.email === localFaculty.email)) {
-              allFaculties.push(localFaculty);
-            }
-          });
-
-          console.log(
-            `✅ Added ${localFaculties.length} faculties from localStorage`
-          );
-        }
-      }
-
-      // Group faculties by event
-      const facultyMapping: Record<string, Faculty[]> = {};
-      allFaculties.forEach((faculty) => {
-        if (faculty.eventId) {
-          if (!facultyMapping[faculty.eventId]) {
-            facultyMapping[faculty.eventId] = [];
-          }
-          (facultyMapping[faculty.eventId] ?? []).push(faculty);
-        }
-      });
-
-      // Update events with faculty counts
-      const eventsWithFacultyCounts = eventsList.map((event: Event) => ({
-        ...event,
-        facultyCount: facultyMapping[event.id]?.length || 0,
-      }));
-
-      console.log("✅ Events and faculty data loaded successfully");
-      return {
-        events: eventsWithFacultyCounts,
-        facultiesByEvent: facultyMapping,
-        allFaculties,
-      };
+      setEvents(eventsList);
+      setRooms(roomsList);
     } catch (error) {
-      console.error("❌ Error loading events and faculty:", error);
-      return { events: [], facultiesByEvent: {}, allFaculties: [] };
+      console.error("Error loading data:", error);
+      setErrorMessage("Failed to load events or rooms.");
     }
   }, []);
 
-  // Enhanced useEffect for loading all data
   useEffect(() => {
-    (async () => {
+    loadEventsAndRooms();
+  }, [loadEventsAndRooms]);
+
+  // Handle Excel file upload and parsing
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage("Excel file size should be less than 10MB");
+      return;
+    }
+
+    setExcelFile(file);
+    parseExcelFile(file);
+  };
+
+  // Parse Excel file with comprehensive error handling
+  const parseExcelFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
       try {
-        const [
-          {
-            events: eventsFromDb,
-            facultiesByEvent: facultyMapping,
-            allFaculties,
-          },
-          roomsResponse,
-        ] = await Promise.all([loadEventsAndFaculty(), fetch("/api/rooms")]);
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
 
-        const rooms = roomsResponse.ok ? await roomsResponse.json() : [];
+        // Safe access to sheet name with proper validation
+        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+          throw new Error("No worksheets found in Excel file");
+        }
 
-        if (eventsFromDb.length === 0) {
-          console.log("No events found, checking for any available faculty...");
-          if (allFaculties.length > 0) {
-            setFaculties(allFaculties);
-          } else {
-            setErrorMessage(
-              "No events or faculty data available. Please create events or upload faculty via Faculty Management first."
-            );
+        const sheetName = workbook.SheetNames[0];
+
+        // Check if sheetName exists before using as index
+        if (!sheetName) {
+          throw new Error("Invalid worksheet name");
+        }
+
+        // Safe worksheet access
+        const worksheet = workbook.Sheets[sheetName];
+        if (!worksheet) {
+          throw new Error("Worksheet not found");
+        }
+
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+        console.log("Parsed Excel data:", jsonData);
+
+        // Safe mapping with proper type checking
+        const sessions: ExcelSessionData[] = jsonData.map(
+          (row: any, index: number) => {
+            // Safe property access with fallbacks
+            const facultyName = row["Faculty Name"] || row["Name"] || "";
+            const email = row["Email"] || row["Email ID"] || "";
+            const place = row["Place"] || row["Location"] || "";
+            const sessionTitle = row["Session Title"] || row["Title"] || "";
+            const date = row["Date"] || "";
+            const role = row["Role"] || row["Description"] || "";
+
+            return {
+              id: `excel-session-${index}`,
+              facultyName,
+              email,
+              place,
+              sessionTitle,
+              date,
+              role,
+              roomId: "", // Initialize as empty string
+              status: "Draft" as const,
+            };
           }
-        } else {
-          setEvents(eventsFromDb);
-          setFacultiesByEvent(facultyMapping);
-          setFaculties(allFaculties);
-          console.log(
-            `Using ${eventsFromDb.length} events with faculty mapping`
+        );
+
+        // Validate required fields
+        const invalidSessions = sessions.filter(
+          (s) => !s.facultyName || !s.email || !s.sessionTitle || !s.date
+        );
+
+        if (invalidSessions.length > 0) {
+          setErrorMessage(
+            `${invalidSessions.length} rows have missing required fields (Faculty Name, Email, Session Title, Date)`
           );
+          return;
         }
 
-        setRooms(rooms);
+        setParsedSessions(sessions);
+        setErrorMessage("");
+        console.log(
+          `Successfully parsed ${sessions.length} sessions from Excel`
+        );
       } catch (error) {
-        console.error("Error loading data:", error);
-        setErrorMessage("Failed to load events, faculties, or rooms.");
+        console.error("Error parsing Excel file:", error);
+        setErrorMessage("Failed to parse Excel file. Please check the format.");
       }
-    })();
-  }, [loadEventsAndFaculty]);
-
-  // Listen for faculty data updates
-  useEffect(() => {
-    const handleFacultyDataUpdate = (event: CustomEvent) => {
-      console.log("Faculty data updated, reloading...");
-      loadEventsAndFaculty().then(
-        ({ events, facultiesByEvent, allFaculties }) => {
-          setEvents(events);
-          setFacultiesByEvent(facultiesByEvent);
-          setFaculties(allFaculties);
-          console.log(`Updated to ${allFaculties.length} faculty members`);
-        }
-      );
     };
-
-    window.addEventListener(
-      "eventFacultyDataUpdated",
-      handleFacultyDataUpdate as EventListener
-    );
-
-    return () => {
-      window.removeEventListener(
-        "eventFacultyDataUpdated",
-        handleFacultyDataUpdate as EventListener
-      );
-    };
-  }, [loadEventsAndFaculty]);
-
-  // Handle event selection
-  const handleEventChange = (eventId: string) => {
-    setSelectedEventId(eventId);
-    setFacultyId("");
-    setEmail("");
-
-    // Auto-fill place with event location if available
-    const selectedEvent = events.find((e) => e.id === eventId);
-    if (selectedEvent?.location) {
-      updateAllSessions("place", selectedEvent.location);
-    }
-
-    // Clear validation errors
-    if (validationErrors.selectedEventId) {
-      setValidationErrors((prev) => ({
-        ...prev,
-        selectedEventId: "",
-      }));
-    }
+    reader.readAsArrayBuffer(file);
   };
 
-  // Updated faculty selection to work with event-filtered faculty
-  const handleFacultyChange = (selectedFacultyId: string) => {
-    setFacultyId(selectedFacultyId);
-
-    // Get faculty list for selected event
-    const availableFaculty = selectedEventId
-      ? facultiesByEvent[selectedEventId] || []
-      : faculties;
-
-    // Find the selected faculty and auto-fill email
-    const selectedFaculty = availableFaculty.find(
-      (f) => f.id === selectedFacultyId
-    );
-    if (selectedFaculty && selectedFaculty.email) {
-      setEmail(selectedFaculty.email);
-    }
-
-    // Clear validation errors
-    if (validationErrors.facultyId) {
-      setValidationErrors((prev) => ({
-        ...prev,
-        facultyId: "",
-      }));
-    }
-  };
-
-  const addSession = () => {
-    const newSession: SessionForm = {
-      id: `session-${Date.now()}`,
-      title: "",
-      place: sessions[0]?.place || "",
-      roomId: "",
-      description: "",
-      sessionDate: "",
-      status: "Draft",
-    };
-    setSessions([...sessions, newSession]);
-  };
-
-  const removeSession = (sessionId: string) => {
-    if (sessions.length > 1) {
-      setSessions(sessions.filter((s) => s.id !== sessionId));
-      const newErrors = { ...validationErrors };
-      Object.keys(newErrors).forEach((key) => {
-        if (key.startsWith(sessionId)) {
-          delete newErrors[key];
-        }
-      });
-      setValidationErrors(newErrors);
-    }
-  };
-
+  // Update session data
   const updateSession = (
     sessionId: string,
-    field: keyof SessionForm,
+    field: keyof ExcelSessionData,
     value: string
   ) => {
-    setSessions(
+    setParsedSessions((sessions) =>
       sessions.map((session) =>
         session.id === sessionId ? { ...session, [field]: value } : session
       )
     );
 
-    if (validationErrors[`${sessionId}-${field}`]) {
+    // Clear validation error for this field
+    const errorKey = `${sessionId}-${field === "roomId" ? "room" : field}`;
+    if (validationErrors[errorKey]) {
       setValidationErrors((prev) => {
         const newErrors = { ...prev };
-        delete newErrors[`${sessionId}-${field}`];
+        delete newErrors[errorKey];
         return newErrors;
       });
     }
-
-    setErrorMessage("");
-    setSuccessMessage("");
   };
 
-  const copySession = (sourceSessionId: string) => {
-    const sourceSession = sessions.find((s) => s.id === sourceSessionId);
-    if (!sourceSession) return;
-
-    const newSession: SessionForm = {
-      id: `session-${Date.now()}`,
-      title: sourceSession.title,
-      place: sourceSession.place,
-      roomId: sourceSession.roomId,
-      description: sourceSession.description,
-      sessionDate: "", // Don't copy date, let user set new one
-      status: sourceSession.status,
-    };
-    setSessions([...sessions, newSession]);
-  };
-
-  const updateAllSessions = (field: "place" | "status", value: string) => {
-    setSessions(sessions.map((session) => ({ ...session, [field]: value })));
-  };
-
-  const handlePosterUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setErrorMessage("Poster file size should be less than 5MB");
-        return;
-      }
-
-      setPosterFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPosterPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      setErrorMessage("");
-    }
-  };
-
-  const removePoster = () => {
-    setPosterFile(null);
-    setPosterPreview("");
-  };
-
-  // Updated validation to work with dates
+  // Comprehensive form validation
   const validateForm = () => {
     const errors: Record<string, string> = {};
 
-    // Event validation (only if events are available)
-    if (events.length > 0 && !selectedEventId) {
+    if (!selectedEventId) {
       errors.selectedEventId = "Please select an event";
     }
-    if (!facultyId) errors.facultyId = "Please select a faculty";
-    if (!email.trim()) errors.email = "Faculty email is required";
-    if (!email.includes("@")) errors.email = "Please enter a valid email";
 
-    sessions.forEach((session) => {
-      const prefix = session.id;
+    if (parsedSessions.length === 0) {
+      errors.excelFile = "Please upload and parse an Excel file";
+    }
 
-      if (!session.title.trim())
-        errors[`${prefix}-title`] = "Title is required";
-      if (!session.place.trim())
-        errors[`${prefix}-place`] = "Place is required";
-      if (!session.roomId) errors[`${prefix}-roomId`] = "Room is required";
-      if (!session.description.trim())
-        errors[`${prefix}-description`] = "Description is required";
-      if (!session.sessionDate)
-        errors[`${prefix}-sessionDate`] = "Session date is required";
-
-      // Validate that the date is not in the past
-      if (session.sessionDate) {
-        const sessionDate = new Date(session.sessionDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (sessionDate < today) {
-          errors[`${prefix}-sessionDate`] =
-            "Session date cannot be in the past";
-        }
+    // Validate each session
+    parsedSessions.forEach((session) => {
+      if (!session.facultyName.trim()) {
+        errors[`${session.id}-name`] = "Faculty name is required";
+      }
+      if (!session.email.trim() || !session.email.includes("@")) {
+        errors[`${session.id}-email`] = "Valid email is required";
+      }
+      if (!session.sessionTitle.trim()) {
+        errors[`${session.id}-title`] = "Session title is required";
+      }
+      if (!session.date) {
+        errors[`${session.id}-date`] = "Date is required";
+      }
+      // Ensure room is assigned
+      if (!session.roomId || session.roomId.trim() === "") {
+        errors[`${session.id}-room`] = "Room assignment is required";
       }
     });
 
@@ -453,12 +272,10 @@ const CreateSession: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // ✅ UPDATED: Handle submit with proper database field mapping
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  // Create all sessions with comprehensive error handling
+  const handleCreateSessions = async () => {
     if (!validateForm()) {
-      setErrorMessage("Please fill in all required fields correctly.");
+      setErrorMessage("Please fix all validation errors before proceeding.");
       return;
     }
 
@@ -467,142 +284,121 @@ const CreateSession: React.FC = () => {
     setSuccessMessage("");
 
     try {
-      const createdSessions = [];
+      const createdSessionsList = [];
 
-      console.log("Starting bulk session creation...");
-      console.log("Event ID:", selectedEventId);
-      console.log("Faculty ID:", facultyId);
-      console.log("Email:", email);
-      console.log("Sessions to create:", sessions.length);
-
-      for (const [index, session] of sessions.entries()) {
+      for (const [index, session] of parsedSessions.entries()) {
         console.log(
-          `Creating session ${index + 1}/${sessions.length}: ${session.title}`
+          `Creating session ${index + 1}/${parsedSessions.length}: ${
+            session.sessionTitle
+          }`
         );
 
-        const form = new FormData();
+        const formData = new FormData();
 
-        // ✅ UPDATED: Map to database fields with draft times
-        const sessionData = {
-          title: session.title.trim(),
-          facultyId: facultyId,
-          email: email.trim(),
-          place: session.place.trim(),
-          roomId: session.roomId,
-          description: session.description.trim(),
-          // ✅ Convert sessionDate to database timestamp fields
-          suggested_time_start: session.sessionDate
-            ? `${session.sessionDate}T09:00:00`
-            : "",
-          suggested_time_end: session.sessionDate
-            ? `${session.sessionDate}T17:00:00`
-            : "",
-
-          status: session.status,
-          invite_status: "Pending", // ✅ Using underscore format
-          eventId: selectedEventId || "",
-          travelStatus: "Pending",
+        // Helper function for safe FormData appending
+        const appendSafely = (
+          key: string,
+          value: string | undefined | null,
+          isRequired = true
+        ) => {
+          if (value !== undefined && value !== null && value.trim() !== "") {
+            formData.append(key, value.trim());
+          } else if (isRequired) {
+            throw new Error(
+              `Missing required field: ${key} for session "${session.sessionTitle}"`
+            );
+          }
         };
 
-        console.log(`Session ${index + 1} data:`, sessionData);
+        // Safe appending with validation
+        try {
+          appendSafely("title", session.sessionTitle);
+          appendSafely("facultyId", `excel-faculty-${session.email}`);
+          appendSafely("email", session.email);
+          appendSafely("place", session.place);
 
-        // ✅ UPDATED: Required fields to match database schema
-        const requiredFields = [
-          "title",
-          "facultyId",
-          "email",
-          "place",
-          "roomId",
-          "description",
-          "suggested_time_start", // ✅ Updated field names
-          "suggested_time_end", // ✅ Updated field names
-          "status",
-        ];
-
-        const missingFields = requiredFields.filter((field) => {
-          const value = sessionData[field as keyof typeof sessionData];
-          return !value || value.toString().trim() === "";
-        });
-
-        if (missingFields.length > 0) {
-          throw new Error(
-            `Missing required fields for session "${
-              session.title
-            }": ${missingFields.join(", ")}`
-          );
-        }
-
-        Object.entries(sessionData).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== "") {
-            form.append(key, value.toString());
+          // Ensure roomId is assigned before proceeding
+          if (!session.roomId || session.roomId.trim() === "") {
+            throw new Error(
+              `Session "${session.sessionTitle}" is missing room assignment. Please assign a room to all sessions.`
+            );
           }
-        });
+          appendSafely("roomId", session.roomId);
 
-        if (posterFile) {
-          form.append("poster", posterFile);
-        }
+          appendSafely("description", session.role);
+          appendSafely("status", session.status);
+          appendSafely("eventId", selectedEventId);
+          formData.append("invite_status", "Pending");
 
-        const response = await fetch("/api/sessions", {
-          method: "POST",
-          body: form,
-        });
+          // Safe date handling
+          if (session.date) {
+            try {
+              const sessionDate = new Date(session.date);
+              if (isNaN(sessionDate.getTime())) {
+                throw new Error("Invalid date");
+              }
 
-        if (response.ok) {
-          const responseData = await response.json();
-          createdSessions.push(responseData);
-          console.log(`Session created successfully: ${responseData.title}`);
-        } else {
-          const errorData = await response.json();
+              const startTime = `${
+                sessionDate.toISOString().split("T")[0]
+              }T09:00:00`;
+              const endTime = `${
+                sessionDate.toISOString().split("T")[0]
+              }T17:00:00`;
+
+              formData.append("suggested_time_start", startTime);
+              formData.append("suggested_time_end", endTime);
+            } catch (dateError) {
+              console.error("Date parsing error:", dateError);
+              throw new Error(
+                `Invalid date format for session: ${session.sessionTitle}`
+              );
+            }
+          } else {
+            throw new Error(
+              `Session "${session.sessionTitle}" is missing date`
+            );
+          }
+
+          const response = await fetch("/api/sessions", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (response.ok) {
+            const responseData = await response.json();
+            createdSessionsList.push({
+              ...responseData.data,
+              facultyName: session.facultyName,
+              originalEmail: session.email,
+            });
+            console.log(
+              `Session created successfully: ${session.sessionTitle}`
+            );
+          } else {
+            const errorData = await response.json();
+            console.error(
+              `Session creation error for "${session.sessionTitle}":`,
+              errorData
+            );
+            throw new Error(
+              errorData.error ||
+                `Failed to create session: ${session.sessionTitle}`
+            );
+          }
+        } catch (validationError) {
           console.error(
-            `Session creation error for "${session.title}":`,
-            errorData
+            `Validation error for session "${session.sessionTitle}":`,
+            validationError
           );
-          throw new Error(
-            errorData.error || `Failed to create session: ${session.title}`
-          );
+          throw validationError;
         }
       }
 
-      console.log(
-        `All ${createdSessions.length} sessions created successfully`
-      );
-
-      // Send bulk invitation email
-      try {
-        console.log("Sending bulk invitation email...");
-        const emailResponse = await fetch("/api/sessions/bulk-invite", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            facultyId,
-            email,
-            sessions: createdSessions,
-            eventId: selectedEventId,
-          }),
-        });
-
-        if (emailResponse.ok) {
-          const emailResult = await emailResponse.json();
-          console.log("Bulk invitation email sent successfully:", emailResult);
-        } else {
-          const emailError = await emailResponse.json();
-          console.warn("Bulk email sending failed:", emailError);
-        }
-      } catch (emailError) {
-        console.warn("Bulk email sending failed:", emailError);
-      }
-
-      const facultyName =
-        selectedEventId && facultiesByEvent[selectedEventId]
-          ? facultiesByEvent[selectedEventId].find((f) => f.id === facultyId)
-              ?.name
-          : faculties.find((f) => f.id === facultyId)?.name || "Faculty Member";
-
+      setCreatedSessions(createdSessionsList);
       setSuccessMessage(
-        `Successfully created ${createdSessions.length} session(s) for ${facultyName}! Bulk invitation email has been sent.`
+        `🎉 Successfully created ${createdSessionsList.length} sessions and stored them in the database!`
       );
-
-      resetForm();
+      setFormStep(3); // Move to success step
     } catch (error) {
       console.error("Error creating sessions:", error);
       setErrorMessage(
@@ -615,45 +411,54 @@ const CreateSession: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    setSelectedEventId("");
-    setFacultyId("");
-    setEmail("");
-    setSessions([
+  // Download Excel template
+  const downloadTemplate = () => {
+    const templateData = [
       {
-        id: "session-1",
-        title: "",
-        place: "",
-        roomId: "",
-        description: "",
-        sessionDate: "",
-        status: "Draft",
+        "Faculty Name": "Dr. John Smith",
+        Email: "john.smith@university.edu",
+        Place: "Main Campus",
+        "Session Title": "Introduction to AI",
+        Date: "2025-09-20",
+        Role: "Keynote Speaker - Artificial Intelligence Expert",
       },
-    ]);
-    setPosterFile(null);
-    setPosterPreview("");
-    setFormStep(1);
-    setValidationErrors({});
+      {
+        "Faculty Name": "Prof. Jane Doe",
+        Email: "jane.doe@university.edu",
+        Place: "Science Building",
+        "Session Title": "Data Science Workshop",
+        Date: "2025-09-21",
+        Role: "Workshop Facilitator - Data Science Department",
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sessions");
+    XLSX.writeFile(workbook, "session_template.xlsx");
   };
 
-  // Updated step validation
+  const resetForm = () => {
+    setSelectedEventId("");
+    setExcelFile(null);
+    setParsedSessions([]);
+    setCreatedSessions([]);
+    setFormStep(1);
+    setValidationErrors({});
+    setSuccessMessage("");
+    setErrorMessage("");
+  };
+
   const nextStep = () => {
     if (formStep === 1) {
-      const stepErrors: Record<string, string> = {};
-
-      // Only require event if events are available
-      if (events.length > 0 && !selectedEventId) {
-        stepErrors.selectedEventId = "Please select an event";
+      if (!selectedEventId) {
+        setValidationErrors({ selectedEventId: "Please select an event" });
+        return;
       }
-      if (!facultyId) {
-        stepErrors.facultyId = "Please select a faculty";
-      }
-      if (!email) {
-        stepErrors.email = "Email is required";
-      }
-
-      if (Object.keys(stepErrors).length > 0) {
-        setValidationErrors(stepErrors);
+      if (parsedSessions.length === 0) {
+        setValidationErrors({
+          excelFile: "Please upload and parse an Excel file",
+        });
         return;
       }
     }
@@ -664,45 +469,46 @@ const CreateSession: React.FC = () => {
     setFormStep(formStep - 1);
   };
 
-  const selectedFaculty =
-    selectedEventId && facultiesByEvent[selectedEventId]
-      ? facultiesByEvent[selectedEventId].find((f) => f.id === facultyId)
-      : faculties.find((f) => f.id === facultyId);
-
-  const availableFaculty = selectedEventId
-    ? facultiesByEvent[selectedEventId] || []
-    : faculties;
+  // Helper function to check if all sessions have room assignments
+  const allRoomsAssigned = parsedSessions.every(
+    (s) => s.roomId && s.roomId.trim() !== ""
+  );
+  const assignedRoomsCount = parsedSessions.filter(
+    (s) => s.roomId && s.roomId.trim() !== ""
+  ).length;
 
   return (
     <OrganizerLayout>
       <div className="min-h-screen bg-gray-950 py-8">
         <div className="max-w-7xl mx-auto px-6">
+          {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
-                <Calendar className="h-7 w-7" />
+              <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 text-white shadow-lg">
+                <FileSpreadsheet className="h-7 w-7" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-blue-200 to-purple-200 bg-clip-text text-transparent">
-                  Create Date-Based Sessions
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-emerald-200 to-blue-200 bg-clip-text text-transparent">
+                  Excel-Based Session Creator
                 </h1>
                 <p className="text-gray-300 text-lg mt-1">
-                  Create multiple sessions for one faculty scheduled by date
+                  Upload Excel file to create multiple sessions automatically
                 </p>
               </div>
             </div>
 
+            {/* ✅ UPDATED: Progress Steps (Removed Email Step) */}
             <div className="flex items-center justify-center gap-4 mb-8">
               {[
-                { step: 1, title: "Event & Faculty Selection", icon: User },
-                { step: 2, title: "Sessions Details", icon: Calendar },
-                { step: 3, title: "Review & Send", icon: Send },
+                { step: 1, title: "Event & Excel Upload", icon: Upload },
+                { step: 2, title: "Review & Create Sessions", icon: Eye },
+                { step: 3, title: "Success", icon: CheckCircle },
               ].map(({ step, title, icon: Icon }) => (
                 <div key={step} className="flex items-center">
                   <div
                     className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${
                       formStep >= step
-                        ? "bg-blue-500 border-blue-500 text-white shadow-lg"
+                        ? "bg-emerald-500 border-emerald-500 text-white shadow-lg"
                         : "bg-gray-800 border-gray-600 text-gray-400"
                     }`}
                   >
@@ -712,7 +518,7 @@ const CreateSession: React.FC = () => {
                   {step < 3 && (
                     <div
                       className={`w-8 h-0.5 mx-2 ${
-                        formStep > step ? "bg-blue-500" : "bg-gray-600"
+                        formStep > step ? "bg-emerald-500" : "bg-gray-600"
                       }`}
                     />
                   )}
@@ -721,6 +527,7 @@ const CreateSession: React.FC = () => {
             </div>
           </div>
 
+          {/* Success/Error Messages */}
           {successMessage && (
             <Alert className="mb-6 border-green-600 bg-green-900/20 backdrop-blur">
               <CheckCircle className="h-4 w-4 text-green-400" />
@@ -744,875 +551,588 @@ const CreateSession: React.FC = () => {
               <Card className="border-gray-700 shadow-2xl bg-gray-900/80 backdrop-blur">
                 <CardHeader className="border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-800/50">
                   <CardTitle className="flex items-center gap-3 text-xl text-white">
-                    <div className="p-2 rounded-lg bg-blue-600/20">
-                      <Settings className="h-5 w-5 text-blue-400" />
+                    <div className="p-2 rounded-lg bg-emerald-600/20">
+                      <Settings className="h-5 w-5 text-emerald-400" />
                     </div>
-                    {formStep === 1 && "Event & Faculty Selection"}
-                    {formStep === 2 &&
-                      `Sessions for ${selectedFaculty?.name || "Faculty"}`}
-                    {formStep === 3 && "Review & Send Bulk Invitation"}
+                    {formStep === 1 && "Event Selection & Excel Upload"}
+                    {formStep === 2 && "Review & Create Sessions"}
+                    {formStep === 3 && "Sessions Created Successfully!"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-8 text-white">
-                  <form onSubmit={handleSubmit}>
-                    {formStep === 1 && (
-                      <div className="space-y-6">
-                        <div className="grid md:grid-cols-2 gap-6">
-                          {/* Event Selection */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-200 mb-2">
-                              <Calendar className="h-4 w-4 inline mr-2" />
-                              Select Event *
-                              <span className="text-xs text-blue-400 ml-2">
-                                ({events.length} events available)
-                              </span>
-                            </label>
-                            <select
-                              value={selectedEventId}
-                              onChange={(e) =>
-                                handleEventChange(e.target.value)
-                              }
-                              className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white ${
-                                validationErrors.selectedEventId
-                                  ? "border-red-500 bg-red-900/20"
-                                  : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                              }`}
-                              required={events.length > 0}
-                            >
-                              <option value="">Choose Event</option>
-                              {events.map((event) => (
-                                <option key={event.id} value={event.id}>
-                                  {event.name} ({event.facultyCount || 0}{" "}
-                                  faculty)
-                                </option>
-                              ))}
-                            </select>
-                            {validationErrors.selectedEventId && (
-                              <p className="text-red-400 text-sm mt-1">
-                                {validationErrors.selectedEventId}
-                              </p>
-                            )}
-                            {events.length === 0 && (
-                              <p className="text-yellow-400 text-xs mt-1">
-                                ⚠️ No events found. You can still create
-                                sessions without selecting an event.
-                              </p>
-                            )}
-                          </div>
+                  {/* Step 1: Event & Excel Upload */}
+                  {formStep === 1 && (
+                    <div className="space-y-6">
+                      {/* Event Selection */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-200 mb-2">
+                          <Calendar className="h-4 w-4 inline mr-2" />
+                          Select Event *
+                          <span className="text-xs text-emerald-400 ml-2">
+                            ({events.length} events available)
+                          </span>
+                        </label>
+                        <select
+                          value={selectedEventId}
+                          onChange={(e) => {
+                            setSelectedEventId(e.target.value);
+                            if (validationErrors.selectedEventId) {
+                              setValidationErrors((prev) => ({
+                                ...prev,
+                                selectedEventId: "",
+                              }));
+                            }
+                          }}
+                          className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-800 text-white ${
+                            validationErrors.selectedEventId
+                              ? "border-red-500 bg-red-900/20"
+                              : "border-gray-600 hover:border-gray-500 focus:border-emerald-400"
+                          }`}
+                          style={{ colorScheme: "dark" }}
+                          required
+                        >
+                          <option value="">Choose Event</option>
+                          {events.map((event) => (
+                            <option key={event.id} value={event.id}>
+                              {event.name}
+                            </option>
+                          ))}
+                        </select>
+                        {validationErrors.selectedEventId && (
+                          <p className="text-red-400 text-sm mt-1">
+                            {validationErrors.selectedEventId}
+                          </p>
+                        )}
+                      </div>
 
-                          {/* Faculty Selection */}
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-200 mb-2">
-                              <User className="h-4 w-4 inline mr-2" />
-                              Select Faculty *
-                              <span className="text-xs text-blue-400 ml-2">
-                                ({availableFaculty.length} faculty available
-                                {selectedEventId ? " for selected event" : ""})
-                              </span>
-                            </label>
-                            <select
-                              value={facultyId}
-                              onChange={(e) =>
-                                handleFacultyChange(e.target.value)
-                              }
-                              className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white ${
-                                validationErrors.facultyId
-                                  ? "border-red-500 bg-red-900/20"
-                                  : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                              }`}
-                              required
-                              disabled={events.length > 0 && !selectedEventId}
-                            >
-                              <option value="">
-                                {events.length > 0 && !selectedEventId
-                                  ? "Please select an event first"
-                                  : "Choose Faculty Member"}
-                              </option>
-                              {availableFaculty.map((faculty) => (
-                                <option key={faculty.id} value={faculty.id}>
-                                  {faculty.name}
-                                  {faculty.department &&
-                                    ` (${faculty.department})`}
-                                  {faculty.institution &&
-                                    ` - ${faculty.institution}`}
-                                </option>
-                              ))}
-                            </select>
-                            {validationErrors.facultyId && (
-                              <p className="text-red-400 text-sm mt-1">
-                                {validationErrors.facultyId}
-                              </p>
-                            )}
-                          </div>
-                        </div>
+                      {/* Excel Template Download */}
+                      <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-6">
+                        <h3 className="text-lg font-semibold text-blue-200 mb-4 flex items-center gap-2">
+                          <Download className="h-5 w-5" />
+                          Excel Template
+                        </h3>
+                        <p className="text-blue-300 text-sm mb-4">
+                          Download the template to see the required format for
+                          your Excel file.
+                        </p>
+                        <Button
+                          type="button"
+                          onClick={downloadTemplate}
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Template
+                        </Button>
+                      </div>
 
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-200 mb-2">
-                            <Mail className="h-4 w-4 inline mr-2" />
-                            Faculty Email *
-                            <span className="text-xs text-gray-400 ml-2">
-                              (auto-filled when faculty is selected)
-                            </span>
-                          </label>
-                          <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => {
-                              setEmail(e.target.value);
-                              if (validationErrors.email) {
-                                setValidationErrors((prev) => ({
-                                  ...prev,
-                                  email: "",
-                                }));
-                              }
-                            }}
-                            placeholder="faculty@university.edu"
-                            className={`w-full p-4 border-2 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-gray-400 ${
-                              validationErrors.email
-                                ? "border-red-500 bg-red-900/20"
-                                : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                            }`}
-                            required
-                            readOnly={!!facultyId}
-                          />
-                          {validationErrors.email && (
-                            <p className="text-red-400 text-sm mt-1">
-                              {validationErrors.email}
-                            </p>
+                      {/* Excel File Upload */}
+                      <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 hover:border-emerald-400 transition-all bg-gray-800/50">
+                        <div className="text-center">
+                          <FileSpreadsheet className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                          <h3 className="text-lg font-semibold text-white mb-2">
+                            Upload Excel File
+                          </h3>
+                          <p className="text-gray-300 mb-4">
+                            Upload Excel file with faculty and session details
+                          </p>
+
+                          {!excelFile ? (
+                            <div>
+                              <input
+                                type="file"
+                                accept=".xlsx,.xls"
+                                onChange={handleExcelUpload}
+                                className="hidden"
+                                id="excel-upload"
+                              />
+                              <label
+                                htmlFor="excel-upload"
+                                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-blue-600 text-white rounded-xl hover:from-emerald-600 hover:to-blue-700 cursor-pointer transition-all shadow-lg"
+                              >
+                                <Upload className="h-4 w-4" />
+                                Choose Excel File
+                              </label>
+                              <p className="text-xs text-gray-400 mt-2">
+                                .xlsx, .xls up to 10MB
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-center gap-3">
+                                <Badge className="bg-emerald-800 text-emerald-200 border-emerald-600">
+                                  <CheckCircle className="h-3 w-3 mr-1" />
+                                  {excelFile.name}
+                                </Badge>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setExcelFile(null);
+                                    setParsedSessions([]);
+                                  }}
+                                  className="border-red-600 text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                                >
+                                  <X className="h-3 w-3 mr-1" />
+                                  Remove
+                                </Button>
+                              </div>
+                              {parsedSessions.length > 0 && (
+                                <div className="text-emerald-300">
+                                  ✅ Parsed {parsedSessions.length} sessions
+                                  successfully!
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
-
-                        {/* Selection Summary */}
-                        {selectedEventId && facultyId && (
-                          <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-4">
-                            <h4 className="text-sm font-medium mb-2 text-blue-200">
-                              Selection Summary:
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-blue-300">
-                              <div>
-                                <span className="font-medium">Event:</span>{" "}
-                                {
-                                  events.find((e) => e.id === selectedEventId)
-                                    ?.name
-                                }
-                              </div>
-                              <div>
-                                <span className="font-medium">Faculty:</span>{" "}
-                                {selectedFaculty?.name}
-                              </div>
-                              <div>
-                                <span className="font-medium">Email:</span>{" "}
-                                {email}
-                              </div>
-                              <div>
-                                <span className="font-medium">
-                                  Institution:
-                                </span>{" "}
-                                {selectedFaculty?.institution || "N/A"}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Common Settings */}
-                        <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-6">
-                          <h3 className="text-lg font-semibold text-blue-200 mb-4 flex items-center gap-2">
-                            <Settings className="h-5 w-5" />
-                            Common Settings (Applied to All Sessions)
-                          </h3>
-                          <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-blue-200 mb-2">
-                                Default Place/Location
-                              </label>
-                              <input
-                                type="text"
-                                placeholder="e.g., Main Campus, Building A"
-                                value={sessions[0]?.place || ""}
-                                className="w-full p-3 border border-blue-600 rounded-lg bg-blue-900/30 text-white placeholder-blue-300 focus:border-blue-400 focus:outline-none"
-                                onChange={(e) =>
-                                  updateAllSessions("place", e.target.value)
-                                }
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-blue-200 mb-2">
-                                Default Status
-                              </label>
-                              <select
-                                value={sessions[0]?.status || "Draft"}
-                                className="w-full p-3 border border-blue-600 rounded-lg bg-blue-900/30 text-white focus:border-blue-400 focus:outline-none"
-                                onChange={(e) =>
-                                  updateAllSessions("status", e.target.value)
-                                }
-                              >
-                                <option value="Draft">Draft</option>
-                                <option value="Confirmed">Confirmed</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          {/* ✅ NEW: Draft Time Notice */}
-                          <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-600 rounded-lg">
-                            <p className="text-yellow-200 text-sm">
-                              ℹ️ <strong>Note:</strong> Sessions will be created
-                              with draft times (9 AM - 5 PM) for database
-                              compatibility. Actual timing can be coordinated
-                              later with faculty.
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Poster Upload */}
-                        <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 hover:border-blue-400 transition-all bg-gray-800/50">
-                          <div className="text-center">
-                            <Image className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                            <h3 className="text-lg font-semibold text-white mb-2">
-                              Common Session Poster (Optional)
-                            </h3>
-                            <p className="text-gray-300 mb-4">
-                              Upload one poster to be used for all sessions
-                            </p>
-
-                            {!posterPreview ? (
-                              <div>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handlePosterUpload}
-                                  className="hidden"
-                                  id="poster-upload"
-                                />
-                                <label
-                                  htmlFor="poster-upload"
-                                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 cursor-pointer transition-all shadow-lg"
-                                >
-                                  <Upload className="h-4 w-4" />
-                                  Choose Poster
-                                </label>
-                                <p className="text-xs text-gray-400 mt-2">
-                                  PNG, JPG up to 5MB
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="space-y-4">
-                                <img
-                                  src={posterPreview}
-                                  alt="Poster preview"
-                                  className="max-w-xs mx-auto rounded-lg shadow-lg border border-gray-600"
-                                />
-                                <div className="flex items-center justify-center gap-3">
-                                  <Badge
-                                    variant="secondary"
-                                    className="bg-green-800 text-green-200 border-green-600"
-                                  >
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Poster Ready
-                                  </Badge>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={removePoster}
-                                    className="border-red-600 text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                                  >
-                                    <X className="h-3 w-3 mr-1" />
-                                    Remove
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
                       </div>
-                    )}
 
-                    {formStep === 2 && (
-                      <div className="space-y-6">
-                        <div className="flex items-center justify-between mb-6">
-                          <h3 className="text-lg font-semibold text-white">
-                            Sessions for {selectedFaculty?.name} (
-                            {sessions.length})
-                          </h3>
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={addSession}
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add Session
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2">
-                          {sessions.map((session, index) => (
-                            <Card
-                              key={session.id}
-                              className="border-gray-600 bg-gray-800/50 relative"
-                            >
-                              <CardHeader className="pb-4">
-                                <div className="flex items-center justify-between">
-                                  <CardTitle className="text-white text-base flex items-center gap-2">
-                                    <Badge
-                                      variant="secondary"
-                                      className="bg-blue-900/50 text-blue-200"
-                                    >
-                                      #{index + 1}
-                                    </Badge>
-                                    Session {index + 1}
-                                  </CardTitle>
-                                  <div className="flex gap-2">
-                                    {sessions.length > 1 && (
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => copySession(session.id)}
-                                        className="border-blue-600 text-blue-400 hover:bg-blue-900/20 h-8 px-2"
-                                        title="Copy session details"
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                    {sessions.length > 1 && (
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() =>
-                                          removeSession(session.id)
-                                        }
-                                        className="border-red-600 text-red-400 hover:bg-red-900/20 h-8 px-2"
-                                        title="Remove session"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              </CardHeader>
-                              <CardContent className="space-y-4">
-                                <div className="grid md:grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                                      Session Title *
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={session.title}
-                                      onChange={(e) =>
-                                        updateSession(
-                                          session.id,
-                                          "title",
-                                          e.target.value
-                                        )
-                                      }
-                                      placeholder="Enter session title"
-                                      className={`w-full p-3 border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-gray-400 ${
-                                        validationErrors[`${session.id}-title`]
-                                          ? "border-red-500 bg-red-900/20"
-                                          : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                                      }`}
-                                    />
-                                    {validationErrors[
-                                      `${session.id}-title`
-                                    ] && (
-                                      <p className="text-red-400 text-sm mt-1">
-                                        {
-                                          validationErrors[
-                                            `${session.id}-title`
-                                          ]
-                                        }
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                                      Place/Location *
-                                    </label>
-                                    <input
-                                      type="text"
-                                      value={session.place}
-                                      onChange={(e) =>
-                                        updateSession(
-                                          session.id,
-                                          "place",
-                                          e.target.value
-                                        )
-                                      }
-                                      placeholder="Session location"
-                                      className={`w-full p-3 border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-gray-400 ${
-                                        validationErrors[`${session.id}-place`]
-                                          ? "border-red-500 bg-red-900/20"
-                                          : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                                      }`}
-                                    />
-                                    {validationErrors[
-                                      `${session.id}-place`
-                                    ] && (
-                                      <p className="text-red-400 text-sm mt-1">
-                                        {
-                                          validationErrors[
-                                            `${session.id}-place`
-                                          ]
-                                        }
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div className="grid md:grid-cols-2 gap-4">
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                                      <Building2 className="h-4 w-4 inline mr-1" />
-                                      Room *
-                                    </label>
-                                    <select
-                                      value={session.roomId}
-                                      onChange={(e) =>
-                                        updateSession(
-                                          session.id,
-                                          "roomId",
-                                          e.target.value
-                                        )
-                                      }
-                                      className={`w-full p-3 border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white ${
-                                        validationErrors[`${session.id}-roomId`]
-                                          ? "border-red-500 bg-red-900/20"
-                                          : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                                      }`}
-                                    >
-                                      <option value="">Select Room</option>
-                                      {rooms.map((r) => (
-                                        <option key={r.id} value={r.id}>
-                                          {r.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    {validationErrors[
-                                      `${session.id}-roomId`
-                                    ] && (
-                                      <p className="text-red-400 text-sm mt-1">
-                                        {
-                                          validationErrors[
-                                            `${session.id}-roomId`
-                                          ]
-                                        }
-                                      </p>
-                                    )}
-                                  </div>
-
-                                  <div>
-                                    <label className="block text-sm font-medium text-gray-200 mb-2">
-                                      Status
-                                    </label>
-                                    <select
-                                      value={session.status}
-                                      onChange={(e) =>
-                                        updateSession(
-                                          session.id,
-                                          "status",
-                                          e.target.value
-                                        )
-                                      }
-                                      className="w-full p-3 border-2 border-gray-600 rounded-lg hover:border-gray-500 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-gray-800 text-white"
-                                    >
-                                      <option value="Draft">Draft</option>
-                                      <option value="Confirmed">
-                                        Confirmed
-                                      </option>
-                                    </select>
-                                  </div>
-                                </div>
-
-                                {/* Date Selection */}
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-200 mb-2">
-                                    <CalendarDays className="h-4 w-4 inline mr-1 text-blue-400" />
-                                    Session Date *
-                                    <span className="text-xs text-yellow-400 ml-2">
-                                      (Draft times 9 AM - 5 PM will be
-                                      auto-assigned)
-                                    </span>
-                                  </label>
-                                  <input
-                                    type="date"
-                                    value={session.sessionDate}
-                                    onChange={(e) =>
-                                      updateSession(
-                                        session.id,
-                                        "sessionDate",
-                                        e.target.value
-                                      )
-                                    }
-                                    min={new Date().toISOString().split("T")[0]}
-                                    className={`w-full p-3 border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white ${
-                                      validationErrors[
-                                        `${session.id}-sessionDate`
-                                      ]
-                                        ? "border-red-500 bg-red-900/20"
-                                        : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                                    }`}
-                                  />
-                                  {validationErrors[
-                                    `${session.id}-sessionDate`
-                                  ] && (
-                                    <p className="text-red-400 text-sm mt-1">
-                                      {
-                                        validationErrors[
-                                          `${session.id}-sessionDate`
-                                        ]
-                                      }
-                                    </p>
-                                  )}
-                                  {session.sessionDate && (
-                                    <p className="text-blue-300 text-xs mt-1">
-                                      📅 Scheduled for{" "}
-                                      {new Date(
-                                        session.sessionDate
-                                      ).toLocaleDateString("en-US", {
-                                        weekday: "long",
-                                        year: "numeric",
-                                        month: "long",
-                                        day: "numeric",
-                                      })}{" "}
-                                      (9:00 AM - 5:00 PM draft timing)
-                                    </p>
-                                  )}
-                                </div>
-
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-200 mb-2">
-                                    <FileText className="h-4 w-4 inline mr-1" />
-                                    Description *
-                                  </label>
-                                  <textarea
-                                    value={session.description}
-                                    onChange={(e) =>
-                                      updateSession(
-                                        session.id,
-                                        "description",
-                                        e.target.value
-                                      )
-                                    }
-                                    rows={3}
-                                    placeholder="Session description, objectives, and key topics..."
-                                    className={`w-full p-3 border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-800 text-white placeholder-gray-400 ${
-                                      validationErrors[
-                                        `${session.id}-description`
-                                      ]
-                                        ? "border-red-500 bg-red-900/20"
-                                        : "border-gray-600 hover:border-gray-500 focus:border-blue-400"
-                                    }`}
-                                  />
-                                  {validationErrors[
-                                    `${session.id}-description`
-                                  ] && (
-                                    <p className="text-red-400 text-sm mt-1">
-                                      {
-                                        validationErrors[
-                                          `${session.id}-description`
-                                        ]
-                                      }
-                                    </p>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
+                      {/* Required Excel Columns */}
+                      <div className="bg-yellow-900/20 border border-yellow-600 rounded-xl p-4">
+                        <h4 className="text-yellow-200 font-medium mb-2">
+                          Required Excel Columns:
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                          {[
+                            "Faculty Name",
+                            "Email",
+                            "Place",
+                            "Session Title",
+                            "Date",
+                            "Role",
+                          ].map((col) => (
+                            <div key={col} className="text-yellow-300">
+                              • {col}
+                            </div>
                           ))}
                         </div>
                       </div>
-                    )}
+                    </div>
+                  )}
 
-                    {formStep === 3 && (
-                      <div className="space-y-6">
-                        <div className="bg-gradient-to-br from-gray-800 to-gray-800/50 rounded-xl p-6 border border-gray-700">
-                          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                            <Eye className="h-5 w-5" />
-                            Bulk Session Review
-                          </h3>
-
-                          <div className="grid md:grid-cols-2 gap-4 text-sm mb-6">
-                            {selectedEventId && (
-                              <div>
-                                <span className="font-medium text-gray-300">
-                                  Event:
-                                </span>
-                                <p className="text-white">
-                                  {
-                                    events.find((e) => e.id === selectedEventId)
-                                      ?.name
-                                  }
-                                </p>
-                              </div>
-                            )}
-                            <div>
-                              <span className="font-medium text-gray-300">
-                                Faculty:
-                              </span>
-                              <p className="text-white">
-                                {selectedFaculty?.name}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-300">
-                                Email:
-                              </span>
-                              <p className="text-white">{email}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-300">
-                                Total Sessions:
-                              </span>
-                              <p className="text-white">{sessions.length}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-300">
-                                Poster:
-                              </span>
-                              <p className="text-white">
-                                {posterFile ? "Included" : "None"}
-                              </p>
-                            </div>
-                            {selectedFaculty?.institution && (
-                              <div>
-                                <span className="font-medium text-gray-300">
-                                  Institution:
-                                </span>
-                                <p className="text-white">
-                                  {selectedFaculty.institution}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="space-y-4">
-                            <h4 className="font-medium text-gray-300">
-                              Sessions Overview:
-                            </h4>
-                            <div className="max-h-96 overflow-y-auto space-y-4">
-                              {sessions.map((session, index) => {
-                                const selectedRoom = rooms.find(
-                                  (r) => r.id === session.roomId
-                                );
-                                return (
-                                  <div
-                                    key={session.id}
-                                    className="bg-gray-900/50 border border-gray-600 rounded-lg p-4"
-                                  >
-                                    <div className="flex justify-between items-start mb-2">
-                                      <h5 className="font-medium text-white">
-                                        #{index + 1}: {session.title}
-                                      </h5>
-                                      <Badge
-                                        variant="secondary"
-                                        className="text-xs"
-                                      >
-                                        {session.status}
-                                      </Badge>
-                                    </div>
-                                    <div className="grid md:grid-cols-2 gap-4 text-sm">
-                                      <div>
-                                        <span className="text-gray-400">
-                                          Location:
-                                        </span>
-                                        <span className="text-white ml-2">
-                                          {session.place}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-400">
-                                          Room:
-                                        </span>
-                                        <span className="text-white ml-2">
-                                          {selectedRoom?.name}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-400">
-                                          Date:
-                                        </span>
-                                        <span className="text-white ml-2">
-                                          {session.sessionDate
-                                            ? new Date(
-                                                session.sessionDate
-                                              ).toLocaleDateString("en-US", {
-                                                weekday: "long",
-                                                year: "numeric",
-                                                month: "long",
-                                                day: "numeric",
-                                              })
-                                            : "Not set"}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-400">
-                                          Draft Time:
-                                        </span>
-                                        <span className="text-yellow-300 ml-2">
-                                          9:00 AM - 5:00 PM
-                                        </span>
-                                      </div>
-                                    </div>
-                                    {session.description && (
-                                      <div className="mt-2 pt-2 border-t border-gray-700">
-                                        <span className="text-gray-400 text-sm">
-                                          Description:
-                                        </span>
-                                        <p className="text-white text-sm mt-1 line-clamp-3">
-                                          {session.description}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {posterPreview && (
-                            <div className="mt-4">
-                              <span className="font-medium text-gray-300">
-                                Poster Preview:
-                              </span>
-                              <img
-                                src={posterPreview}
-                                alt="Session poster"
-                                className="w-32 h-auto rounded-lg mt-2 border border-gray-600"
-                              />
-                            </div>
-                          )}
+                  {/* Step 2: Review & Create Sessions */}
+                  {formStep === 2 && (
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-semibold text-white">
+                          Review Sessions ({parsedSessions.length})
+                        </h3>
+                        <div className="flex items-center gap-4">
+                          <Badge className="bg-emerald-800 text-emerald-200">
+                            Event:{" "}
+                            {events.find((e) => e.id === selectedEventId)?.name}
+                          </Badge>
+                          <Badge
+                            className={
+                              allRoomsAssigned
+                                ? "bg-green-800 text-green-200"
+                                : "bg-red-800 text-red-200"
+                            }
+                          >
+                            Rooms: {assignedRoomsCount}/{parsedSessions.length}{" "}
+                            Assigned
+                          </Badge>
                         </div>
+                      </div>
 
-                        <Alert className="border-blue-600 bg-blue-900/20">
-                          <Send className="h-4 w-4 text-blue-400" />
-                          <AlertDescription className="text-blue-200">
-                            <strong>Ready to send bulk invitation!</strong>
-                            <br />A single comprehensive email will be sent to{" "}
-                            {selectedFaculty?.name} with all {sessions.length}{" "}
-                            session(s) scheduled by date (with draft times 9 AM
-                            - 5 PM)
-                            {posterFile && " and the attached poster"}. The
-                            faculty can respond to each session individually and
-                            coordinate exact timing later.
+                      {/* Show warning if any sessions are missing room assignments */}
+                      {!allRoomsAssigned && (
+                        <Alert className="border-red-600 bg-red-900/20">
+                          <AlertTriangle className="h-4 w-4 text-red-400" />
+                          <AlertDescription className="text-red-200">
+                            <strong>Action Required:</strong> Please assign
+                            rooms to all sessions before proceeding.
+                            {parsedSessions.length - assignedRoomsCount}{" "}
+                            sessions are missing room assignments.
                           </AlertDescription>
                         </Alert>
-                      </div>
-                    )}
+                      )}
 
-                    <div className="flex justify-between items-center pt-8 border-t border-gray-700">
-                      <div>
-                        {formStep > 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={prevStep}
-                            className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
+                      <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                        {parsedSessions.map((session, index) => (
+                          <Card
+                            key={session.id}
+                            className={`border-gray-600 bg-gray-800/50 ${
+                              !session.roomId || session.roomId.trim() === ""
+                                ? "border-red-500 bg-red-900/10"
+                                : ""
+                            }`}
                           >
-                            Previous Step
-                          </Button>
-                        )}
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-white text-base flex items-center gap-2">
+                                  <Badge
+                                    variant="secondary"
+                                    className="bg-emerald-900/50 text-emerald-200"
+                                  >
+                                    #{index + 1}
+                                  </Badge>
+                                  {session.sessionTitle}
+                                </CardTitle>
+                                <div className="text-xs text-gray-400">
+                                  {session.date}
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div className="grid md:grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <span className="text-gray-400">
+                                    Faculty:
+                                  </span>
+                                  <span className="text-white ml-2">
+                                    {session.facultyName}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400">Email:</span>
+                                  <span className="text-white ml-2">
+                                    {session.email}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-gray-400">Place:</span>
+                                  <span className="text-white ml-2">
+                                    {session.place}
+                                  </span>
+                                </div>
+                                {/* Dark themed room dropdown */}
+                                <div className="md:col-span-2">
+                                  <label className="text-gray-400 block mb-1">
+                                    Room: *
+                                  </label>
+                                  <select
+                                    value={session.roomId}
+                                    onChange={(e) =>
+                                      updateSession(
+                                        session.id,
+                                        "roomId",
+                                        e.target.value
+                                      )
+                                    }
+                                    className={`w-full p-3 text-sm rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                      !session.roomId ||
+                                      session.roomId.trim() === "" ||
+                                      validationErrors[`${session.id}-room`]
+                                        ? "bg-red-900/20 border-2 border-red-500 text-red-200"
+                                        : "bg-gray-800 border-2 border-gray-600 text-white hover:border-gray-500 focus:border-emerald-400"
+                                    }`}
+                                    style={{ colorScheme: "dark" }}
+                                  >
+                                    <option
+                                      value=""
+                                      className="bg-gray-800 text-gray-400"
+                                    >
+                                      ⚠️ Select Room (Required)
+                                    </option>
+                                    {rooms.map((room) => (
+                                      <option
+                                        key={room.id}
+                                        value={room.id}
+                                        className="bg-gray-800 text-white py-2"
+                                      >
+                                        {room.name}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {(!session.roomId ||
+                                    session.roomId.trim() === "") && (
+                                    <p className="text-red-400 text-xs mt-1">
+                                      Room assignment is required
+                                    </p>
+                                  )}
+                                  {validationErrors[`${session.id}-room`] && (
+                                    <p className="text-red-400 text-xs mt-1">
+                                      {validationErrors[`${session.id}-room`]}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {session.role && (
+                                <div className="mt-2 pt-2 border-t border-gray-700">
+                                  <span className="text-gray-400 text-sm">
+                                    Role/Description:
+                                  </span>
+                                  <p className="text-white text-sm mt-1">
+                                    {session.role}
+                                  </p>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
 
-                      <div className="flex gap-3">
-                        {formStep < 3 ? (
-                          <Button
-                            type="button"
-                            onClick={nextStep}
-                            className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg"
-                          >
-                            Continue
-                          </Button>
-                        ) : (
-                          <Button
-                            type="submit"
-                            disabled={loading}
-                            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 px-8 text-white shadow-lg"
-                          >
-                            {loading ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Creating {sessions.length} Sessions...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="h-4 w-4 mr-2" />
-                                Create {sessions.length} Sessions & Send Bulk
-                                Invite
-                              </>
-                            )}
-                          </Button>
-                        )}
+                      {/* Ready status with room validation */}
+                      <div
+                        className={`border rounded-lg p-4 ${
+                          allRoomsAssigned
+                            ? "bg-emerald-900/20 border-emerald-700"
+                            : "bg-yellow-900/20 border-yellow-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {allRoomsAssigned ? (
+                            <>
+                              <CheckCircle className="h-4 w-4 text-emerald-400" />
+                              <span className="font-medium text-emerald-200">
+                                Ready to create {parsedSessions.length} sessions
+                                - All rooms assigned ✓
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                              <span className="font-medium text-yellow-200">
+                                Please assign rooms to all sessions before
+                                proceeding
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </form>
+                  )}
+
+                  {/* ✅ UPDATED: Step 3 - Success Message (No Email Functionality) */}
+                  {formStep === 3 && (
+                    <div className="space-y-6">
+                      <div className="bg-gradient-to-br from-emerald-800 to-emerald-800/50 rounded-xl p-6 border border-emerald-700">
+                        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                          <CheckCircle className="h-5 w-5 text-emerald-400" />
+                          Sessions Created Successfully!
+                        </h3>
+
+                        <div className="grid md:grid-cols-2 gap-4 text-sm mb-6">
+                          <div>
+                            <span className="font-medium text-gray-300">
+                              Event:
+                            </span>
+                            <p className="text-white">
+                              {
+                                events.find((e) => e.id === selectedEventId)
+                                  ?.name
+                              }
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-300">
+                              Total Sessions:
+                            </span>
+                            <p className="text-white">
+                              {createdSessions.length}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-300">
+                              Unique Faculty:
+                            </span>
+                            <p className="text-white">
+                              {
+                                new Set(
+                                  createdSessions.map(
+                                    (s) => s.originalEmail || s.email
+                                  )
+                                ).size
+                              }
+                            </p>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-300">
+                              Status:
+                            </span>
+                            <p className="text-emerald-300">
+                              Sessions Created & Stored in Database ✓
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Faculty List */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-gray-300">
+                            Faculty Sessions:
+                          </h4>
+                          <div className="max-h-40 overflow-y-auto space-y-2">
+                            {Array.from(
+                              new Set(
+                                createdSessions.map(
+                                  (s) => s.originalEmail || s.email
+                                )
+                              )
+                            ).map((email) => {
+                              const facultySessions = createdSessions.filter(
+                                (s) => (s.originalEmail || s.email) === email
+                              );
+                              return (
+                                <div
+                                  key={email}
+                                  className="flex justify-between items-center text-sm bg-gray-800/50 rounded p-2"
+                                >
+                                  <div>
+                                    <span className="text-white">
+                                      {facultySessions[0]?.facultyName}
+                                    </span>
+                                    <span className="text-gray-400 ml-2">
+                                      ({email})
+                                    </span>
+                                  </div>
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {facultySessions.length} sessions
+                                  </Badge>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Alert className="border-emerald-600 bg-emerald-900/20">
+                        <CheckCircle className="h-4 w-4 text-emerald-400" />
+                        <AlertDescription className="text-emerald-200">
+                          <strong>
+                            All sessions have been created and stored
+                            successfully!
+                          </strong>
+                          <br />
+                          {createdSessions.length} sessions have been created
+                          for{" "}
+                          {
+                            new Set(
+                              createdSessions.map(
+                                (s) => s.originalEmail || s.email
+                              )
+                            ).size
+                          }{" "}
+                          faculty members and saved to the database.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  )}
+
+                  {/* ✅ UPDATED: Navigation Buttons */}
+                  <div className="flex justify-between items-center pt-8 border-t border-gray-700">
+                    <div>
+                      {formStep > 1 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={prevStep}
+                          className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
+                        >
+                          Previous Step
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3">
+                      {formStep === 1 && (
+                        <Button
+                          type="button"
+                          onClick={nextStep}
+                          disabled={
+                            !selectedEventId || parsedSessions.length === 0
+                          }
+                          className="bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700 text-white shadow-lg disabled:opacity-50"
+                        >
+                          Continue to Review
+                        </Button>
+                      )}
+
+                      {formStep === 2 && (
+                        <Button
+                          type="button"
+                          onClick={handleCreateSessions}
+                          disabled={loading || !allRoomsAssigned}
+                          className="bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {loading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                              Creating {parsedSessions.length} Sessions...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Create {parsedSessions.length} Sessions
+                            </>
+                          )}
+                        </Button>
+                      )}
+
+                      {formStep === 3 && (
+                        <Button
+                          type="button"
+                          onClick={resetForm}
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg px-8"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Create More Sessions
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
+            {/* ✅ UPDATED: Sidebar (Removed Email References) */}
             <div className="space-y-6">
               <Card className="border-gray-700 shadow-xl bg-gradient-to-br from-gray-800 to-gray-900 backdrop-blur">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg text-white">
-                    <Sparkles className="h-5 w-5 text-purple-400" />
-                    Date-Based Session Features
+                    <Sparkles className="h-5 w-5 text-emerald-400" />
+                    Excel Session Features
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   <div className="flex items-start gap-3">
-                    <div className="p-1 rounded bg-green-800">
-                      <CheckCircle className="h-4 w-4 text-green-400" />
+                    <div className="p-1 rounded bg-emerald-800">
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">
-                        Date-Based Scheduling
-                      </p>
+                      <p className="font-medium text-white">Excel Upload</p>
                       <p className="text-gray-300 text-xs">
-                        Multiple sessions can be scheduled on the same date with
-                        draft times
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="p-1 rounded bg-yellow-800">
-                      <CalendarDays className="h-4 w-4 text-yellow-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-white">Draft Times</p>
-                      <p className="text-gray-300 text-xs">
-                        Auto-assigns 9 AM - 5 PM as placeholder times for
-                        database
+                        Upload structured Excel files with session data
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3">
                     <div className="p-1 rounded bg-blue-800">
-                      <Send className="h-4 w-4 text-blue-400" />
+                      <Users className="h-4 w-4 text-blue-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">Bulk Email</p>
+                      <p className="font-medium text-white">Bulk Creation</p>
                       <p className="text-gray-300 text-xs">
-                        One comprehensive email with all sessions
+                        Create multiple sessions automatically from Excel
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-3">
-                    <div className="p-1 rounded bg-orange-800">
-                      <Copy className="h-4 w-4 text-orange-400" />
+                    <div className="p-1 rounded bg-green-800">
+                      <CheckCircle className="h-4 w-4 text-green-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">
-                        Session Duplication
-                      </p>
+                      <p className="font-medium text-white">Database Storage</p>
                       <p className="text-gray-300 text-xs">
-                        Copy session details (except date)
+                        Sessions automatically saved to database
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="p-1 rounded bg-purple-800">
+                      <Settings className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-white">Data Validation</p>
+                      <p className="text-gray-300 text-xs">
+                        Automatic validation and error checking
                       </p>
                     </div>
                   </div>
@@ -1622,86 +1142,64 @@ const CreateSession: React.FC = () => {
               <Card className="border-gray-700 shadow-xl bg-gray-900/80 backdrop-blur">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg text-white">
-                    <Users className="h-5 w-5 text-blue-400" />
-                    Current Session Count
+                    <FileText className="h-5 w-5 text-blue-400" />
+                    Progress Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-center">
-                  <div className="text-4xl font-bold text-white mb-2">
-                    {sessions.length}
-                  </div>
-                  <p className="text-gray-400">
-                    Session{sessions.length !== 1 ? "s" : ""} for{" "}
-                    {selectedFaculty?.name || "Faculty"}
-                  </p>
-                  {sessions.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-700">
-                      <div className="text-sm text-gray-300">
-                        <div className="flex justify-between">
-                          <span>Completed:</span>
-                          <span>
-                            {
-                              sessions.filter((s) => s.title && s.sessionDate)
-                                .length
-                            }
-                            /{sessions.length}
-                          </span>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="text-2xl font-bold text-white">
+                        {parsedSessions.length}
+                      </div>
+                      <p className="text-gray-400 text-sm">Sessions Parsed</p>
+                    </div>
+
+                    {formStep >= 3 && (
+                      <div>
+                        <div className="text-2xl font-bold text-emerald-400">
+                          {createdSessions.length}
                         </div>
-                        <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all"
-                            style={{
-                              width: `${
-                                (sessions.filter(
-                                  (s) => s.title && s.sessionDate
-                                ).length /
-                                  sessions.length) *
-                                100
-                              }%`,
-                            }}
-                          ></div>
+                        <p className="text-gray-400 text-sm">
+                          Sessions Created
+                        </p>
+                      </div>
+                    )}
+
+                    {formStep >= 2 && parsedSessions.length > 0 && (
+                      <div className="pt-4 border-t border-gray-700">
+                        <div className="text-sm text-gray-300">
+                          <div className="flex justify-between mb-2">
+                            <span>Rooms Assigned:</span>
+                            <span
+                              className={
+                                allRoomsAssigned
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                              }
+                            >
+                              {assignedRoomsCount}/{parsedSessions.length}
+                            </span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all ${
+                                allRoomsAssigned
+                                  ? "bg-emerald-600"
+                                  : "bg-red-600"
+                              }`}
+                              style={{
+                                width: `${Math.min(
+                                  (assignedRoomsCount / parsedSessions.length) *
+                                    100,
+                                  100
+                                )}%`,
+                              }}
+                            ></div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="border-gray-700 shadow-xl bg-gray-900/80 backdrop-blur">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg text-white">
-                    <CalendarDays className="h-5 w-5 text-green-400" />
-                    Quick Tips
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="p-3 bg-blue-900/30 rounded-lg border border-blue-800">
-                    <p className="font-medium text-blue-200">
-                      Date-Only Scheduling
-                    </p>
-                    <p className="text-blue-300 text-xs">
-                      Only select the date - draft times (9 AM - 5 PM) are
-                      auto-assigned
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-green-900/30 rounded-lg border border-green-800">
-                    <p className="font-medium text-green-200">
-                      Multiple Sessions
-                    </p>
-                    <p className="text-green-300 text-xs">
-                      You can schedule multiple sessions on the same date
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-yellow-900/30 rounded-lg border border-yellow-800">
-                    <p className="font-medium text-yellow-200">
-                      Timing Coordination
-                    </p>
-                    <p className="text-yellow-300 text-xs">
-                      Faculty can coordinate exact session times after accepting
-                      invitations
-                    </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1713,4 +1211,4 @@ const CreateSession: React.FC = () => {
   );
 };
 
-export default CreateSession;
+export default ExcelSessionCreator;
