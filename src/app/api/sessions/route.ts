@@ -1,4 +1,4 @@
-// src/app/api/sessions/route.ts - UPDATED: No email sending
+// src/app/api/sessions/route.ts - UPDATED: Email sending restored
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import {
@@ -8,7 +8,7 @@ import {
   getSessionById,
 } from "@/lib/database/session-queries";
 import { createSessionWithEvent } from "@/lib/database/event-session-integration";
-// ✅ REMOVED: import { sendInviteEmail } from "../_utils/session-email";
+import { sendInviteEmail } from "../_utils/session-email"; // ✅ RESTORED: Email import
 
 // Helper function to parse datetime strings with complete null safety
 function parseLocalDateTime(dateTimeStr?: string): string | null {
@@ -30,7 +30,7 @@ function parseLocalDateTime(dateTimeStr?: string): string | null {
   }
 }
 
-// ✅ FIXED: Helper function with correct property access
+// Helper function with correct property access
 async function checkSessionConflicts(
   sessionData: {
     facultyId: string;
@@ -86,13 +86,12 @@ async function checkSessionConflicts(
           });
         }
 
-        // ✅ FIXED: Use hallId property instead of roomId
         if (existingSession.hallId === sessionData.roomId) {
           conflicts.push({
             id: existingSession.id,
             title: existingSession.title || "Untitled Session",
             facultyId: existingSession.facultyId,
-            roomId: existingSession.hallId, // ✅ FIXED: Use hallId
+            roomId: existingSession.hallId,
             startTime: existingSession.startTime,
             endTime: existingSession.endTime,
             type: "room",
@@ -121,7 +120,6 @@ export async function GET() {
 
     const enriched = sessions.map((s) => {
       const faculty = faculties.find((f) => f.id === s.facultyId);
-      // ✅ FIXED: Use hallId property instead of roomId
       const room = rooms.find((r) => r.id === s.hallId);
 
       let durationMin = 0;
@@ -144,7 +142,7 @@ export async function GET() {
         ...s,
         facultyName: s.facultyName || faculty?.name || "Unknown Faculty",
         roomName: s.roomName || room?.name || s.hallId || "Unknown Room",
-        roomId: s.hallId, // ✅ FIXED: Map hallId to roomId for frontend compatibility
+        roomId: s.hallId,
         email: s.facultyEmail || faculty?.email || "",
         duration: durationMin > 0 ? `${durationMin} minutes` : "",
         formattedStartTime: s.startTime || "",
@@ -182,7 +180,7 @@ export async function GET() {
   }
 }
 
-// ✅ UPDATED: POST handler with email sending removed
+// ✅ RESTORED: POST handler with email sending functionality
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -238,7 +236,7 @@ export async function POST(req: NextRequest) {
     const accommodationRequired =
       accommodation === "yes" || accommodation === "true";
 
-    console.log("📋 Creating session (no email sending):", {
+    console.log("📋 Creating session with email sending enabled:", {
       title,
       facultyId,
       email,
@@ -368,7 +366,7 @@ export async function POST(req: NextRequest) {
     // Generate session ID
     const sessionId = randomUUID();
 
-    // ✅ FIXED: Create session with proper field mapping (hallId instead of roomId)
+    // Create session with proper field mapping
     const sessionData = {
       sessionId,
       eventId,
@@ -376,7 +374,7 @@ export async function POST(req: NextRequest) {
       description,
       startTime: finalStartTime,
       endTime: finalEndTime,
-      hallId: roomId, // ✅ FIXED: Use hallId property name for database
+      hallId: roomId,
       facultyId,
       facultyEmail: email,
       place,
@@ -407,7 +405,7 @@ export async function POST(req: NextRequest) {
     const faculty = faculties.find((f) => f.id === facultyId);
     const room = rooms.find((r) => r.id === roomId);
 
-    // ✅ UPDATED: Prepare session data for response (without email sending)
+    // Prepare session data for response and email
     const sessionForResponse = {
       id: createdSessionId,
       title,
@@ -415,7 +413,7 @@ export async function POST(req: NextRequest) {
       facultyName: faculty?.name || "Faculty Member",
       email,
       place,
-      roomId, // Keep roomId for frontend compatibility
+      roomId,
       roomName: room?.name || roomId,
       description,
       startTime: finalStartTime,
@@ -425,24 +423,72 @@ export async function POST(req: NextRequest) {
       eventId,
       travel: travelRequired,
       accommodation: accommodationRequired,
-      // ✅ UPDATED: No email-related fields
-      emailSent: false,
-      invitationSent: false,
-      created: true,
-      stored: true,
+      invitationSent: true,
+      canTrackResponse: true,
+      responseUrl: `/api/faculty/respond?sessionId=${createdSessionId}&facultyEmail=${email}`,
     };
 
-    // ✅ UPDATED: Return success response without sending email
-    console.log("✅ Session created and stored successfully (no email sent)");
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Session created and stored in database successfully",
-        emailStatus: "disabled",
-        data: sessionForResponse,
-      },
-      { status: 201 }
-    );
+    // ✅ RESTORED: Send invitation email with response tracking
+    try {
+      console.log("📧 Attempting to send invitation email to:", email);
+      
+      const emailResult = await sendInviteEmail(
+        sessionForResponse,
+        faculty?.name || "Faculty Member",
+        email
+      );
+
+      if (emailResult.ok) {
+        console.log("✅ Session created and invitation email sent successfully");
+        return NextResponse.json(
+          {
+            success: true,
+            emailStatus: "sent",
+            message: "Session created and invitation email sent successfully",
+            data: {
+              ...sessionForResponse,
+              emailSent: true,
+              invitationTracking: "enabled",
+            },
+          },
+          { status: 201 }
+        );
+      } else {
+        console.warn("⚠️ Email failed but session created:", emailResult.message);
+        return NextResponse.json(
+          {
+            success: true,
+            emailStatus: "failed",
+            warning: "Session created successfully, but invitation email could not be sent",
+            message: `Session created but email failed: ${emailResult.message}`,
+            data: {
+              ...sessionForResponse,
+              emailSent: false,
+              invitationTracking: "enabled",
+            },
+          },
+          { status: 201 }
+        );
+      }
+    } catch (emailError: any) {
+      console.error("❌ Email sending error:", emailError);
+      return NextResponse.json(
+        {
+          success: true,
+          emailStatus: "error",
+          warning: "Session created successfully, but email sending encountered an error",
+          message: "Session created but email sending failed due to technical error",
+          error: emailError?.message || "Unknown email error",
+          data: {
+            ...sessionForResponse,
+            emailSent: false,
+            invitationTracking: "enabled",
+          },
+        },
+        { status: 201 }
+      );
+    }
+
   } catch (err: any) {
     console.error("❌ Error creating session:", err);
     return NextResponse.json(
