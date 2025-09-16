@@ -1,4 +1,4 @@
-// src/app/api/sessions/route.ts - FIXED Template Literal Error
+// src/app/api/sessions/route.ts - FIXED DatabaseSession property access
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import {
@@ -147,7 +147,7 @@ export async function GET() {
         roomName: s.roomName || room?.name || s.hallId || "Unknown Room",
         roomId: s.hallId, // ✅ FIXED: Map hallId to roomId for frontend compatibility
         email: s.facultyEmail || faculty?.email || "",
-        duration: durationMin > 0 ? `${durationMin} minutes` : "", // ✅ FIXED: Template literal with backticks
+        duration: durationMin > 0 ? `${durationMin} minutes` : "",
         formattedStartTime: s.startTime || "",
         formattedEndTime: s.endTime || "",
         eventName: s.eventName || "Unknown Event",
@@ -283,7 +283,7 @@ export async function POST(req: NextRequest) {
     try {
       if (!startTime || !endTime) {
         console.log(
-          "⚠ No times provided, generating default times for date-based session"
+          "⚠️ No times provided, generating default times for date-based session"
         );
 
         const baseDate = new Date();
@@ -443,7 +443,7 @@ export async function POST(req: NextRequest) {
 
       if (!result.ok) {
         console.warn(
-          "⚠ Email failed but session created with dynamic tracking:",
+          "⚠️ Email failed but session created with dynamic tracking:",
           result.message
         );
         return NextResponse.json(
