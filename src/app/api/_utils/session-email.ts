@@ -4,1309 +4,732 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.verce
 
 const FACULTY_DATA = {
   "muigoku42@gmail.com": {
-    facultyName: "Azad Singh",
+    facultyName: "Arunaditya Lal",
     email: "muigoku42@gmail.com",
+    sessions: [
+      {
+        title: "Advanced Pediatric Critical Care Management",
+        date: "8/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "praj@abhinavagroup.com": {
+    facultyName: "Prajwal P",
+    email: "praj@abhinavagroup.com",
+    sessions: [
+      {
+        title: "Talk on test data of scientific commitments",
+        date: "9/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "MCC",
+        date: "8/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "dr.amitvij2@gmail.com": {
+    facultyName: "Amit Vij",
+    email: "dr.amitvij2@gmail.com",
+    sessions: [
+      {
+        title: "Electrolyte Emergencies in the PICU: Algorithms, Controversies, and Pitfalls",
+        date: "9/11",
+        role: "Panelist",
+        description: "---"
+      }
+    ]
+  },
+  "bananip@hotmail.com": {
+    facultyName: "Banani Poddar",
+    email: "bananip@hotmail.com",
+    sessions: [
+      {
+        title: "Data Dreams or Data Drama? Unmasking the National PICU Database (agenda - National pediatric critical database myths and reality)",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "Interpreting Critical Labs in Suspected Metabolic Disease",
+        date: "8/11",
+        role: "Moderator",
+        description: "---"
+      }
+    ]
+  },
+  "deepankarbansal@outlook.com": {
+    facultyName: "Deepankar Bansal",
+    email: "deepankarbansal@outlook.com",
+    sessions: [
+      {
+        title: "Friend, Foe, or Firefighting Tool? CRRT & Plasmapheresis in Pediatric ALF",
+        date: "9/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "PICU Liberation",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "jollymyla@gmail.com": {
+    facultyName: "Jolly Chandran",
+    email: "jollymyla@gmail.com",
+    sessions: [
+      {
+        title: "Innovators of Tomorrow: Pediatric Critical Care DM/DrNB Thesis Awards",
+        date: "7/11",
+        role: "Chairperson\n\nCo-Chairperson: Dr Rachana",
+        description: "---"
+      },
+      {
+        title: "Friend, Foe, or Firefighting Tool? CRRT & Plasmapheresis in Pediatric ALF",
+        date: "9/11",
+        role: "Moderator",
+        description: "---"
+      },
+      {
+        title: "BPICC",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "ksachane@yahoo.com": {
+    facultyName: "Kapil Sachane",
+    email: "ksachane@yahoo.com",
+    sessions: [
+      {
+        title: "Pediatric Mechanical Circulatory Assistance from Innovation to Impact-Tiny Hearts, Big Support.",
+        date: "8/11",
+        role: "Speaker",
+        description: "---"
+      },
+      {
+        title: "ECMO",
+        date: "6/11",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "manjinderk75@gmail.com": {
+    facultyName: "Ms Manjinder Kaur",
+    email: "manjinderk75@gmail.com",
+    sessions: [
+      {
+        title: "Plenary - PediCritiCon Keynotes",
+        date: "7/11",
+        role: "Plenary",
+        description: "---"
+      },
+      {
+        title: "CRRT and SLED",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "mehakbansal@yahoo.com": {
+    facultyName: "Mehak Bansal",
+    email: "mehakbansal@yahoo.com",
+    sessions: [
+      {
+        title: "PediCritiCon Imaging Honors: Clinico-Radiology Case Awards",
+        date: "7/11",
+        role: "Chairperson",
+        description: "---"
+      },
+      {
+        title: "Echo in Action: Real-Time Clarity for Real-Life Hemodynamics.",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "POCUS (Basic)",
+        date: "6/11",
+        role: "National Coordinator",
+        description: "---"
+      }
+    ]
+  },
+  "neerajverma1957@yahoo.com": {
+    facultyName: "Neeraj Verma",
+    email: "neerajverma1957@yahoo.com",
+    sessions: [
+      {
+        title: "Burnout in PICU: Caring for the Caring Team",
+        date: "9/11",
+        role: "Panelist",
+        description: "---"
+      }
+    ]
+  },
+  "dr.prashantmitharwal@gmail.com": {
+    facultyName: "Prashant Mitharwal",
+    email: "dr.prashantmitharwal@gmail.com",
+    sessions: [
+      {
+        title: "Keeping the Calm: Practical Challenges in Sedating the ECMO Child",
+        date: "9/11",
+        role: "Panelist",
+        description: "---"
+      }
+    ]
+  },
+  "poonipa@yahoo.com": {
+    facultyName: "Puneet Pooni",
+    email: "poonipa@yahoo.com",
     sessions: [
       {
         title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
         date: "8/11",
-        role: "Panelist",
-        description: "Panelists, Dr. Puneet Pooni, Dr. Nirmal Choraria, Dr. Hariharan Seetharaman, Dr. Kwame Boateng"
+        role: "Moderator",
+        description: "---"
       }
     ]
   },
-  // "bakulparekh55@gmail.com": {
-  //   facultyName: "Bakul Parikh",
-  //   email: "bakulparekh55@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Panelists, Dr. Puneet Pooni, Dr. Nirmal Choraria, Dr. Hariharan Seetharaman, Dr. Kwame Boateng"
-  //     }
-  //   ]
-  // },
-  // "bmdoc2002@rediffmail.com": {
-  //   facultyName: "Bal Mukund",
-  //   email: "bmdoc2002@rediffmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Hemorrhage Control in Polytrauma: Precision in Pressure, Clotting & Care",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "mdpicu@hotmail.com": {
-  //   facultyName: "Bala Ramachandaran",
-  //   email: "mdpicu@hotmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Breathless Battles: Viral Pneumonia That Won't Back Down: What's the Trend in Pediatric Viral Pneumonia?",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Manish Sharma (Moderator), Panelists, Dr. Anil Sachdeva, Dr. Hiroshi Kurosawa, Dr. Ranganath Iyer"
-  //     },
-  //     {
-  //       title: "Burnout in PICU: Caring for the Caring Team",
-  //       date: "9/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr. Avishek Poddar, Dr. Muthuvel, Dr. Neeraj Verma, Dr. Asha Shenoi"
-  //     }
-  //   ]
-  // },
-  // "dr.bhaktisarangi@gmail.com": {
-  //   facultyName: "Bhakti Sarangi",
-  //   email: "dr.bhaktisarangi@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Beyond Consent: Navigating Ethical Minefields in Pediatric Research",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Dr. Madhu Otiv (Moderator), Panelists, Dr. Amita Kaul, Dr. Michael Canarie, Dr. Yasser Kazzaz"
-  //     }
-  //   ]
-  // },
-  // "bkmeher187@yahoo.co.in": {
-  //   facultyName: "Bijay Kumar Meher",
-  //   email: "bkmeher187@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Panelists, Dr. Pradeep Sharma, Dr. Rashmi Kapoor, Dr. Kaushik Maulik, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Anjul Dayal"
-  //     }
-  //   ]
-  // },
-  // "chetanrmundada@yahoo.co.in": {
-  //   facultyName: "Chetan Mundada",
-  //   email: "chetanrmundada@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "Advanced Ventilation",
-  //       date: "6/11",
-  //       role: "Local Cordinator",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Transfuse or Tolerate? Finding the Balance in Pediatric Critical Care",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Panelists, Dr. Lakshmi Shobhavat, Dr. Anand Bhutada, Dr. Lalit Takia, Dr. Abhijeet Chaudhary"
-  //     }
-  //   ]
-  // },
-  // "lct120190@gmail.com": {
-  //   facultyName: "Chidambaram",
-  //   email: "lct120190@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "GAME ON – \"Crash or Stabilise?\"",
-  //       date: "7/11",
-  //       role: "Quizmaster",
-  //       description: "Fellow Quizmaster, Dr. Surjit Kumar Thappa"
-  //     }
-  //   ]
-  // },
-  // "dr.chiragsethi1@gmail.com": {
-  //   facultyName: "Chirag Sethi",
-  //   email: "dr.chiragsethi1@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Between Guidelines and Ground Reality: Talking to Families in Indian PICUs",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Puneet Pooni, Panelists, Dr Bakul Parikh, Dr Hariharan Seetharaman, Dr Kwame Boateng"
-  //     }
-  //   ]
-  // },
-  // "daisykhera78@gmail.com": {
-  //   facultyName: "Daisy Khera",
-  //   email: "daisykhera78@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Dengue Gone Wild: Navigating the Complications",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Panelists, Dr. Rachna Sharma, Dr. Sateesh Ghanta, Dr. Rujipat"
-  //     }
-  //   ]
-  // },
-  // "deepankarbansal@outlook.com": {
-  //   facultyName: "Deepankar Bansal",
-  //   email: "deepankarbansal@outlook.com",
-  //   sessions: [
-  //     {
-  //       title: "Friend, Foe, or Firefighting Tool? CRRT & Plasmapheresis in Pediatric ALF",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Jolly Chandaran (Moderator)"
-  //     },
-  //     {
-  //       title: "PICU Liberation",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "dhireengupta@gmail.com": {
-  //   facultyName: "Dhiren Gupta",
-  //   email: "dhireengupta@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Echo in Action: Real-Time Clarity for Real-Life Hemodynamics.",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr. Mehak Bansal, Dr. Neil C, Dr. Swathi Rao, Dr. Namita Ravikumar"
-  //     },
-  //     {
-  //       title: "POCUS (Advance)",
-  //       date: "6/11",
-  //       role: "National Coordinator",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "eborjacob@yahoo.com": {
-  //   facultyName: "Ebor Jacob",
-  //   email: "eborjacob@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "PICU Education & Training",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "Dr. Vinay Nadkarni, Dr. Michael Canarie, Dr. Traci Wolbrink, Dr. Atsushi Kawaguchi, Dr. Kirsten Gibbons, Dr. Karen Ka Yan LEUNG, Dr. Sainath Raman, Dr. Rujipat, Dr. John Adabie Appiah"
-  //     },
-  //     {
-  //       title: "PediCritiCon Keynotes",
-  //       date: "9/11",
-  //       role: "Plenary",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "BPICC",
-  //       date: "6/11",
-  //       role: "National Coordinator",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // // "farhanshaikh74@gmail.com": {
-  // //   facultyName: "Farhan Shaikh",
-  // //   email: "farhanshaikh74@gmail.com",
-  // //   sessions: [
-  // //     {
-  // //       title: "Monitoring of Strain and Stress without Using Oesophageal Manometry – Are We There Yet?",
-  // //       date: "7/11",
-  // //       role: "Speaker",
-  // //       description: "---"
-  // //     },
-  // //     {
-  // //       title: "PICU Brain Buzzer",
-  // //       date: "7/11",
-  // //       role: "QuizMaster",
-  // //       description: "---"
-  // //     }
-  // //   ]
-  // // },
-  // "basavgv@gmail.com": {
-  //   facultyName: "GV Basavaraja",
-  //   email: "basavgv@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Rakshay Shetty (Moderator), Panelists, Dr. Banani Poddar, Dr. Hari Krishanan, Dr. Karthik Naryanan"
-  //     },
-  //     {
-  //       title: "Tracheostomy in Pediatric Critical Care: Technique, Timing and Outcomes",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "indirajayakumar@yahoo.com": {
-  //   facultyName: "Indira Jayakumar",
-  //   email: "indirajayakumar@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "HSCT: Navigating HSCT Challenges",
-  //       date: "7/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Abdul Rauf, Dr. Sanket R (CMC Vellore)"
-  //     },
-  //     {
-  //       title: "ECMO",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "basavgv@gmail.com": {
-  //   facultyName: "GV Basavaraja",
-  //   email: "basavgv@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Rakshay Shetty (Moderator), Panelists, Dr. Banani Poddar, Dr. Hari Krishanan, Dr. Karthik Naryanan"
-  //     },
-  //     {
-  //       title: "Tracheostomy in Pediatric Critical Care: Technique, Timing and Outcomes",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "indirajayakumar@yahoo.com": {
-  //   facultyName: "Indira Jayakumar",
-  //   email: "indirajayakumar@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "HSCT: Navigating HSCT Challenges",
-  //       date: "7/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr. Raj Lakshmi Iyer, Dr. Reshma A, Dr. Abdul Rauf, Dr. Sanket R (CMC Vellore)"
-  //     },
-  //     {
-  //       title: "ECMO",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "javedisi86@gmail.com": {
-  //   facultyName: "Javed Ismail",
-  //   email: "javedisi86@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Cardiac Failure & Cardiogenic Shock",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Dr. Priyavarthini (Moderator), Panelists, Dr. Ravi Kumar, Dr. Ikram Ul Haque, Dr. Sagar Hiremath"
-  //     },
-  //     {
-  //       title: "Flush That Line! When and How to Use Heparin Locks",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "PICU Liberation",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "drjerincsekhar@gmail.com": {
-  //   facultyName: "Jerin Sekhar",
-  //   email: "drjerincsekhar@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Routine Neuroimaging in Pediatric Coma: CT vs. MRI as First-Line Modality?",
-  //       date: "7/11",
-  //       role: "Debate - FOR CT",
-  //       description: "Co Debater, Dr. Madhusudan - For MRI"
-  //     },
-  //     {
-  //       title: "PICU Liberation",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "jhumaji@gmail.com": {
-  //   facultyName: "Jhuma Sankar",
-  //   email: "jhumaji@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric respiratory critical care research and promoting the development of a research network in India- identifying key gaps",
-  //       date: "7/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr Martin Kneyber, Dr Anil Sachdev, Dr. Lalita AV, Dr. Praveen Khilnani, Dr. Sunit Singhi"
-  //     }
-  //   ]
-  // },
-  // "drrajendrantk@gmail.com": {
-  //   facultyName: "K Rajenderan",
-  //   email: "drrajendrantk@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Surveillance Cultures: Guardians of Prevention or Generators of Noise?",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "koushik.maulik@gmail.com": {
-  //   facultyName: "Kaushik Maulik",
-  //   email: "koushik.maulik@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Panelists, Dr. Pradeep Sharma, Dr. Rashmi Kapoor, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Anjul Dayal, Dr. Bijay Kumar Meher"
-  //     },
-  //     {
-  //       title: "Cardiac Critical Care",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "narayanankarthik86@gmail.com": {
-  //   facultyName: "Karthik Naryanan",
-  //   email: "narayanankarthik86@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Rakshay Shetty (Moderator), Panelists, Dr. GV Basavraja, Dr. Hari Krishanan, Dr. Banani Poddar"
-  //     },
-  //     {
-  //       title: "POCUS (Advanced)",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "bpkaruns@gmail.com": {
-  //   facultyName: "Karunakar BP",
-  //   email: "bpkaruns@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Interpreting Critical Labs in Suspected Metabolic Diseases",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Panelists, Dr. Parmanand, Dr. Satish Deopujari, Dr. Dayanand Nakate, Dr. Shalu Gupta"
-  //     }
-  //   ]
-  // },
-  // "drkaustabh@gmail.com": {
-  //   facultyName: "Kaustabh Chaudhary",
-  //   email: "drkaustabh@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Innovation Over Infrastructure: Delivering Neurorehab in Our Real World",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Kavita TK (Moderator), Panelists, Dr. Karen Ka Yan LEUNG, Dr. Naryanan P, Dr. Ririe"
-  //     },
-  //     {
-  //       title: "Non-Invasive Respiratory Support",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "ammukvt@yahoo.co.in": {
-  //   facultyName: "Kavita TK",
-  //   email: "ammukvt@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "Innovation Over Infrastructure: Delivering Neurorehab in Our Real World.",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panelists:, Dr. Karen Ka Yan LEUNG, Dr. Naryanan P, Dr. Ririe, Dr. Kaustabh Chaudhary"
-  //     }
-  //   ]
-  // },
-  // "chugh.krishan@gmail.com": {
-  //   facultyName: "Krishan Chugh",
-  //   email: "chugh.krishan@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Muscles May Fail - Protocols Shouldn't !.. Extubation Strategies in Neuromuscular Disease.",
-  //       date: "8/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Breathless Battles: Viral Pneumonia That Won't Back Down: What's the Trend in Pediatric Viral Pneumonia?",
-  //       date: "8/11",
-  //       role: "Panellist",
-  //       description: "Moderator, Dr Manish Sharma, Co-Panelists: Dr Bala Ramachandaran, Dr Hiroshi Kurosawa, Dr Ranganath Iyer"
-  //     }
-  //   ]
-  // },
-  // "mohangulla35@gmail.com": {
-  //   facultyName: "Krishan Mohan Gulla",
-  //   email: "mohangulla35@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "CPR Meets Circuit: Is India Ready for the Leap?",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Cardiac Critical Care workshop",
-  //       date: "6/11",
-  //       role: "Worshop",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "kundanmittal@hotmail.com": {
-  //   facultyName: "Kundan Mittal",
-  //   email: "kundanmittal@hotmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Polytrauma: To Cut or Not to Cut?",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "lakshmishobhavat@gmail.com": {
-  //   facultyName: "Lakshmi Shobhavat",
-  //   email: "lakshmishobhavat@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Transfuse or Tolerate? Finding the Balance in Pediatric Critical Care",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "Panelists, Dr. Abhijeet Chaudhary, Dr. Anand Bhutada, Dr. Chetan Mundada, Dr. Lalit Takia"
-  //     }
-  //   ]
-  // },
-  // "lalitpgims@gmail.com": {
-  //   facultyName: "Lalit Takia",
-  //   email: "lalitpgims@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Transfuse or Tolerate? Finding the Balance in Pediatric Critical Care",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Lakshmi Shobhavat, Co Panelist, Dr Anand Bhutada, Dr Chetan Mundada, Dr Abhijeet Chaudhary"
-  //     },
-  //     {
-  //       title: "PICU Liberation",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "drlalitha03@gmail.com": {
-  //   facultyName: "Lalita AV",
-  //   email: "drlalitha03@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric respiratory critical care research and promoting the development of a research network in India- identifying key gaps",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Jhuma Sankar, Co Panelist, Dr Martin Kneyber, Dr Anil Sachdev, Dr Praveen Khilnani, Dr Sunit Singhi"
-  //     },
-  //     {
-  //       title: "Electrolyte Emergencies in the PICU: Algorithms, Controversies, and Pitfalls",
-  //       date: "9/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr. Suresh Kumar Panugati, Dr. Nitish Upadhaya, Dr. Atsushi Kawaguchi, Dr. Amit Vij"
-  //     }
-  //   ]
-  // },
-  // "lokeshdoc@gmail.com": {
-  //   facultyName: "Lokesh Tiwari",
-  //   email: "lokeshdoc@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Stamp of Quality or Just a Stamp? Impact of PICU Accreditation",
-  //       date: "9/11",
-  //       role: "Debater - Just a stamp",
-  //       description: "Co-debator:, Dr. Shivkumar - Stamp of Quality"
-  //     }
-  //   ]
-  // },
-  // "madhu_otiv@hotmail.com": {
-  //   facultyName: "Madhu Otiv",
-  //   email: "madhu_otiv@hotmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Fluid, Not Flood: Smarter Resuscitation in the PICU",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Mahesh Mohite, Co-panelist: Dr VSV Prasad, Dr John Adabie Appiah, Dr Mritunjay Pao"
-  //     },
-  //     {
-  //       title: "Beyond Consent: Navigating Ethical Minefields in Pediatric Research",
-  //       date: "9/11",
-  //       role: "Moderator",
-  //       description: "Panelists: Dr Amita Kaul, Dr Bhakti Sarangi, Dr Michael Canarie, Dr Yasser Kazzaz"
-  //     }
-  //   ]
-  // },
-  // "madhu_1511@yahoo.com": {
-  //   facultyName: "Madhusudan",
-  //   email: "madhu_1511@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "Routine Neuroimaging in Pediatric Coma: CT vs. MRI as First-Line Modality?",
-  //       date: "7/11",
-  //       role: "Debater - FOR MRI",
-  //       description: "Co Debater, Dr. Jerin Sekhar - For CT"
-  //     }
-  //   ]
-  // },
-  // "mahesh.mohite180@gmail.com": {
-  //   facultyName: "Mahesh Mohite",
-  //   email: "mahesh.mohite180@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Fluid, Not Flood: Smarter Resuscitation in the PICU",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panelists: Dr Madhu Otiv, Dr VSV Prasad, Dr John Adabie Appiah, Dr Mritunjay Pao"
-  //     },
-  //     {
-  //       title: "Bronchoscopy Workshop",
-  //       date: "6/11",
-  //       role: "National Coordinator",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "docmsdhaliwal@gmail.com": {
-  //   facultyName: "Maninder Dhaliwal",
-  //   email: "docmsdhaliwal@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Global Lungs, Local Challenges: Advancing Equitable Pediatric Respiratory Care.",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panelist, Dr. Rajiv Uttam, Dr. Sagar lad, Dr. Shekhar Venkatraman, Dr. Mounika Reddy"
-  //     },
-  //     {
-  //       title: "Simulation",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Quiz",
-  //       date: "7/11",
-  //       role: "Quiz master",
-  //       description: "Co Quiz masters: Dr Karthik Narayanan, Dr Farhan Shaikh, Dr Milin Jambaghi"
-  //     }
-  //   ]
-  // },
-  // "sharmadrmanish@yahoo.co.in": {
-  //   facultyName: "Manish Sharma",
-  //   email: "sharmadrmanish@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "From Collapse to Comeback: Pediatric Cardiac Arrest through the Lens of Multidisciplinary Care",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Nameet Jerath (Moderator), Panelists, Dr. Soonu Udani, Dr. Vinay Nadkarni, Dr. Manu Sundaram"
-  //     },
-  //     {
-  //       title: "Breathless Battles: Viral Pneumonia That Won't Back Down: What's the Trend in Pediatric Viral Pneumonia?",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panelists: Dr Bala Ramachandaran, Dr Krishan Chugh, Dr Hiroshi Kurosawa, Dr Ranganath Iyer"
-  //     },
-  //     {
-  //       title: "Bronchoscopy",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "manjukedarnath@gmail.com": {
-  //   facultyName: "Manju Kedarnath",
-  //   email: "manjukedarnath@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Saving Lives, Saving Costs: Can We Do Both?",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Nirmal Choraria, Co panelists, Dr Somnath Gorain, Dr Kshama Daphtary, Dr Akash Bang"
-  //     }
-  //   ]
-  // },
-  // "drmihir09@gmail.com": {
-  //   facultyName: "Mihir Sarkar",
-  //   email: "drmihir09@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Acute Flaccid Paralysis in the PICU: GBS, Myelitis, or Something Else?",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Dr. Rohit Vohra (Moderator), Panelists, Dr. Ramaling Loni, Dr. Mukesh Jain, Dr. Jesal Sheth"
-  //     },
-  //     {
-  //       title: "Thrombosis Meets Cytokine Storm in Sepsis: What Should We Tame First?",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Simulation",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "doc.mounikareddy@gmail.com": {
-  //   facultyName: "Mounika Reddy",
-  //   email: "doc.mounikareddy@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Global Lungs, Local Challenges: Advancing Equitable Pediatric Respiratory Care.",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Maninder Dhaliwal (Moderator), Panelist, Dr. Rajiv Uttam, Dr. Sagar lad, Dr. Shekhar Venkatraman"
-  //     },
-  //     {
-  //       title: "CRRT and SLED",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "mukesh26.jain@gmail.com": {
-  //   facultyName: "Mukesh Jain",
-  //   email: "mukesh26.jain@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Acute Flaccid Paralysis in the PICU: GBS, Myelitis, or Something Else?",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Dr. Rohit Vohra (Moderator), Panelists, Dr. Ramaling Loni, Dr. Mihir Sarkar, Dr. Jesal Sheth"
-  //     }
-  //   ]
-  // },
-  // "mbaalaaji@yahoo.com": {
-  //   facultyName: "Mullai Baalaji",
-  //   email: "mbaalaaji@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "Autoimmune Encephalitis in Children: Critical Care Perspectives",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "ECMO",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "rmv2210@gmail.com": {
-  //   facultyName: "Muthuvel",
-  //   email: "rmv2210@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Burnout in PICU: Caring for the Caring Team",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Panelists, Dr. Avishek Poddar, Dr. Bala Ramachandaran, Dr. Neeraj Verma, Dr. Asha Shenoi"
-  //     }
-  //   ]
-  // },
-  // "dr_njerath@yahoo.com": {
-  //   facultyName: "Nameet Jerath",
-  //   email: "dr_njerath@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "From Collapse to Comeback: Pediatric Cardiac Arrest through the Lens of Multidisciplinary Care",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr. Soonu Udani, Dr. Vinay Nadkarni, Dr. Manu Sundaram, Dr. Manish Sharma"
-  //     },
-  //     {
-  //       title: "Advanced Ventilation",
-  //       date: "6/11",
-  //       role: "National Coordinator",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "namitu.ravi@gmail.com": {
-  //   facultyName: "Namita Ravikumar",
-  //   email: "namitu.ravi@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Echo in Action: Real-Time Clarity for Real-Life Hemodynamics.",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Dhiren Gupta, Panelist: Dr Mehak Bansal, Dr Neil C, Dr Swathi Rao"
-  //     },
-  //     {
-  //       title: "BIPAP Quick Hits: Setting Up for Success",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Acute Critical Care for Practicing Paediatricians",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "vnkkumar@yahoo.com": {
-  //   facultyName: "Nanda Kishore",
-  //   email: "vnkkumar@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "Keeping the Calm: Practical Challenges in Sedating the ECMO Child",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Dr. Parag Dakate (Moderator), Panelists, Dr. Ravi Sharma, Dr. Prabhas Prasun Giri, Dr. Chegondi, Dr. Madhuradhar"
-  //     },
-  //     {
-  //       title: "ECMO",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "drneil.cs@gmail.com": {
-  //   facultyName: "Neil C",
-  //   email: "drneil.cs@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Echo in Action: Real-Time Clarity for Real-Life Hemodynamics.",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Moderator: Dr Dhiren Gupta, Co-Panelists, Dr. Mehak Bansal, Dr. Swathi Rao, Dr. Namita Ravikumar"
-  //     }
-  //   ]
-  // },
-  // "nirmal_choraria@yahoo.com": {
-  //   facultyName: "Nirmal Choraria",
-  //   email: "nirmal_choraria@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "Saving Lives, Saving Costs: Can We Do Both?",
-  //       date: "9/11",
-  //       role: "Moderator",
-  //       description: "Panellists: Dr Somnath Gorain, Dr Manju Kedarnath, Dr Kshama Daphtary, Dr Akash Bang"
-  //     },
-  //     {
-  //       title: "Buying Smart: Equipping Your PICU for Function, Not Fashion",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr VSV Prasad, Panellists: Dr G. Ramesh, Dr Rafiq Ahmed, Dr Anand Buthada, Dr Preetam"
-  //     }
-  //   ]
-  // },
-  // "niteshupadhyay22@gmail.com": {
-  //   facultyName: "Nitish Upadhaya",
-  //   email: "niteshupadhyay22@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Electrolyte Emergencies in the PICU: Algorithms, Controversies, and Pitfalls",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Dr. Lalitha AV (Moderator), Panelists, Dr. Suresh Kumar Panugati, Dr. Amit Vij, Dr. Atsushi Kawaguchi"
-  //     }
-  //   ]
-  // },
-  // "paggy4u@gmail.com": {
-  //   facultyName: "Parag Dakate",
-  //   email: "paggy4u@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Management of Complications related to blood based dialysis in PICU",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Dr. Sateesh (Moderator), Panelists, Dr. Raghad Abdwani, Dr. Sumant Patil, Dr. Saumen Meur, Dr. Rohit Bhowmick"
-  //     },
-  //     {
-  //       title: "Keeping the Calm: Practical Challenges in Sedating the ECMO Child",
-  //       date: "9/11",
-  //       role: "Moderator",
-  //       description: "Panellists: Dr Prashanth Mitharwal, Dr Prabhas Prasun Giri, Dr Madhudhar Chegondi, Dr Nanda Kishore"
-  //     }
-  //   ]
-  // },
-  // "pandankar@gmail.com": {
-  //   facultyName: "Parmanand",
-  //   email: "pandankar@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Interpreting Critical Labs in Suspected Metabolic Disease",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panellists: Dr Satish Deopujari, Dr Karunakar BP, Dr Dayanand Nakate, Dr Shalu Gupta"
-  //     }
-  //   ]
-  // },
-  // "drprabhasgiri@gmail.com": {
-  //   facultyName: "Prabhas Prasun Giri",
-  //   email: "drprabhasgiri@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Keeping the Calm: Practical Challenges in Sedating the ECMO Child",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Parag Dakate, Co Panellists: Dr Prashanth Mitharwal, Dr Madhudhar Chegondi, Dr Nanda Kishore"
-  //     }
-  //   ]
-  // },
-  // "drsharma025@gmail.com": {
-  //   facultyName: "Pradeep Sharma",
-  //   email: "drsharma025@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pus, Air, and Trouble: Stepwise Care in Necrotising Pneumonia",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panellists: Dr Rashmi Kapoor, Dr Kaushik Maulik, Dr Sebastian Gonzalez-Dambrauskas, Dr Anjul Dayal"
-  //     }
-  //   ]
-  // },
-  // "praveenkhilnani1957@gmail.com": {
-  //   facultyName: "Praveen Khilnani",
-  //   email: "praveenkhilnani1957@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric respiratory critical care research and promoting the development of a research network in India- identifying key gaps",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Dr. Jhuma Sankar (Moderator), Panelists, Dr Martin Kneyber, Dr. Lalita AV, Dr. Anil Sachdeva, Dr. Sunit Singhi"
-  //     },
-  //     {
-  //       title: "When Wheeze Won't Ease: Tackling Severe Pediatric Asthma",
-  //       date: "8/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "drpreethamp@gmail.com": {
-  //   facultyName: "Preetam",
-  //   email: "drpreethamp@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Buying Smart: Equipping Your PICU for Function, Not Fashion",
-  //       date: "9/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr VSV Prasad, Co-Panellists: Dr G. Ramesh, Dr Rafiq Ahmed, Dr Anand Buthada, Dr Nirmal Choraria"
-  //     }
-  //   ]
-  // },
-  // "preetha07doc@gmail.com": {
-  //   facultyName: "Preetha Joshi",
-  //   email: "preetha07doc@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Palliative Cardiac Surgery in Resource-Limited Settings: Ethical Necessity or Compromise?",
-  //       date: "8/11",
-  //       role: "Debater - FOR Ethical Necessity",
-  //       description: "Co Debater, Dr. Amish Vora for compromise"
-  //     },
-  //     {
-  //       title: "Cardiac Critical Care",
-  //       date: "6/11",
-  //       role: "Workshop",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "priteshnagar@gmail.com": {
-  //   facultyName: "Pritesh Nagar",
-  //   email: "priteshnagar@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Simulation-Based Training: Essential for Quality or Overrated Add-On?",
-  //       date: "9/11",
-  //       role: "Debater - For Overrated add on",
-  //       description: "Co Debater, Dr. Hiroshi Kurosawa- For Essential for Quality"
-  //     },
-  //     {
-  //       title: "Simulation",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "priyavarthiniv@gmail.com": {
-  //   facultyName: "Priyavarthini",
-  //   email: "priyavarthiniv@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Cardiac Failure & Cardiogenic Shock",
-  //       date: "7/11",
-  //       role: "Moderator",
-  //       description: "Panellists: Dr. Ravi Kumar, Dr Ikram Ul Haque, Dr Javed Ismail, Dr.Sagar Hiremath"
-  //     },
-  //     {
-  //       title: "Cardiac Critical Care",
-  //       date: "6/11",
-  //       role: "Workshop",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "prapgi697@gmail.com": {
-  //   facultyName: "Pushpraj Awasthi",
-  //   email: "prapgi697@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Super-Refractory Status Epilepticus: How Far Should We Go?",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Atul Jindle, Co-Pannelists: Dr Matthew Kirschen, Dr Siva Vyasam, Dr Deepika Gandhi"
-  //     }
-  //   ]
-  // },
-  // "rachna9us@gmail.com": {
-  //   facultyName: "Rachana Sharma",
-  //   email: "rachna9us@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Innovators of Tomorrow: Pediatric Critical Care DM/DrNB Thesis Awards",
-  //       date: "7/11",
-  //       role: "Co-Charperson with Dr Jolly",
-  //       description: "Judges, Dr. Hari Krishnan, Dr. Sainath Raman, Dr. Hiroshi Kurosawa"
-  //     },
-  //     {
-  //       title: "Dengue Gone Wild: Navigating the Complications",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panellists: Dr Sateesh Ghanta, Dr Daisy Khera, Dr Rujipat, Dr Sameer Sadawarte"
-  //     }
-  //   ]
-  // },
-  // "drriyer04@gmail.com": {
-  //   facultyName: "Raj Lakshmi Iyer",
-  //   email: "drriyer04@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "HSCT: Navigating HSCT Challenges",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Indira Jayakumar, Co-Panellists: Dr Reshma A, Dr Abdul Rauf, Dr Sanket R"
-  //     },
-  //     {
-  //       title: "Critical Care of Cellular Therapies in Transplant & Oncology (CAR-T, Immunotherapies)",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "rajeswarins@yahoo.co.in": {
-  //   facultyName: "Rajeshwari",
-  //   email: "rajeswarins@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "Crack the Cardiac Code: Applied Physiology Made Simple",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "rajivuttam@hotmail.com": {
-  //   facultyName: "Rajiv Uttam",
-  //   email: "rajivuttam@hotmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Global Lungs, Local Challenges: Advancing Equitable Pediatric Respiratory Care.",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Moderator, Dr Maninder Dhaliwal, Co-Panellists: Dr Sagar lad, Dr Shekhar Venkatraman, Dr Mounika Reddy"
-  //     },
-  //     {
-  //       title: "Head Start: Timely Interventions in Traumatic Brain Injury",
-  //       date: "8/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "rakshayshetty@gmail.com": {
-  //   facultyName: "Rakshay Shetty",
-  //   email: "rakshayshetty@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Pediatric Research Networking",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "Dr. Vinay Nadkarni, Dr. Nilesh Mehta, Dr. Sebastian Gonzalez-Dambrauskas, Dr. Hiroshi Kurosawa, Dr. Traci Wolbrink, Dr. Atsushi Kawaguchi, Dr. Kirsten Gibbons, Dr. Yasser Kazzaz, Dr. Lee Jan Hau, Dr. Karen Ka Yan LEUNG, Dr. Sainath Raman, Dr. Rujipat, Dr. John Adabie Appiah, Dr. Kandamaran, Dr. Ririe, Dr. Manu Sundaram"
-  //     },
-  //     {
-  //       title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
-  //       date: "8/11",
-  //       role: "Moderator",
-  //       description: "Panelists, Dr. Banani Poddar, Dr. GV Basavraja, Dr. Hari Krishanan, Dr. Karthik Naryanan"
-  //     },
-  //     {
-  //       title: "Simulation",
-  //       date: "6/11",
-  //       role: "National Coordinator",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "ranganathaniyer@yahoo.com": {
-  //   facultyName: "Ranganath Iyer",
-  //   email: "ranganathaniyer@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "Breathless Battles: Viral Pneumonia That Won't Back Down: What's the Trend in Pediatric Viral Pneumonia?",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr. Manish Sharma (Moderator), Panelists, Dr. Bala Ramachandaran, Dr. Hiroshi Kurosawa, Dr. Anil Sachdeva"
-  //     }
-  //   ]
-  // },
-  // "ravikomalla@gmail.com": {
-  //   facultyName: "Ravi Babu K",
-  //   email: "ravikomalla@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Liver Transplant: Mastering Post-Op Complications",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Dr. Ravi T (Moderator), Panelists, Dr. Akashdeep, Dr. Prashant Bachina, Dr. Sonal Gajbhiya"
-  //     }
-  //   ]
-  // },
-  // "drravisharma8@gmail.com": {
-  //   facultyName: "Ravi Sharma",
-  //   email: "drravisharma8@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Hemadsorption in the PICU: Magic Filter or Misplaced Faith?",
-  //       date: "9/11",
-  //       role: "Debate : For Hemadsorption is Magic Filter",
-  //       description: "Co- Debator: Dr Romit Saxena - For Hemadsorption is Misplaced Faith"
-  //     },
-  //     {
-  //       title: "ECMO",
-  //       date: "6/11",
-  //       role: "National coordinator",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "rekhasolomon1@gmail.com": {
-  //   facultyName: "Rekha Solomon",
-  //   email: "rekhasolomon1@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Lactate in Septic Shock: Marker of Perfusion or Marker of Confusion?",
-  //       date: "8/11",
-  //       role: "Debater - FOR Marker of perfusion",
-  //       description: "Co Debater, Dr. Sandeep Dhingra - For marker of confusion"
-  //     }
-  //   ]
-  // },
-  // "reshma1987@gmail.com": {
-  //   facultyName: "Reshma A",
-  //   email: "reshma1987@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "HSCT: Navigating HSCT Challenges",
-  //       date: "7/11",
-  //       role: "Panelist",
-  //       description: "Dr. Indira Jayakumar (Moderator), Panelists, Dr. Abdul Rauf, Dr. Raj Lakshmi Iyer, Dr. Sanket R"
-  //     }
-  //   ]
-  // },
-  // "drrohitvohra87@gmail.com": {
-  //   facultyName: "Rohit Vohra",
-  //   email: "drrohitvohra87@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Acute Flaccid Paralysis in the PICU: GBS, Myelitis, or Something Else?",
-  //       date: "7/11",
-  //       role: "Moderator",
-  //       description: "Panellists: Dr Jesal Sheth, Dr Ramaling Loni, Dr Mukesh Jain, Dr Mihir Sarkar"
-  //     }
-  //   ]
-  // },
-  // "drromit@yahoo.co.in": {
-  //   facultyName: "Romit Saxena",
-  //   email: "drromit@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "Transport",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Hemadsorption in the PICU: Magic Filter or Misplaced Faith?",
-  //       date: "9/11",
-  //       role: "Dr Romit Saxena Debator: for Hemadsorption is Misplaced Faith",
-  //       description: "Co- Debator, Dr Ravi Sharma - For haemadsorption is Magic filter"
-  //     }
-  //   ]
-  // },
-  // "docsagar2002@yahoo.co.in": {
-  //   facultyName: "Sagar Hiremath",
-  //   email: "docsagar2002@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "Cardiac Failure & Cardiogenic Shock",
-  //       date: "7/11",
-  //       role: "Panelists",
-  //       description: "Dr. Priyavarthini (Moderator), Panelists, Dr. Ravi Kumar, Dr Ikram Ul Haque, Dr Javed Ismail"
-  //     }
-  //   ]
-  // },
-  // "drsagarlad@yahoo.com": {
-  //   facultyName: "Sagar lad",
-  //   email: "drsagarlad@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "Global Lungs, Local Challenges: Advancing Equitable Pediatric Respiratory Care.",
-  //       date: "8/11",
-  //       role: "Panelists",
-  //       description: "Dr Maninder Dhaliwal (Moderator), Panelists, Dr Rajiv Uttam, Dr Shekhar Venkatraman, Dr Mounika Reddy"
-  //     }
-  //   ]
-  // },
-  // "ksajith120@yahoo.com": {
-  //   facultyName: "Sajith Keswan",
-  //   email: "ksajith120@yahoo.com",
-  //   sessions: [
-  //     {
-  //       title: "Concept of Recruitment to Inflation Ratio - What does it really mean ?",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "ssadawarte@gmail.com": {
-  //   facultyName: "Sameer Sadawarte",
-  //   email: "ssadawarte@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Dengue Gone Wild: Navigating the Complications (Agenda: Complicated Dengue)",
-  //       date: "8/11",
-  //       role: "Panelists",
-  //       description: "Dr Rachna Sharma(Moderator), Panelists, Dr Sateesh Ghanta, Dr Daisy Khera, Dr Rujipat"
-  //     }
-  //   ]
-  // },
-  // "dhingrasandeep@yahoo.co.in": {
-  //   facultyName: "Sandeep Dhingra",
-  //   email: "dhingrasandeep@yahoo.co.in",
-  //   sessions: [
-  //     {
-  //       title: "Lactate in Septic Shock: Marker of Perfusion or Marker of Confusion?",
-  //       date: "8/11",
-  //       role: "Debater - FOR Marker of CONFUSION",
-  //       description: "Co- Debate, Dr Rekha Solomon - FOR Marker of perfusion"
-  //     }
-  //   ]
-  // },
-  // "drghorpadesanjay@gmail.com": {
-  //   facultyName: "Sanjay Ghorpade",
-  //   email: "drghorpadesanjay@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Biomarkers in Pediatric Critical Care: Hype vs. Help",
-  //       date: "9/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "drsoans62@gmail.com": {
-  //   facultyName: "Santosh Soans",
-  //   email: "drsoans62@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Code Red: Rapid Response to Pediatric GI Bleed",
-  //       date: "8/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "sasidarpgi@gmail.com": {
-  //   facultyName: "Sasidaran",
-  //   email: "sasidarpgi@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Precision prescription methods in CRRT",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "PICU Case Cafe",
-  //       date: "7/11",
-  //       role: "Chairperson",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "drsatishghanta@gmail.com": {
-  //   facultyName: "Sateesh Ghanta",
-  //   email: "drsatishghanta@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "Dengue Gone Wild: Navigating the Complications",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr Rachna Sharma(Moderator), Panelists, Dr Daisy Khera, Dr Rujipat, Dr Sameer Sadawarte"
-  //     },
-  //     {
-  //       title: "Non-Invasive Respiratory Support",
-  //       date: "6/11",
-  //       role: "Workshop Faculty",
-  //       description: "---"
-  //     }
-  //   ]
-  // },
-  // "deopujaris@gmail.com": {
-  //   facultyName: "Satish Deopujari",
-  //   email: "deopujaris@gmail.com",
-  //   sessions: [
-  //     {
-  //       title: "From Screen to Stethoscope: Apps That Enhance Pediatric Care",
-  //       date: "7/11",
-  //       role: "Speaker",
-  //       description: "---"
-  //     },
-  //     {
-  //       title: "Interpreting Critical Labs in Suspected Metabolic Disease",
-  //       date: "8/11",
-  //       role: "Panelist",
-  //       description: "Dr Parmanand (Moderator), Panelists, Dr Karunakar BP, Dr Dayanand Nakate, Dr Shalu Gupta"
-  //     }
-  //   ]
-  // }
+  "krramesh_iway@yahoo.co.in": {
+    facultyName: "Ramesh Kumar",
+    email: "krramesh_iway@yahoo.co.in",
+    sessions: [
+      {
+        title: "cEEG: Essential Surveillance or Expensive Overkill?",
+        date: "8/11",
+        role: "Debater - FOR OR AGAINST",
+        description: "---"
+      },
+      {
+        title: "Advanced Ventilation",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drpandian81@gmail.com": {
+    facultyName: "Sarvanan Pandian",
+    email: "drpandian81@gmail.com",
+    sessions: [
+      {
+        title: "Post-Transplant Panic: ICU Nightmares After Pediatric Liver Transplant",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "satheeshponnar@gmail.com": {
+    facultyName: "Satheesh Ponnarneni",
+    email: "satheeshponnar@gmail.com",
+    sessions: [
+      {
+        title: "Management of Complications related to blood based dialysis in PICU",
+        date: "7/11",
+        role: "Moderator",
+        description: "---"
+      },
+      {
+        title: "CRRT and SLED",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "kandathsathish@gmail.com": {
+    facultyName: "K.Sathish Kumar",
+    email: "kandathsathish@gmail.com",
+    sessions: [
+      {
+        title: "Beyond Survival: Navigating Long-Stay Challenges in the PICU",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "narayanankarthik86@gmail.com": {
+    facultyName: "Karthik Narayanan",
+    email: "narayanankarthik86@gmail.com",
+    sessions: [
+      {
+        title: "Data Dreams or Data Drama? Unmasking the National PICU Database",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "Quiz",
+        date: "7/11",
+        role: "Quiz Master",
+        description: "---"
+      },
+      {
+        title: "POCUS (Advanced)",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "bpkaruns@gmail.com": {
+    facultyName: "Karunakar BP",
+    email: "bpkaruns@gmail.com",
+    sessions: [
+      {
+        title: "Interpreting Critical Labs in Suspected Metabolic Diseases",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      }
+    ]
+  },
+  "reshma1987@gmail.com": {
+    facultyName: "Reshma A",
+    email: "reshma1987@gmail.com",
+    sessions: [
+      {
+        title: "HSCT: Navigating HSCT Challenges",
+        date: "7/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "PCCN workshop",
+        date: "6 NOV",
+        role: "Workshop",
+        description: "---"
+      }
+    ]
+  },
+  "saumenmeur@yahoo.co.uk": {
+    facultyName: "Saumen Meur",
+    email: "saumenmeur@yahoo.co.uk",
+    sessions: [
+      {
+        title: "Management of Complications related to blood based dialysis in PICU",
+        date: "7/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "POCUS (Basic)",
+        date: "6/11",
+        role: "Worskshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "ssenthilsmc@yahoo.co.in": {
+    facultyName: "Senthil Kumar",
+    email: "ssenthilsmc@yahoo.co.in",
+    sessions: [
+      {
+        title: "Top 5 ICU Red Flags You Should Never Miss",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "drshalugupta@yahoo.co.in": {
+    facultyName: "Shalu Gupta",
+    email: "drshalugupta@yahoo.co.in",
+    sessions: [
+      {
+        title: "Interpreting Critical Labs in Suspected Metabolic Disease",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "Friend, Foe, or Firefighting Tool? CRRT & Plasmapheresis in Pediatric ALF",
+        date: "9/11",
+        role: "Panellist",
+        description: "---"
+      },
+      {
+        title: "BPICC",
+        date: "6/11",
+        role: "Worskshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drshiv2014@gmail.com": {
+    facultyName: "Shivkumar",
+    email: "drshiv2014@gmail.com",
+    sessions: [
+      {
+        title: "Stamp of Quality or Just a Stamp? Impact of PICU Accreditation",
+        date: "9/11",
+        role: "Debater - Just a Stamp",
+        description: "---"
+      },
+      {
+        title: "POCUS (Basic)",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "shrishu@yahoo.com": {
+    facultyName: "Shrishu Kamath",
+    email: "shrishu@yahoo.com",
+    sessions: [
+      {
+        title: "Rescue, Restore, Rewire: Protecting the Pediatric Brain After Trauma and Arrest.",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "Difficult Airway: Plan-B and Beyond",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "shubhadeepnrsdoc@gmail.com": {
+    facultyName: "Shubhadeep Das",
+    email: "shubhadeepnrsdoc@gmail.com",
+    sessions: [
+      {
+        title: "Infections in the Cardiac ICU: When Bugs Break Hearts",
+        date: "7/11",
+        role: "Speaker",
+        description: "---"
+      },
+      {
+        title: "Cardiac Critical Care",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "siva.anjin@gmail.com": {
+    facultyName: "Siva Vyasam",
+    email: "siva.anjin@gmail.com",
+    sessions: [
+      {
+        title: "Super-Refractory Status Epilepticus: How Far Should We Go?",
+        date: "7/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "Simulation",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drsonal287@gmail.com": {
+    facultyName: "Sonal Gajbhiya",
+    email: "drsonal287@gmail.com",
+    sessions: [
+      {
+        title: "Liver Transplant: Mastering Post-Op Complications",
+        date: "7/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "POCUS (Advanced)",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drsudani@gmail.com": {
+    facultyName: "Soonu Udani",
+    email: "drsudani@gmail.com",
+    sessions: [
+      {
+        title: "Hemophagocytic Lymphohistiocytosis (HLH) and Macrophage Activation Syndrome: ICU Diagnosis and Management",
+        date: "7/11",
+        role: "Speaker",
+        description: "---"
+      },
+      {
+        title: "From Collapse to Comeback: Pediatric Cardiac Arrest through the Lens of Multidisciplinary Care",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      }
+    ]
+  },
+  "sudeepkecy2011@gmail.com": {
+    facultyName: "Sudeep KC",
+    email: "sudeepkecy2011@gmail.com",
+    sessions: [
+      {
+        title: "Rescue, Restore, Rewire: Protecting the Pediatric Brain After Trauma and Arrest.",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "PCCN workshop",
+        date: "6/11",
+        role: "Work shop",
+        description: "---"
+      }
+    ]
+  },
+  "sumantsp22@gmail.com": {
+    facultyName: "Sumant Patil",
+    email: "sumantsp22@gmail.com",
+    sessions: [
+      {
+        title: "Management of Complications related to blood based dialysis in PICU",
+        date: "7/11",
+        role: "Panelist",
+        description: "---"
+      }
+    ]
+  },
+  "sunit.singhi@gmail.com": {
+    facultyName: "Sunit Singhi",
+    email: "sunit.singhi@gmail.com",
+    sessions: [
+      {
+        title: "Pediatric respiratory critical care research and promoting the development of a research network in India- identifying key gaps",
+        date: "7/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "Building Leaders in Pediatric Critical Care: A Roadmap for India's Future",
+        date: "8/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "drschandrasekar@yahoo.com": {
+    facultyName: "Supraja Chandrasekhar",
+    email: "drschandrasekar@yahoo.com",
+    sessions: [
+      {
+        title: "RRT Timing: Act Fast or Wait Smart?",
+        date: "8/11",
+        role: "Debater - FOR Wait Smart",
+        description: "---"
+      },
+      {
+        title: "Simulation",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drskpanuganti@gmail.com": {
+    facultyName: "Dr Suresh Kumar Panugati",
+    email: "drskpanuganti@gmail.com",
+    sessions: [
+      {
+        title: "Electrolyte Emergencies in the PICU: Algorithms, Controversies, and Pitfalls",
+        date: "9/11",
+        role: "Panelist",
+        description: "---"
+      }
+    ]
+  },
+  "sureshangurana@gmail.com": {
+    facultyName: "Suresh Kumar Angurana",
+    email: "sureshangurana@gmail.com",
+    sessions: [
+      {
+        title: "The Gut-Brain Axis in Pediatric ICU: A Microbiome Perspective",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "drumaali22@gmail.com": {
+    facultyName: "Uma Ali",
+    email: "drumaali22@gmail.com",
+    sessions: [
+      {
+        title: "Managing Sodium disurbances during CRRT",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      },
+      {
+        title: "Friend, Foe, or Firefighting Tool? CRRT & Plasmapheresis in Pediatric ALF",
+        date: "9/11",
+        role: "Panellist",
+        description: "---"
+      }
+    ]
+  },
+  "vasanthbabblu@gmail.com": {
+    facultyName: "Vasanth",
+    email: "vasanthbabblu@gmail.com",
+    sessions: [
+      {
+        title: "Antibiotics on the Clock: Timing, Dosing, and De-escalation in the ICU.",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "drvraghunathan@gmail.com": {
+    facultyName: "Veena Raghunathan",
+    email: "drvraghunathan@gmail.com",
+    sessions: [
+      {
+        title: "Coming Off CRRT: Protocol Precision or Clinical Wisdom?",
+        date: "9/11",
+        role: "Debater - FOR PROTOCOL PRECISION",
+        description: "---"
+      },
+      {
+        title: "Nursing Respiratory Care",
+        date: "6/11",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "vijaiwilliams@gmail.com": {
+    facultyName: "Vijai Williams",
+    email: "vijaiwilliams@gmail.com",
+    sessions: [
+      {
+        title: "Start Slow or Start Smart? Should Golden Hour DKA Management Be Aggressively Standardized?",
+        date: "8/11",
+        role: "Debater - FOR Start Smart",
+        description: "---"
+      }
+    ]
+  },
+  "dr.vikas.78@gmail.com": {
+    facultyName: "Vikas Bansal",
+    email: "dr.vikas.78@gmail.com",
+    sessions: [
+      {
+        title: "The New Gold Standard in Ventilation? In Mechanical Power We Trust… or Not?",
+        date: "8/11",
+        role: "Debater - WE TRUST",
+        description: "---"
+      }
+    ]
+  },
+  "drvikastaneja@yahoo.co.in": {
+    facultyName: "Vikas Taneja",
+    email: "drvikastaneja@yahoo.co.in",
+    sessions: [
+      {
+        title: "The New Gold Standard in Ventilation? In Mechanical Power We Trust… or Not?",
+        date: "8/11",
+        role: "Debater - NOT TRUST",
+        description: "---"
+      }
+    ]
+  },
+  "vinpreethadi@gmail.com": {
+    facultyName: "Vinay Joshi",
+    email: "vinpreethadi@gmail.com",
+    sessions: [
+      {
+        title: "Silent Hypoxia: Recognizing & Managing Pulmonary Hypertensive Crisis",
+        date: "7/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "patkivinayak@gmail.com": {
+    facultyName: "Vinayak Patki",
+    email: "patkivinayak@gmail.com",
+    sessions: [
+      {
+        title: "Rescue, Restore, Rewire: Protecting the Pediatric Brain After Trauma and Arrest.",
+        date: "8/11",
+        role: "Moderator",
+        description: "---"
+      }
+    ]
+  },
+  "ratageri@rediffmail.com": {
+    facultyName: "Vinod Ratageri",
+    email: "ratageri@rediffmail.com",
+    sessions: [
+      {
+        title: "Belly Under Siege: Clinical Clues and ICU Strategies for ACS",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "vbuche@gmail.com": {
+    facultyName: "Vishram Buche",
+    email: "vbuche@gmail.com",
+    sessions: [
+      {
+        title: "The Arterial Truth: Using Trends to Guide Real-Time Decisions",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "drvsvprasad@gmail.com": {
+    facultyName: "VSV Prasad",
+    email: "drvsvprasad@gmail.com",
+    sessions: [
+      {
+        title: "Fluid, Not Flood: Smarter Resuscitation in the PICU",
+        date: "8/11",
+        role: "Panelist",
+        description: "---"
+      },
+      {
+        title: "Buying Smart: Equipping Your PICU for Function, Not Fashion",
+        date: "9/11",
+        role: "Moderator",
+        description: "---"
+      }
+    ]
+  },
+  "drgirishc@gmail.com": {
+    facultyName: "Girish H C",
+    email: "drgirishc@gmail.com",
+    sessions: [
+      {
+        title: "Accidental Drug Overdose or Wrong Drug in the PICU: First Response and Reporting",
+        date: "9/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  }
 };
-
 // Generate HTML for a specific faculty member
 function renderFacultyHTML(facultyEmail: string) {
   const facultyData = FACULTY_DATA[facultyEmail as keyof typeof FACULTY_DATA];
