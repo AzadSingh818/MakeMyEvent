@@ -1,3 +1,4 @@
+// app/(auth)/faculty-login/page.tsx (Fixed TypeScript issues)
 "use client";
 
 import React, { useState, useEffect, FormEvent } from "react";
@@ -10,18 +11,91 @@ import {
   Phone,
   Calendar,
   MapPin,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 
+// Email provider detection with proper typing
+interface EmailProvider {
+  name: string;
+  domains: string[];
+  color: string;
+  key: string;
+}
+
+const EMAIL_PROVIDERS: Record<string, Omit<EmailProvider, 'key'>> = {
+  gmail: { 
+    name: 'Gmail', 
+    domains: ['gmail.com', 'googlemail.com'], 
+    color: 'bg-red-100 text-red-800' 
+  },
+  yahoo: { 
+    name: 'Yahoo Mail', 
+    domains: ['yahoo.com', 'yahoo.in', 'yahoo.co.in', 'ymail.com', 'rocketmail.com'], 
+    color: 'bg-purple-100 text-purple-800' 
+  },
+  rediff: { 
+    name: 'Rediffmail', 
+    domains: ['rediffmail.com', 'rediff.com'], 
+    color: 'bg-blue-100 text-blue-800' 
+  }
+};
+
+function getEmailProvider(email: string): EmailProvider | null {
+  // Validate email format first
+  if (!email || !email.includes('@')) {
+    return null;
+  }
+
+  const emailParts = email.toLowerCase().split('@');
+  
+  // Ensure we have exactly 2 parts and domain exists
+  if (emailParts.length !== 2 || !emailParts[1] || emailParts[1].trim() === '') {
+    return null;
+  }
+  
+  const domain = emailParts[1].trim();
+  
+  for (const [key, provider] of Object.entries(EMAIL_PROVIDERS)) {
+    if (provider.domains.includes(domain)) {
+      return { key, ...provider };
+    }
+  }
+  
+  return null;
+}
+
+// Validate email format
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+interface EventContext {
+  eventId?: string | null;
+  invitationId?: string | null;
+  ref?: string | null;
+}
+
+interface InvitationDetails {
+  eventTitle: string;
+  eventDates: string;
+  location: string;
+  venue: string;
+}
+
 export default function FacultyLoginPage() {
-  const [email, setEmail] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [email, setEmail] = useState<string>("");
+  const [otpSent, setOtpSent] = useState<boolean>(false);
+  const [otp, setOtp] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [googleLoading, setGoogleLoading] = useState<boolean>(false);
+  const [emailProvider, setEmailProvider] = useState<EmailProvider | null>(null);
+  const [error, setError] = useState<string>("");
 
   // Event invitation context
-  const [eventContext, setEventContext] = useState<any>(null);
-  const [invitationDetails, setInvitationDetails] = useState<any>(null);
+  const [eventContext, setEventContext] = useState<EventContext | null>(null);
+  const [invitationDetails, setInvitationDetails] = useState<InvitationDetails | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -31,7 +105,9 @@ export default function FacultyLoginPage() {
       const invitationIdParam = params.get("invitationId");
       const refParam = params.get("ref");
 
-      if (emailParam) setEmail(decodeURIComponent(emailParam));
+      if (emailParam) {
+        setEmail(decodeURIComponent(emailParam));
+      }
 
       // If this is from an event invitation, set context
       if (refParam === "event-invitation" && eventIdParam) {
@@ -41,7 +117,6 @@ export default function FacultyLoginPage() {
           ref: refParam,
         });
 
-        // Set invitation details (in real app, fetch from API)
         setInvitationDetails({
           eventTitle: "Academic Excellence Conference 2025",
           eventDates: "March 15-17, 2025",
@@ -52,73 +127,141 @@ export default function FacultyLoginPage() {
     }
   }, []);
 
+  // Update email provider detection when email changes
+  useEffect(() => {
+    if (email && isValidEmail(email)) {
+      const provider = getEmailProvider(email);
+      setEmailProvider(provider);
+      setError(""); // Clear any previous errors
+    } else {
+      setEmailProvider(null);
+    }
+  }, [email]);
+
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
-      // Include event context in callback URL if present
       let callbackUrl = "/faculty";
       if (eventContext) {
-        const params = new URLSearchParams({
-          eventId: eventContext.eventId || "",
-          invitationId: eventContext.invitationId || "",
-          ref: "event-invitation",
-        });
+        const params = new URLSearchParams();
+        if (eventContext.eventId) params.set("eventId", eventContext.eventId);
+        if (eventContext.invitationId) params.set("invitationId", eventContext.invitationId);
+        if (eventContext.ref) params.set("ref", eventContext.ref);
+        
         callbackUrl = `/faculty?${params.toString()}`;
       }
 
       await signIn("google", { callbackUrl, email });
     } catch (e) {
-      alert("Google sign-in failed");
+      setError("Google sign-in failed");
     } finally {
       setGoogleLoading(false);
     }
   };
 
   const sendOtp = async () => {
-    if (!email || !email.includes("@")) {
-      alert("Please enter a valid email");
+    // Comprehensive validation
+    if (!email) {
+      setError("Please enter your email address");
       return;
     }
+
+    if (!isValidEmail(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    if (!emailProvider) {
+      setError("Email provider not supported. Please use Gmail, Yahoo, or Rediffmail.");
+      return;
+    }
+
     setLoading(true);
+    setError("");
+
     try {
-      // Mock OTP sending for demo
-      console.log("📧 Mock OTP sent to:", email);
-      alert("OTP sent to your email (Mock: use 123456)");
+      const response = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to send OTP");
+      }
+
+      console.log(`📧 OTP sent via ${result.recipientProvider || result.provider}:`, email);
       setOtpSent(true);
-    } catch (err) {
-      alert("Failed to send OTP");
+      setError("");
+    } catch (err: unknown) {
+      console.error("Send OTP error:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to send OTP";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
   const verifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
-      alert("Enter 6-digit OTP");
+    if (!otp) {
+      setError("Please enter the verification code");
       return;
     }
+
+    if (otp.length !== 6) {
+      setError("Please enter the complete 6-digit verification code");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(otp)) {
+      setError("Verification code must contain only numbers");
+      return;
+    }
+
     setLoading(true);
+    setError("");
+
     try {
-      // Mock OTP verification
-      if (otp === "123456") {
-        alert("Login successful!");
+      console.log("🔐 Attempting OTP sign-in with NextAuth...");
+      
+      // Use NextAuth signIn with OTP provider
+      const result = await signIn("otp", {
+        email: email.toLowerCase().trim(),
+        otp: otp,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        console.error("❌ NextAuth OTP sign-in error:", result.error);
+        throw new Error("Invalid verification code or expired. Please try again.");
+      }
+
+      if (result?.ok) {
+        console.log("✅ OTP authentication successful via NextAuth");
 
         // Redirect with event context if present
         if (eventContext) {
-          const params = new URLSearchParams({
-            eventId: eventContext.eventId || "",
-            invitationId: eventContext.invitationId || "",
-            ref: "event-invitation",
-          });
+          const params = new URLSearchParams();
+          if (eventContext.eventId) params.set("eventId", eventContext.eventId);
+          if (eventContext.invitationId) params.set("invitationId", eventContext.invitationId);
+          if (eventContext.ref) params.set("ref", eventContext.ref);
+          
           window.location.href = `/faculty?${params.toString()}`;
         } else {
           window.location.href = "/faculty";
         }
       } else {
-        throw new Error("Invalid OTP");
+        throw new Error("Authentication failed. Please try again.");
       }
-    } catch (err) {
-      alert("OTP verification failed. Use 123456 for demo.");
+
+    } catch (err: unknown) {
+      console.error("Verify OTP error:", err);
+      const errorMessage = err instanceof Error ? err.message : "OTP verification failed";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -127,9 +270,10 @@ export default function FacultyLoginPage() {
   const resetFlow = () => {
     setOtpSent(false);
     setOtp("");
+    setError("");
   };
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (otpSent) {
       verifyOtp();
@@ -158,101 +302,144 @@ export default function FacultyLoginPage() {
               <h3 className="font-semibold text-blue-100 text-sm">
                 {invitationDetails.eventTitle}
               </h3>
-              <div className="flex items-center gap-4 text-xs text-blue-200 mt-2">
-                <div className="flex items-center gap-1">
+              <div className="flex items-center gap-4 mt-2 text-xs text-blue-200">
+                <span className="flex items-center gap-1">
                   <Calendar className="h-3 w-3" />
-                  <span>{invitationDetails.eventDates}</span>
-                </div>
-                <div className="flex items-center gap-1">
+                  {invitationDetails.eventDates}
+                </span>
+                <span className="flex items-center gap-1">
                   <MapPin className="h-3 w-3" />
-                  <span>{invitationDetails.location}</span>
-                </div>
+                  {invitationDetails.location}
+                </span>
               </div>
             </div>
           )}
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+            <span className="text-red-300 text-sm">{error}</span>
+          </div>
+        )}
+
         <form onSubmit={onSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block mb-1 font-medium">
-              Email Address
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Faculty Email
             </label>
             <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
-                id="email"
                 type="email"
-                className={`w-full rounded-xl p-3 pr-10 bg-gray-700 text-white border border-gray-600 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600`}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="your.email@example.com"
-                required
+                className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                placeholder="Enter your faculty email"
                 disabled={otpSent}
+                required
+                autoComplete="email"
               />
-              <Mail className="absolute right-3 top-1/2 -mt-2.5 w-5 h-5 text-gray-400" />
             </div>
+            
+            {/* Email Provider Detection */}
+            {emailProvider && (
+              <div className="mt-2 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-400" />
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${emailProvider.color}`}>
+                  {emailProvider.name} Supported
+                </span>
+              </div>
+            )}
+            
+            {email && isValidEmail(email) && !emailProvider && (
+              <div className="mt-2 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-400" />
+                <span className="text-amber-300 text-xs">
+                  Provider not supported. Use Gmail, Yahoo, or Rediffmail.
+                </span>
+              </div>
+            )}
+
+            {email && !isValidEmail(email) && email.includes('@') && (
+              <div className="mt-2 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-400" />
+                <span className="text-red-300 text-xs">
+                  Please enter a valid email address.
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* {otpSent && (
-            <>
-              <div>
-                <label htmlFor="otp" className="block mb-1 font-medium">
-                  Enter OTP
-                </label>
+          {otpSent && (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Verification Code
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
-                  id="otp"
                   type="text"
-                  maxLength={6}
-                  className="w-full rounded-xl p-3 pr-10 bg-gray-700 text-white border border-gray-600 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  placeholder="123456"
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition text-center tracking-widest font-mono"
+                  placeholder="000000"
+                  maxLength={6}
                   required
-                  autoFocus
+                  autoComplete="one-time-code"
                 />
-                <p className="text-xs text-gray-400 mt-1">Demo: Use 123456</p>
-                <button
-                  type="button"
-                  onClick={resetFlow}
-                  className="mt-2 text-sm text-indigo-400 hover:underline"
-                >
-                  Change Email
-                </button>
               </div>
-            </>
-          )} */}
+              <p className="mt-2 text-xs text-gray-400 text-center">
+                Code sent to {email} via {emailProvider?.name || 'Gmail SMTP'}
+              </p>
+              <button
+                type="button"
+                onClick={resetFlow}
+                className="mt-2 text-sm text-indigo-400 hover:text-indigo-300 transition block mx-auto"
+              >
+                Use different email
+              </button>
+            </div>
+          )}
 
-          {/* <button
+          <button
             type="submit"
-            disabled={!email || loading}
-            className={`w-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-3 font-semibold shadow-lg transition ${
-              loading ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02]"
+            disabled={loading || (!emailProvider && !otpSent)}
+            className={`w-full flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 p-3 font-semibold shadow-lg text-white transition ${
+              loading || (!emailProvider && !otpSent)
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:scale-[1.02] transform"
             }`}
           >
             {loading ? (
-              <span>Processing...</span>
-            ) : otpSent ? (
-              "Verify OTP"
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              "Send OTP"
+              <>
+                {otpSent ? "Verify Code" : "Send Code"}
+                <ArrowRight className="h-5 w-5" />
+              </>
             )}
-          </button> */}
+          </button>
         </form>
 
         <div className="my-6 flex items-center justify-center text-gray-400">
-          <span className="mx-4">OR</span>
+          <div className="h-px bg-gray-600 flex-1"></div>
+          <span className="mx-4 text-sm">OR</span>
+          <div className="h-px bg-gray-600 flex-1"></div>
         </div>
 
         <button
           onClick={handleGoogleSignIn}
-          disabled={!email || googleLoading}
+          disabled={!email || !isValidEmail(email) || googleLoading}
           className={`w-full flex items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 p-3 font-semibold shadow-lg text-white transition ${
-            googleLoading
+            googleLoading || !email || !isValidEmail(email)
               ? "opacity-50 cursor-not-allowed"
-              : "hover:scale-[1.02]"
+              : "hover:scale-[1.02] transform"
           }`}
         >
           {googleLoading ? (
-            <span>Loading...</span>
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
           ) : (
             <>
               <svg
@@ -272,6 +459,34 @@ export default function FacultyLoginPage() {
             </>
           )}
         </button>
+
+        {/* Provider Support Information */}
+        <div className="mt-6 p-4 bg-gray-700/30 rounded-lg">
+          <h4 className="text-sm font-medium text-gray-300 mb-3">Supported Email Providers</h4>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="text-center">
+              <div className="w-8 h-8 mx-auto mb-1 bg-red-100 rounded-full flex items-center justify-center">
+                <span className="text-red-600 text-xs font-bold">G</span>
+              </div>
+              <span className="text-xs text-gray-400">Gmail</span>
+            </div>
+            <div className="text-center">
+              <div className="w-8 h-8 mx-auto mb-1 bg-purple-100 rounded-full flex items-center justify-center">
+                <span className="text-purple-600 text-xs font-bold">Y</span>
+              </div>
+              <span className="text-xs text-gray-400">Yahoo</span>
+            </div>
+            <div className="text-center">
+              <div className="w-8 h-8 mx-auto mb-1 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-600 text-xs font-bold">R</span>
+              </div>
+              <span className="text-xs text-gray-400">Rediff</span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 text-center mt-3">
+            All emails are sent securely via Gmail SMTP
+          </p>
+        </div>
 
         {invitationDetails && (
           <div className="mt-6 text-center text-xs text-gray-400">

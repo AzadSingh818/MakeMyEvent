@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
 
     if (!email) {
       return NextResponse.json(
-        { success: false, error: "Email parameter is required" },
+        { success: false, error: "Email parameter is required" }, 
         { status: 400 }
       );
     }

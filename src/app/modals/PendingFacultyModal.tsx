@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Clock, Mail, Phone } from 'lucide-react';
+import { X, Download, Clock, Mail, Phone, Users, AlertTriangle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 interface ApprovalFaculty {
   id: string;
@@ -81,16 +82,20 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
     if (selectedEventId && !initialLoad) {
       console.log('Event selected:', selectedEventId);
       fetchSessions(selectedEventId);
-      setFacultyList([]); // Clear faculty list when event changes
-      setSelectedSessionId(''); // Reset session selection
+      setFacultyList([]);
+      setSelectedSessionId('');
     }
   }, [selectedEventId, initialLoad]);
 
-  // When session is selected, fetch faculty for that session
+  // When session is selected OR "all" is selected, fetch faculty
   useEffect(() => {
     if (selectedSessionId && selectedEventId) {
-      console.log('Session selected:', selectedSessionId);
-      fetchFacultyBySession(selectedSessionId);
+      console.log('Session/All selected:', selectedSessionId);
+      if (selectedSessionId === 'all') {
+        fetchFacultyByEvent(selectedEventId);
+      } else {
+        fetchFacultyBySession(selectedSessionId);
+      }
     }
   }, [selectedSessionId]);
 
@@ -147,6 +152,33 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
     } catch (error) {
       console.error('Error fetching sessions:', error);
       setError(`Failed to load sessions: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const fetchFacultyByEvent = async (eventId: string) => {
+    setLoading(true);
+    try {
+      console.log('Fetching pending faculty for all sessions in event:', eventId);
+      const response = await fetch(`/api/approvals?type=faculty&eventId=${eventId}&status=PENDING`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Faculty by Event API result:', result);
+      
+      if (result.success) {
+        setFacultyList(result.data);
+        console.log('Faculty list (all sessions) set successfully:', result.data.length);
+      } else {
+        throw new Error(result.error || 'Failed to fetch faculty');
+      }
+    } catch (error) {
+      console.error('Error fetching faculty by event:', error);
+      setError(`Failed to load faculty: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -207,32 +239,32 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
       return;
     }
 
-    const headers = ['Name', 'Email', 'Institution', 'Designation', 'Specialization', 'Phone', 'Session', 'Invitation Date', 'Days Pending'];
-    const csvContent = [
-      headers.join(','),
-      ...facultyList.map(faculty => [
-        `"${faculty.name}"`,
-        `"${faculty.email}"`,
-        `"${faculty.institution}"`,
-        `"${faculty.designation}"`,
-        `"${faculty.specialization}"`,
-        `"${faculty.phone}"`,
-        `"${faculty.sessionTitle}"`,
-        `"${new Date(faculty.invitationDate).toLocaleDateString()}"`,
-        `"${faculty.daysPending || 0}"`
-      ].join(','))
-    ].join('\n');
+    const excelData = facultyList.map(faculty => ({
+      'Name': faculty.name,
+      'Email': faculty.email,
+      'Event': faculty.eventName,
+      'Session': faculty.sessionTitle,
+      'Invitation Sent Date': faculty.invitationDate ? new Date(faculty.invitationDate).toLocaleDateString() : 'N/A',
+      'Status': 'PENDING'
+    }));
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `pending-faculty-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    const colWidths = [
+      { wch: 20 }, { wch: 30 }, { wch: 25 }, { wch: 40 }, { wch: 20 }, { wch: 12 }
+    ];
+    ws['!cols'] = colWidths;
+
+    const sheetName = selectedSessionId === 'all' ? 'Pending Faculty (All Sessions)' : 'Pending Faculty';
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    const eventName = events.find(e => e.id === selectedEventId)?.name || 'Event';
+    const fileName = selectedSessionId === 'all' 
+      ? `${eventName}_Pending_Faculty_All_Sessions_${new Date().toISOString().split('T')[0]}.xlsx`
+      : `${eventName}_Pending_Faculty_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
   };
 
   if (!isOpen) return null;
@@ -279,11 +311,12 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
           </div>
         )}
 
-        {/* Filters */}
+        {/* Filters - FIXED LAYOUT */}
         <div className="bg-gray-50 border-b p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Event Selection */}
-            <div>
+          {/* Changed to 3-column grid to always show export button */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            {/* Event Selection - Takes 5 columns */}
+            <div className="lg:col-span-5">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Event *
               </label>
@@ -305,59 +338,54 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
               )}
             </div>
 
-            {/* Session Selection with Export Button - DEBUG VERSION */}
-            <div>
+            {/* Session Selection - Takes 5 columns */}
+            <div className="lg:col-span-5">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Session *
               </label>
-              {/* Debug Info */}
-              {/* <div className="text-xs text-gray-500 mb-1">
-                Debug: {sessions.length} sessions found
-                {selectedEventId && ` for event ${selectedEventId}`}
-              </div> */}
-              <div className="flex gap-2">
-                <select
-                  value={selectedSessionId}
-                  onChange={(e) => {
-                    console.log('Session selected:', e.target.value);
-                    handleSessionChange(e.target.value);
-                  }}
-                  disabled={!selectedEventId || sessions.length === 0}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 disabled:bg-gray-100"
-                >
-                  <option value="">Choose a session ({sessions.length} available)</option>
-                  {sessions.map(session => {
-                    console.log('Rendering session option:', session);
-                    return (
-                      <option key={session.id} value={session.id}>
-                        {session.title} ({session.pendingCount} pending)
-                      </option>
-                    );
-                  })}
-                </select>
-                <button
-                  onClick={handleExport}
-                  disabled={facultyList.length === 0}
-                  className="flex items-center space-x-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export</span>
-                </button>
-              </div>
+              <select
+                value={selectedSessionId}
+                onChange={(e) => {
+                  console.log('Session selected:', e.target.value);
+                  handleSessionChange(e.target.value);
+                }}
+                disabled={!selectedEventId || sessions.length === 0}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 disabled:bg-gray-100"
+              >
+                <option value="">Choose a session ({sessions.length} available)</option>
+                {selectedEventId && sessions.length > 0 && (
+                  <option value="all" className="font-semibold text-yellow-700">
+                    🔄 All Sessions ({sessions.reduce((acc, session) => acc + session.pendingCount, 0)} total pending)
+                  </option>
+                )}
+                {sessions.map(session => {
+                  console.log('Rendering session option:', session);
+                  return (
+                    <option key={session.id} value={session.id}>
+                      {session.title} ({session.pendingCount} pending)
+                    </option>
+                  );
+                })}
+              </select>
               {selectedEventId && sessions.length === 0 && !loading && (
                 <p className="text-xs text-red-500 mt-1">No sessions available for this event</p>
               )}
-              {/* Debug Sessions Data */}
-              {/* {sessions.length > 0 && (
-                <details className="mt-2">
-                  <summary className="text-xs text-gray-500 cursor-pointer">
-                    Debug: View sessions data
-                  </summary>
-                  <pre className="text-xs bg-gray-100 p-2 mt-1 rounded overflow-auto max-h-32">
-                    {JSON.stringify(sessions, null, 2)}
-                  </pre>
-                </details>
-              )} */}
+            </div>
+
+            {/* Export Button - Takes 2 columns - ALWAYS VISIBLE */}
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                &nbsp; {/* Spacer to align with other labels */}
+              </label>
+              <button
+                onClick={handleExport}
+                disabled={facultyList.length === 0}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                title={facultyList.length === 0 ? "No data available to export" : "Export to Excel"}
+              >
+                <Download className="w-4 h-4" />
+                <span>Export</span>
+              </button>
             </div>
           </div>
         </div>
@@ -378,41 +406,50 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
                 Select an Event
               </h3>
               <p className="text-gray-500">
-                Please select an event to view sessions
+                Please select an event to view sessions and faculty
               </p>
             </div>
           ) : !selectedSessionId ? (
             <div className="text-center py-12">
-              <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Select a Session
+                Select a Session or All Sessions
               </h3>
               <p className="text-gray-500">
-                Please select a session to view pending faculty responses
+                Choose a specific session or select "All Sessions" to view all pending faculty for this event
               </p>
             </div>
           ) : facultyList.length === 0 ? (
             <div className="text-center py-12">
               <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No pending faculty found
+                No Pending Faculty Found
               </h3>
               <p className="text-gray-500">
-                No faculty have pending invitations for the selected session
+                {selectedSessionId === 'all' 
+                  ? 'No faculty have pending invitations for any sessions in this event.'
+                  : 'No faculty have pending invitations for this session.'
+                }
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Results Header */}
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {facultyList.length} Pending Faculty
-                  {selectedSessionId && sessions.find(s => s.id === selectedSessionId) && (
-                    <span className="text-sm font-normal text-gray-600 ml-2">
-                      for "{sessions.find(s => s.id === selectedSessionId)?.title}"
+              {/* Results Summary */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="w-5 h-5 text-yellow-600" />
+                    <span className="font-medium text-yellow-800">
+                      {facultyList.length} Pending Faculty 
+                      {selectedSessionId === 'all' ? ' (All Sessions)' : ''}
                     </span>
+                  </div>
+                  {selectedSessionId === 'all' && (
+                    <div className="text-sm text-yellow-600">
+                      Showing faculty from {sessions.length} sessions
+                    </div>
                   )}
-                </h3>
+                </div>
               </div>
 
               {/* Faculty List */}
@@ -444,10 +481,19 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
                             {faculty.phone && <p><strong>Phone:</strong> {faculty.phone}</p>}
                           </div>
                         </div>
+                        {selectedSessionId === 'all' && (
+                          <div className="mt-2 p-2 bg-yellow-50 rounded border border-yellow-200">
+                            <p className="text-sm font-medium text-yellow-700">
+                              📍 {faculty.sessionTitle}
+                            </p>
+                            <p className="text-xs text-yellow-600">
+                              Session ID: {faculty.sessionId}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Response Details */}
                     <div className="border-t pt-3 mt-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
@@ -483,6 +529,16 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                <span className="font-medium text-red-800">Error</span>
+              </div>
+              <p className="text-red-700 mt-1">{error}</p>
             </div>
           )}
         </div>

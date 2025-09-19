@@ -1,14 +1,14 @@
-// src/lib/auth/config.ts - FIXED: JWT callback that refreshes user role
+// lib/auth/config.ts - Updated with OTP provider
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { query } from "@/lib/database/connection";
 import bcrypt from "bcryptjs";
 
-// Define User Role enum (since we don't have Prisma anymore)
+// Define User Role enum
 export enum UserRole {
   ORGANIZER = "ORGANIZER",
-  EVENT_MANAGER = "EVENT_MANAGER",
+  EVENT_MANAGER = "EVENT_MANAGER", 
   FACULTY = "FACULTY",
   DELEGATE = "DELEGATE",
   HALL_COORDINATOR = "HALL_COORDINATOR",
@@ -66,7 +66,7 @@ export const UserService = {
           userData.email?.toLowerCase(),
           userData.name,
           userData.image,
-          userData.role || UserRole.EVENT_MANAGER,
+          userData.role || UserRole.FACULTY,
           userData.emailVerified || new Date(),
         ]
       );
@@ -77,26 +77,44 @@ export const UserService = {
     }
   },
 
-  async updateEmailVerified(email: string): Promise<User | null> {
+  async findOrCreateByEmail(email: string, name?: string): Promise<User | null> {
     try {
-      const result = await query(
-        `UPDATE users SET email_verified = NOW(), updated_at = NOW() 
-         WHERE email = $1 RETURNING *`,
-        [email.toLowerCase()]
-      );
-      return result.rows[0] || null;
+      // First try to find existing user
+      let user = await this.findByEmail(email);
+      
+      if (!user) {
+        // Create new faculty user if doesn't exist
+        user = await this.create({
+          email: email.toLowerCase(),
+          name: name || email.split('@')[0],
+          role: UserRole.FACULTY,
+          emailVerified: new Date(),
+        });
+      }
+      
+      return user;
     } catch (error) {
-      console.error("Error updating email verification:", error);
+      console.error("Error finding or creating user:", error);
       return null;
     }
-  },
+  }
 };
 
 export const authOptions: NextAuthOptions = {
-  // Remove Prisma adapter - use JWT sessions only
+  session: {
+    strategy: "jwt",
+  },
+  
   providers: [
+    // Google OAuth Provider
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    
     // Email & Password Authentication
     CredentialsProvider({
+      id: "credentials",
       name: "credentials",
       credentials: {
         email: {
@@ -105,7 +123,7 @@ export const authOptions: NextAuthOptions = {
           placeholder: "john@example.com",
         },
         password: {
-          label: "Password",
+          label: "Password", 
           type: "password",
         },
       },
@@ -116,7 +134,6 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Find user in database
           const user = await UserService.findByEmail(credentials.email);
 
           if (!user || !user.password) {
@@ -124,7 +141,6 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Verify password
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
             user.password
@@ -137,106 +153,112 @@ export const authOptions: NextAuthOptions = {
 
           console.log("✅ User authenticated successfully:", user.email);
 
-          // Return user object for JWT
           return {
             id: user.id,
             email: user.email,
             name: user.name,
             role: user.role,
-            image: user.image,
           };
         } catch (error) {
-          console.error("❌ Authentication error:", error);
+          console.error("❌ Error in credentials authorize:", error);
           return null;
         }
       },
     }),
 
-    // Google OAuth Provider
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      profile(profile) {
-        return {
-          id: profile.sub,
-          name: profile.name,
-          email: profile.email,
-          image: profile.picture,
-          role: UserRole.EVENT_MANAGER, // Default role for Google signups
-        };
+    // NEW: OTP Authentication Provider
+    CredentialsProvider({
+      id: "otp",
+      name: "OTP",
+      credentials: {
+        email: {
+          label: "Email",
+          type: "email",
+        },
+        otp: {
+          label: "OTP",
+          type: "text",
+        },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.otp) {
+          console.log("❌ Missing email or OTP");
+          return null;
+        }
+
+        try {
+          console.log("🔐 Attempting OTP authentication for:", credentials.email);
+
+          // Verify OTP using the same logic as verify-otp API
+          const emailKey = `email:${credentials.email.toLowerCase()}`;
+          const emailOtpData = global.otpStore.get(emailKey);
+
+          if (!emailOtpData) {
+            console.log("❌ OTP not found in storage");
+            return null;
+          }
+
+          if (emailOtpData.expireAt < Date.now()) {
+            console.log("❌ OTP expired");
+            global.otpStore.delete(emailKey);
+            return null;
+          }
+
+          if (emailOtpData.otp !== credentials.otp) {
+            console.log("❌ Invalid OTP");
+            return null;
+          }
+
+          // OTP is valid, clean up
+          global.otpStore.delete(emailKey);
+          console.log("✅ OTP verified successfully");
+
+          // Find or create user
+          const user = await UserService.findOrCreateByEmail(
+            credentials.email,
+            credentials.email.split('@')[0]
+          );
+
+          if (!user) {
+            console.log("❌ Failed to find or create user");
+            return null;
+          }
+
+          console.log("✅ User authenticated via OTP:", user.email);
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+
+        } catch (error) {
+          console.error("❌ Error in OTP authorize:", error);
+          return null;
+        }
       },
     }),
   ],
 
-  session: {
-    strategy: "jwt", // JWT-only sessions (no database sessions)
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-
   callbacks: {
-    // FIXED: JWT callback that refreshes user role from database
     async jwt({ token, user, account }) {
-      // For NEW logins, set initial token data
+      // Initial sign in
       if (user) {
         token.role = user.role;
         token.id = user.id;
-        token.email = user.email;
-        console.log("🔄 JWT token updated with NEW user data:", user.role);
       }
 
-      // CRITICAL FIX: Refresh user data from database for existing tokens
-      if (token.id && !user) {
+      // Handle Google OAuth
+      if (account?.provider === "google") {
         try {
-          const freshUser = await UserService.findById(token.id as string);
-          if (freshUser) {
-            // Update token with fresh database data
-            const oldRole = token.role;
-            token.role = freshUser.role;
-            token.email = freshUser.email;
-            token.name = freshUser.name ?? undefined;
-            
-            if (oldRole !== freshUser.role) {
-              console.log(`🔄 Role updated in JWT: ${oldRole} → ${freshUser.role}`);
-            }
-          }
-        } catch (error) {
-          console.error("❌ Error refreshing user data in JWT:", error);
-        }
-      }
-
-      // Handle first-time Google login
-      if (account?.provider === "google" && user) {
-        try {
-          console.log("🔄 Processing Google login for:", user.email);
-
-          // Check if user already exists
-          const existingUser = await UserService.findByEmail(user.email!);
-
-          if (!existingUser) {
-            console.log("➕ Creating new Google user");
-            // Create new user with Google data
-            const newUser = await UserService.create({
-              email: user.email!,
-              name: user.name!,
-              image: user.image,
-              role: UserRole.DELEGATE,
-              emailVerified: new Date(),
-            });
-
-            if (newUser) {
-              token.role = newUser.role;
-              token.id = newUser.id;
-              console.log("✅ New Google user created:", newUser.email);
-            }
-          } else {
-            console.log("✅ Existing Google user found");
-            token.role = existingUser.role;
-            token.id = existingUser.id;
-
-            // Update email verification if not set
-            if (!existingUser.emailVerified) {
-              await UserService.updateEmailVerified(user.email!);
-            }
+          const dbUser = await UserService.findOrCreateByEmail(
+            token.email!,
+            token.name || undefined
+          );
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.id = dbUser.id;
           }
         } catch (error) {
           console.error("❌ Error handling Google login:", error);
@@ -247,7 +269,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // Send properties to the client
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as UserRole;
@@ -259,7 +280,6 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      // Redirect to appropriate dashboard based on role
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
@@ -272,66 +292,17 @@ export const authOptions: NextAuthOptions = {
   },
 
   events: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       console.log("👤 User signed in:", user.email, "via", account?.provider);
     },
 
     async signOut({ session }) {
       console.log("👋 User signed out:", session?.user?.email);
     },
-
-    async createUser({ user }) {
-      console.log("🆕 New user created:", user.email);
-
-      // Send welcome email (implement later)
-      // await sendWelcomeEmail(user.email, user.name)
-    },
   },
 
   debug: process.env.NODE_ENV === "development",
 };
-
-// Helper function to get user role-based redirect URL
-export function getRoleBasedRedirectUrl(role: UserRole): string {
-  const roleRoutes: Record<UserRole, string> = {
-    [UserRole.ORGANIZER]: "/organizer",
-    [UserRole.EVENT_MANAGER]: "/event-manager",
-    [UserRole.FACULTY]: "/faculty",
-    [UserRole.DELEGATE]: "/delegate",
-    [UserRole.HALL_COORDINATOR]: "/hall-coordinator",
-    [UserRole.SPONSOR]: "/sponsor",
-    [UserRole.VOLUNTEER]: "/volunteer",
-    [UserRole.VENDOR]: "/vendor",
-  };
-
-  return roleRoutes[role] || "/delegate";
-}
-
-// Helper function to hash passwords
-export async function hashPassword(password: string): Promise<string> {
-  const saltRounds = 12;
-  return bcrypt.hash(password, saltRounds);
-}
-
-// Helper function to verify passwords
-export async function verifyPassword(
-  password: string,
-  hashedPassword: string
-): Promise<boolean> {
-  return bcrypt.compare(password, hashedPassword);
-}
-
-// Validate user role
-export function isValidUserRole(role: string): role is UserRole {
-  return Object.values(UserRole).includes(role as UserRole);
-}
-
-// Get user by session
-export async function getUserBySession(
-  sessionUserId: string
-): Promise<User | null> {
-  return await UserService.findById(sessionUserId);
-}
 
 // Type extensions for NextAuth
 declare module "next-auth" {
@@ -349,14 +320,3 @@ declare module "next-auth" {
     role?: UserRole;
   }
 }
-
-declare module "next-auth/jwt" {
-  interface JWT {
-    role?: UserRole;
-    id?: string;
-    email: string;
-    name?: string;
-  }
-}
-// Add this export at the bottom of the file
-export const authConfig = authOptions;
