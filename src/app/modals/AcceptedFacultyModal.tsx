@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, CheckCircle } from 'lucide-react';
+import { X, Download, CheckCircle, Users, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import * as XLSX from 'xlsx';
 
 interface ApprovalFaculty {
   id: string;
@@ -62,7 +64,6 @@ const AcceptedFacultyModal: React.FC<AcceptedFacultyModalProps> = ({ isOpen, onC
   const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Reset all state when modal opens
   useEffect(() => {
     if (isOpen) {
       console.log('Accepted Modal opened, resetting state...');
@@ -76,21 +77,23 @@ const AcceptedFacultyModal: React.FC<AcceptedFacultyModalProps> = ({ isOpen, onC
     }
   }, [isOpen]);
 
-  // When event is selected, fetch sessions only (not faculty)
   useEffect(() => {
     if (selectedEventId && !initialLoad) {
       console.log('Accepted Modal - Event selected:', selectedEventId);
       fetchSessions(selectedEventId);
-      setFacultyList([]); // Clear faculty list when event changes
-      setSelectedSessionId(''); // Reset session selection
+      setFacultyList([]);
+      setSelectedSessionId('');
     }
   }, [selectedEventId, initialLoad]);
 
-  // When session is selected, fetch faculty for that session
   useEffect(() => {
     if (selectedSessionId && selectedEventId) {
-      console.log('Accepted Modal - Session selected:', selectedSessionId);
-      fetchFacultyBySession(selectedSessionId);
+      console.log('Accepted Modal - Session/All selected:', selectedSessionId);
+      if (selectedSessionId === 'all') {
+        fetchFacultyByEvent(selectedEventId);
+      } else {
+        fetchFacultyBySession(selectedSessionId);
+      }
     }
   }, [selectedSessionId]);
 
@@ -150,6 +153,33 @@ const AcceptedFacultyModal: React.FC<AcceptedFacultyModalProps> = ({ isOpen, onC
     }
   };
 
+  const fetchFacultyByEvent = async (eventId: string) => {
+    setLoading(true);
+    try {
+      console.log('Accepted Modal - Fetching accepted faculty for all sessions in event:', eventId);
+      const response = await fetch(`/api/approvals?type=faculty&eventId=${eventId}&status=ACCEPTED`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('Accepted Modal - Faculty by Event API result:', result);
+      
+      if (result.success) {
+        setFacultyList(result.data);
+        console.log('Accepted Modal - Faculty list (all sessions) set successfully:', result.data.length);
+      } else {
+        throw new Error(result.error || 'Failed to fetch faculty');
+      }
+    } catch (error) {
+      console.error('Accepted Modal - Error fetching faculty by event:', error);
+      setError(`Failed to load faculty: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchFacultyBySession = async (sessionId: string) => {
     setLoading(true);
     try {
@@ -161,11 +191,11 @@ const AcceptedFacultyModal: React.FC<AcceptedFacultyModalProps> = ({ isOpen, onC
       }
       
       const result = await response.json();
-      console.log('Accepted Modal - Faculty API result:', result);
+      console.log('Accepted Modal - Faculty by Session API result:', result);
       
       if (result.success) {
         setFacultyList(result.data);
-        console.log('Accepted Modal - Faculty list set successfully:', result.data.length);
+        console.log('Accepted Modal - Faculty list (single session) set successfully:', result.data.length);
       } else {
         throw new Error(result.error || 'Failed to fetch faculty');
       }
@@ -178,16 +208,12 @@ const AcceptedFacultyModal: React.FC<AcceptedFacultyModalProps> = ({ isOpen, onC
   };
 
   const handleEventChange = (eventId: string) => {
-    console.log('Accepted Modal - Event changed to:', eventId);
+    console.log('Event changed to:', eventId);
     setSelectedEventId(eventId);
-    setSelectedSessionId('');
-    setSessions([]);
-    setFacultyList([]);
-    setError(null);
   };
 
   const handleSessionChange = (sessionId: string) => {
-    console.log('Accepted Modal - Session changed to:', sessionId);
+    console.log('Session changed to:', sessionId);
     setSelectedSessionId(sessionId);
   };
 
@@ -197,275 +223,252 @@ const AcceptedFacultyModal: React.FC<AcceptedFacultyModalProps> = ({ isOpen, onC
       return;
     }
 
-    const headers = ['Name', 'Email', 'Institution', 'Designation', 'Specialization', 'Phone', 'Session', 'Invitation Date', 'Accepted Date', 'Response Message'];
-    const csvContent = [
-      headers.join(','),
-      ...facultyList.map(faculty => [
-        `"${faculty.name}"`,
-        `"${faculty.email}"`,
-        `"${faculty.institution}"`,
-        `"${faculty.designation}"`,
-        `"${faculty.specialization}"`,
-        `"${faculty.phone}"`,
-        `"${faculty.sessionTitle}"`,
-        `"${new Date(faculty.invitationDate).toLocaleDateString()}"`,
-        `"${faculty.responseDate ? new Date(faculty.responseDate).toLocaleDateString() : 'N/A'}"`,
-        `"${faculty.responseMessage || 'N/A'}"`
-      ].join(','))
-    ].join('\n');
+    const excelData = facultyList.map(faculty => ({
+      'Name': faculty.name,
+      'Email': faculty.email,
+      'Event': faculty.eventName,
+      'Session': faculty.sessionTitle,
+      'Invite Date': faculty.invitationDate ? new Date(faculty.invitationDate).toLocaleDateString() : 'N/A',
+      'Status': 'ACCEPTED',
+      'Accepted Date': faculty.responseDate ? new Date(faculty.responseDate).toLocaleDateString() : 'N/A'
+    }));
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `accepted-faculty-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    const colWidths = [
+      { wch: 20 }, { wch: 30 }, { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 12 }, { wch: 15 }
+    ];
+    ws['!cols'] = colWidths;
+
+    const sheetName = selectedSessionId === 'all' ? 'Accepted Faculty (All Sessions)' : 'Accepted Faculty';
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    const eventName = events.find(e => e.id === selectedEventId)?.name || 'Event';
+    const fileName = selectedSessionId === 'all' 
+      ? `${eventName}_Accepted_Faculty_All_Sessions_${new Date().toISOString().split('T')[0]}.xlsx`
+      : `${eventName}_Accepted_Faculty_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    XLSX.writeFile(wb, fileName);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-7xl w-full max-h-[90vh] overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-6 h-6" />
-              <div>
-                <h2 className="text-2xl font-bold">Accepted Faculty</h2>
-                <p className="text-green-100">Faculty who have accepted session invitations</p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white/10 rounded-lg"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <p className="text-sm text-red-700">{error}</p>
-                <button 
-                  onClick={() => {
-                    setError(null);
-                    fetchEvents();
-                  }}
-                  className="text-red-600 hover:text-red-800 underline text-sm mt-1"
-                >
-                  Try again
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div className="bg-gray-50 border-b p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Event Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Event *
-              </label>
-              <select
-                value={selectedEventId}
-                onChange={(e) => handleEventChange(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                disabled={loading && initialLoad}
-              >
-                <option value="">Choose an event</option>
-                {events.map(event => (
-                  <option key={event.id} value={event.id}>
-                    {event.name} ({event.acceptedCount} accepted)
-                  </option>
-                ))}
-              </select>
-              {events.length === 0 && !loading && !error && (
-                <p className="text-xs text-gray-500 mt-1">No events available</p>
-              )}
-            </div>
-
-            {/* Session Selection with Export Button - DEBUG VERSION */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Session *
-              </label>
-              {/* Debug Info */}
-              {/* <div className="text-xs text-gray-500 mb-1">
-                Debug: {sessions.length} sessions found
-                {selectedEventId && ` for event ${selectedEventId}`}
-              </div> */}
-              <div className="flex gap-2">
-                <select
-                  value={selectedSessionId}
-                  onChange={(e) => {
-                    console.log('Accepted Modal - Session selected:', e.target.value);
-                    handleSessionChange(e.target.value);
-                  }}
-                  disabled={!selectedEventId || sessions.length === 0}
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
-                >
-                  <option value="">Choose a session ({sessions.length} available)</option>
-                  {sessions.map(session => {
-                    console.log('Accepted Modal - Rendering session option:', session);
-                    return (
-                      <option key={session.id} value={session.id}>
-                        {session.title} ({session.acceptedCount} accepted)
-                      </option>
-                    );
-                  })}
-                </select>
-                <button
-                  onClick={handleExport}
-                  disabled={facultyList.length === 0}
-                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Export</span>
-                </button>
-              </div>
-              {selectedEventId && sessions.length === 0 && !loading && (
-                <p className="text-xs text-red-500 mt-1">No sessions available for this event</p>
-              )}
-              {/* Debug Sessions Data */}
-              {/* {sessions.length > 0 && (
-                <details className="mt-2">
-                  <summary className="text-xs text-gray-500 cursor-pointer">
-                    Debug: View sessions data
-                  </summary>
-                  <pre className="text-xs bg-gray-100 p-2 mt-1 rounded overflow-auto max-h-32">
-                    {JSON.stringify(sessions, null, 2)}
-                  </pre>
-                </details>
-              )} */}
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
-          {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-              <span className="ml-3 text-gray-600">
-                {initialLoad ? 'Loading events...' : 'Loading accepted faculty...'}
-              </span>
-            </div>
-          ) : !selectedEventId ? (
-            <div className="text-center py-12">
-              <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Select an Event
-              </h3>
-              <p className="text-gray-500">
-                Please select an event to view sessions
-              </p>
-            </div>
-          ) : !selectedSessionId ? (
-            <div className="text-center py-12">
-              <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Select a Session
-              </h3>
-              <p className="text-gray-500">
-                Please select a session to view accepted faculty members
-              </p>
-            </div>
-          ) : facultyList.length === 0 ? (
-            <div className="text-center py-12">
-              <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                No accepted faculty found
-              </h3>
-              <p className="text-gray-500">
-                No faculty have accepted invitations for the selected session
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Results Header */}
+    <>
+      {isOpen && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {facultyList.length} Accepted Faculty
-                  {selectedSessionId && sessions.find(s => s.id === selectedSessionId) && (
-                    <span className="text-sm font-normal text-gray-600 ml-2">
-                      for "{sessions.find(s => s.id === selectedSessionId)?.title}"
-                    </span>
-                  )}
-                </h3>
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-6 h-6" />
+                  <div>
+                    <h2 className="text-2xl font-bold">Accepted Faculty</h2>
+                    <p className="text-green-100">View faculty who have accepted invitations</p>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="text-white hover:text-gray-200 transition-colors p-2 hover:bg-white/10 rounded-lg"
+                >
+                  <X className="w-6 h-6" />
+                </button>
               </div>
+            </div>
 
-              {/* Faculty List */}
-              <div className="grid gap-4">
-                {facultyList.map(faculty => (
-                  <div key={faculty.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="text-lg font-semibold text-gray-900">{faculty.name}</h4>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border bg-green-100 text-green-800 border-green-200">
-                            ACCEPTED
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                          <div>
-                            <p><strong>Email:</strong> {faculty.email}</p>
-                            <p><strong>Institution:</strong> {faculty.institution}</p>
-                            <p><strong>Designation:</strong> {faculty.designation}</p>
-                          </div>
-                          <div>
-                            <p><strong>Session:</strong> {faculty.sessionTitle}</p>
-                            <p><strong>Specialization:</strong> {faculty.specialization}</p>
-                            {faculty.phone && <p><strong>Phone:</strong> {faculty.phone}</p>}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+            {/* Filters - FIXED LAYOUT */}
+            <div className="bg-gray-50 border-b p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                {/* Event Selection - Takes 5 columns */}
+                <div className="lg:col-span-5">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Event *
+                  </label>
+                  <select
+                    value={selectedEventId}
+                    onChange={(e) => handleEventChange(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    disabled={loading && initialLoad}
+                  >
+                    <option value="">Choose an event</option>
+                    {events.map(event => (
+                      <option key={event.id} value={event.id}>
+                        {event.name} ({event.acceptedCount} accepted)
+                      </option>
+                    ))}
+                  </select>
+                  {events.length === 0 && !loading && !error && (
+                    <p className="text-xs text-gray-500 mt-1">No events available</p>
+                  )}
+                </div>
 
-                    {/* Response Details */}
-                    <div className="border-t pt-3 mt-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <p className="text-gray-600">
-                            <strong>Invitation Sent:</strong> {new Date(faculty.invitationDate).toLocaleDateString()}
-                          </p>
-                          {faculty.responseDate && (
-                            <p className="text-gray-600">
-                              <strong>Accepted On:</strong> {new Date(faculty.responseDate).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                        {faculty.responseMessage && (
-                          <div>
-                            <p className="text-gray-700">
-                              <strong>Response Message:</strong>
-                            </p>
-                            <p className="text-gray-600 italic bg-green-50 p-2 rounded">
-                              "{faculty.responseMessage}"
-                            </p>
-                          </div>
-                        )}
+                {/* Session Selection - Takes 5 columns */}
+                <div className="lg:col-span-5">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Session *
+                  </label>
+                  <select
+                    value={selectedSessionId}
+                    onChange={(e) => {
+                      console.log('Accepted Modal - Session selected:', e.target.value);
+                      handleSessionChange(e.target.value);
+                    }}
+                    disabled={!selectedEventId || sessions.length === 0}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
+                  >
+                    <option value="">Choose a session ({sessions.length} available)</option>
+                    {selectedEventId && sessions.length > 0 && (
+                      <option value="all" className="font-semibold text-green-700">
+                        🔄 All Sessions ({sessions.reduce((acc, session) => acc + session.acceptedCount, 0)} total accepted)
+                      </option>
+                    )}
+                    {sessions.map(session => {
+                      console.log('Accepted Modal - Rendering session option:', session);
+                      return (
+                        <option key={session.id} value={session.id}>
+                          {session.title} ({session.acceptedCount} accepted)
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {selectedEventId && sessions.length === 0 && !loading && (
+                    <p className="text-xs text-red-500 mt-1">No sessions available for this event</p>
+                  )}
+                </div>
+
+                {/* Export Button - Takes 2 columns - ALWAYS VISIBLE */}
+                <div className="lg:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    &nbsp; {/* Spacer to align with other labels */}
+                  </label>
+                  <button
+                    onClick={handleExport}
+                    disabled={facultyList.length === 0}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    title={facultyList.length === 0 ? "No data available to export" : "Export to Excel"}
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Export</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                  <span className="ml-3 text-gray-600">
+                    {initialLoad ? 'Loading events...' : 'Loading accepted faculty...'}
+                  </span>
+                </div>
+              ) : !selectedEventId ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Select an Event
+                  </h3>
+                  <p className="text-gray-500">
+                    Please select an event to view sessions and faculty
+                  </p>
+                </div>
+              ) : !selectedSessionId ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Select a Session or All Sessions
+                  </h3>
+                  <p className="text-gray-500">
+                    Choose a specific session or select "All Sessions" to view all accepted faculty for this event
+                  </p>
+                </div>
+              ) : facultyList.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    No Accepted Faculty Found
+                  </h3>
+                  <p className="text-gray-500">
+                    {selectedSessionId === 'all' 
+                      ? 'No faculty have accepted invitations for any sessions in this event yet.'
+                      : 'No faculty have accepted invitations for this session yet.'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="font-medium text-green-800">
+                          {facultyList.length} Accepted Faculty 
+                          {selectedSessionId === 'all' ? ' (All Sessions)' : ''}
+                        </span>
                       </div>
+                      {selectedSessionId === 'all' && (
+                        <div className="text-sm text-green-600">
+                          Showing faculty from {sessions.length} sessions
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {facultyList.map((faculty) => (
+                      <div key={faculty.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-medium text-gray-900">{faculty.name}</h3>
+                            <p className="text-sm text-gray-600">{faculty.email}</p>
+                            <p className="text-sm text-gray-500">{faculty.institution}</p>
+                            <p className="text-sm text-gray-500">{faculty.designation}</p>
+                            {selectedSessionId === 'all' && (
+                              <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                                <p className="text-sm font-medium text-green-700">
+                                  📍 {faculty.sessionTitle}
+                                </p>
+                                <p className="text-xs text-green-600">
+                                  Session ID: {faculty.sessionId}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          <Badge className="bg-green-100 text-green-800 border-green-200">
+                            Accepted
+                          </Badge>
+                        </div>
+                        {faculty.responseDate && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Accepted on: {new Date(faculty.responseDate).toLocaleDateString()}
+                          </p>
+                        )}
+                        {faculty.responseMessage && (
+                          <p className="text-sm text-gray-700 mt-2 p-2 bg-gray-50 rounded">
+                            "{faculty.responseMessage}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-center space-x-2">
+                    <AlertTriangle className="w-5 h-5 text-red-600" />
+                    <span className="font-medium text-red-800">Error</span>
+                  </div>
+                  <p className="text-red-700 mt-1">{error}</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 };
 
