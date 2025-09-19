@@ -1,6 +1,6 @@
 import { sendMail } from "@/lib/mailer";
 
-const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
+const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 const FACULTY_DATA = {
   "muigoku42@gmail.com": {
