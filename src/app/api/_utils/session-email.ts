@@ -4,8 +4,20 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 const FACULTY_DATA = {
   "muigoku42@gmail.com": {
-    facultyName: "Arunaditya Lal",
+    facultyName: "MUI Goku",
     email: "muigoku42@gmail.com",
+    sessions: [
+      {
+        title: "Advanced Pediatric Critical Care Management",
+        date: "8/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
+  "arunlal0905@yahoo.com": {
+    facultyName: "Arun Lal",
+    email: "arunlal0905@yahoo.com",
     sessions: [
       {
         title: "Advanced Pediatric Critical Care Management",
