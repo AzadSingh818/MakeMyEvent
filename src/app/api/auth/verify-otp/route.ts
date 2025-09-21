@@ -1,9 +1,9 @@
 // src/app/api/auth/verify-otp/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// Initialize global storage
-global.otpStore = global.otpStore || new Map();
-global.verifyAttempts = global.verifyAttempts || new Map();
+// Initialize global storage with type assertions
+(global as any).otpStore = (global as any).otpStore || new Map();
+(global as any).verifyAttempts = (global as any).verifyAttempts || new Map();
 
 const MAX_ATTEMPTS = 5;
 const ATTEMPT_WINDOW = 15 * 60 * 1000; // 15 minutes
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     // Rate limiting
     const rateLimitKey = email.toLowerCase();
     const now = Date.now();
-    const attempts = global.verifyAttempts.get(rateLimitKey);
+    const attempts = (global as any).verifyAttempts.get(rateLimitKey);
 
     if (attempts && attempts.count >= MAX_ATTEMPTS && attempts.resetAt > now) {
       const remainingMinutes = Math.ceil((attempts.resetAt - now) / 1000 / 60);
@@ -54,15 +54,15 @@ export async function POST(request: NextRequest) {
 
     // Get stored OTP
     const emailKey = `email:${email.toLowerCase()}`;
-    const emailOtpData = global.otpStore.get(emailKey);
+    const emailOtpData = (global as any).otpStore.get(emailKey);
 
     console.log("🔍 Looking for OTP with key:", emailKey);
     console.log("🔍 Found OTP data:", !!emailOtpData);
-    console.log("🗄️ Current storage keys:", Array.from(global.otpStore.keys()));
+    console.log("🗄️ Current storage keys:", Array.from((global as any).otpStore.keys()));
 
     // Increment attempt counter
     const newAttempts = attempts ? attempts.count + 1 : 1;
-    global.verifyAttempts.set(rateLimitKey, {
+    (global as any).verifyAttempts.set(rateLimitKey, {
       count: newAttempts,
       resetAt: now + ATTEMPT_WINDOW,
     });
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     // Check expiration
     if (emailOtpData.expireAt < now) {
       console.log("❌ OTP expired");
-      global.otpStore.delete(emailKey);
+      (global as any).otpStore.delete(emailKey);
       return NextResponse.json(
         {
           message: "Verification code has expired. Please request a new code.",
@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Success - clean up
-    global.otpStore.delete(emailKey);
-    global.verifyAttempts.delete(rateLimitKey);
+    (global as any).otpStore.delete(emailKey);
+    (global as any).verifyAttempts.delete(rateLimitKey);
 
     console.log("✅ OTP verified successfully");
 
