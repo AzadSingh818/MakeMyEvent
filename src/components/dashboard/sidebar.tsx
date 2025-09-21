@@ -137,6 +137,28 @@ const getNavigationItems = (
             },
           ],
         },
+        {
+          label: "Approvals",
+          href: "",
+          icon: UserCheck,
+          children: [
+            {
+              label: "Pending Requests",
+              icon: Clock,
+              action: "openPendingApprovalsModal",
+            },
+            {
+              label: "Approved",
+              icon: UserCheck,
+              action: "openAcceptedApprovalsModal",
+            },
+            {
+              label: "Rejected",
+              icon: Eye,
+              action: "openRejectedApprovalsModal",
+            },
+          ],
+        },
         // {
         //   label: "Hospitality",
         //   href: "",
