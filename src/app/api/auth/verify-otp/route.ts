@@ -1,22 +1,6 @@
 // src/app/api/auth/verify-otp/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// Global type declarations
-declare global {
-  interface OtpData {
-    otp: string;
-    expireAt: number;
-  }
-  interface AttemptData {
-    count: number;
-    resetAt: number;
-  }
-  // eslint-disable-next-line no-var
-  var otpStore: Map<string, OtpData>;
-  // eslint-disable-next-line no-var
-  var verifyAttempts: Map<string, AttemptData>;
-}
-
 // Initialize global storage
 global.otpStore = global.otpStore || new Map();
 global.verifyAttempts = global.verifyAttempts || new Map();
