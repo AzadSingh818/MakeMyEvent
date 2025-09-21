@@ -9,5 +9,3 @@ declare global {
   var otpStore: Map<string, { otp: string; expireAt: number; provider?: string }>;
   var verifyAttempts: Map<string, { count: number; resetAt: number }>;
 }
-
-export {};
