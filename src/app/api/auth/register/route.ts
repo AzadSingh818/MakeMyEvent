@@ -1,7 +1,7 @@
 // src/app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/database/connection";
-import { hashPassword } from "@/lib/auth/config";
+import { hashPassword } from "@/lib/utils/password";
 import * as z from "zod";
 
 // UserRole enum
