@@ -3,30 +3,1183 @@ import { sendMail } from "@/lib/mailer";
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
 const FACULTY_DATA = {
-  "muigoku42@gmail.com": {
-    facultyName: "MUI Goku",
-    email: "muigoku42@gmail.com",
+  "anand07amar@gmail.com": {
+    facultyName: "Dr. Anand",
+    email: "anand07amar@gmail.com",
     sessions: [
       {
-        title: "Advanced Pediatric Critical Care Management",
-        date: "8/11",
+        title: "Fluid, Not Flood: Smarter Resuscitation in the PICU",
+        date: "8th Nov",
+        role: "Panelist",
+        description: "Dr. Mahesh Mohite (Moderator) \nCo Panelists \nDr. Madhu Otiv \nDr. VSV Prasad \nDr. John Adabie Appiah \nDr. Mritunjay Pao"
+      }
+    ]
+  },
+   "drgsudhakar@hotmail.com": {
+    facultyName: "Dr. G Sudhakar",
+    email: "drgsudhakar@hotmail.com",
+    sessions: [
+      {
+        title: "Fluid, Not Flood: Smarter Resuscitation in the PICU",
+        date: "8th Nov",
+        role: "Panelist",
+        description: "Dr. Mahesh Mohite (Moderator) \nCo Panelists \nDr. Madhu Otiv \nDr. VSV Prasad \nDr. John Adabie Appiah \nDr. Mritunjay Pao"
+      }
+    ]
+  },
+  "drkhalilkhan18@gmail.com": {
+    facultyName: "Dr. Khaleel Khan",
+    email: "drkhalilkhan18@gmail.com",
+    sessions: [
+      {
+        title: "From Bed to Bed: Pediatric Transport 101",
+        date: "9th Nov",
+        role: "Speaker",
+        description: "---"
+      },
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "prashant.bachina@gmail.com": {
+    facultyName: "Dr. Prashant Bachina",
+    email: "prashant.bachina@gmail.com",
+    sessions: [
+      {
+        title: "Liver Transplant: Mastering Post-Op Complications",
+        date: "7th Nov",
+        role: "Panelist",
+        description: "Moderator\nDr Ravi T \n\nCo Panelists\nDr Akashdeep\nDr Ravi Babu K \nDr Sonal Gajbhiya"
+      }
+    ]
+  },
+  "raj2031979@gmail.com": {
+    facultyName: "Dr. Ramaling Loni",
+    email: "raj2031979@gmail.com",
+    sessions: [
+      {
+        title: "Acute Flaccid Paralysis in the PICU: GBS, Myelitis, or Something Else?",
+        date: "7th Nov",
+        role: "Panelist",
+        description: "Dr. Rohit Vohra (Moderator)\nCo Panelists\nDr. Jesal Sheth\nDr. Mukesh Jain\nDr. Mihir Sarkar"
+      }
+    ]
+  },
+  "drravi2k5@yahoo.co.in": {
+    facultyName: "Dr. Ravi T",
+    email: "drravi2k5@yahoo.co.in",
+    sessions: [
+      {
+        title: "Liver Transplant: Mastering Post-Op Complications",
+        date: "7th Nov",
+        role: "Moderator",
+        description: "Panelists\nDr. Ravi Babu K\nDr. Akashdeep, \nDr. Prashant Bachina\nDr. Sonal Gajbhiya"
+      }
+    ]
+  },
+  "rohitbhowmick.bhowmick@gmail.com": {
+    facultyName: "Dr. Rohit Bhowmick",
+    email: "rohitbhowmick.bhowmick@gmail.com",
+    sessions: [
+      {
+        title: "Management of Complications related to blood based dialysis in PICU",
+        date: "7th Nov",
+        role: "Panelist",
+        description: "Dr. Sateesh Poonarneni (Moderator) \nCo Panelists\nDr. Parag Dakate\nDr. Raghad Abdwani, \nDr. Sumant Patil, \nDr. Saumen Meur"
+      },
+      {
+        title: "CRRT and SLED",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "porwalsanketh@gmail.com": {
+    facultyName: "Dr. Sanket R",
+    email: "porwalsanketh@gmail.com",
+    sessions: [
+      {
+        title: "HSCT: Navigating HSCT Challenges",
+        date: "7th Nov",
+        role: "Panelists",
+        description: "Dr Indira Jayakumar(Moderator)\nCo Panelists\nDr Raj Lakshmi, \nDr Reshma A ,\nDr Abdul Rauf"
+      },
+      {
+        title: "BPICC",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "somu_rgk@yahoo.co.in": {
+    facultyName: "Dr. Somnath Gorain",
+    email: "somu_rgk@yahoo.co.in",
+    sessions: [
+      {
+        title: "Saving Lives, Saving Costs: Can We Do Both?",
+        date: "9th Nov",
+        role: "Panelist",
+        description: "Dr Nirmal Choraria (Moderator)\nCo Panelists\nDr Manju Kedarnath\nDr Kshama Daphtary\nDr Akash Bang"
+      }
+    ]
+  },
+  "sureshangurana@gmail.com": {
+    facultyName: "Dr. Suresh Kumar Angurana",
+    email: "sureshangurana@gmail.com",
+    sessions: [
+      {
+        title: "The Gut-Brain Axis in Pediatric ICU: A \nMicrobiome Perspective",
+        date: "9th Nov",
         role: "Speaker",
         description: "---"
       }
     ]
   },
-  "arunlal0905@yahoo.com": {
-    facultyName: "Arun Lal",
-    email: "arunlal0905@yahoo.com",
+  "surjeetthappa@gmail.com": {
+    facultyName: "Dr. Surjit Kumar Thappa",
+    email: "surjeetthappa@gmail.com",
     sessions: [
       {
-        title: "Advanced Pediatric Critical Care Management",
-        date: "8/11",
+        title: "GAME ON – "Crash or Stabilise?"",
+        date: "7th Nov",
+        role: "Quizmaster",
+        description: "Fellow Quizmaster:\nDr Chidambaram"
+      },
+      {
+        title: "PCCN workshop",
+        date: "6th NOV",
+        role: "WORKSHOP",
+        description: "---"
+      }
+    ]
+  },
+  "drswathiraoped@gmail.com": {
+    facultyName: "Dr. Swathi Rao",
+    email: "drswathiraoped@gmail.com",
+    sessions: [
+      {
+        title: "Echo in Action: Real-Time Clarity for Real-Life Hemodynamics",
+        date: "8th Nov",
+        role: "Panelist",
+        description: "Dr. Dhiren Gupta (Moderator)\nCo panelists\nDr. Mehak Bansal\nDr. Neil C\nDr. Namita Ravikumar"
+      },
+      {
+        title: "Non-Invasive Respiratory Support",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "doctortanzila@gmail.com": {
+    facultyName: "Dr. Tanzila Sharique",
+    email: "doctortanzila@gmail.com",
+    sessions: [
+      {
+        title: "Mottled Skin: Shock or Cold Room?",
+        date: "9th Nov",
+        role: "Speaker",
+        description: "---"
+      },
+      {
+        title: "Bronchoscopy",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "milind.jambagi@gmail.com": {
+    facultyName: "Dr Milind Jambagi",
+    email: "milind.jambagi@gmail.com",
+    sessions: [
+      {
+        title: "PICU Brain Buzzer",
+        date: "7th Nov",
+        role: "QuizMaster",
+        description: "Co Quiz masters: \nDr Maninder Dhaliwal, \nDr Karthik Narayan\nDr Farhan Shaikh"
+      },
+      {
+        title: "POCUS \n(Basic)",
+        date: "6th Nov",
+        role: "Workshop",
+        description: "---"
+      }
+    ]
+  },
+  "drsunildsharma@gmail.com": {
+    facultyName: "Dr Sunil Dutt Sharma",
+    email: "drsunildsharma@gmail.com",
+    sessions: [
+      {
+        title: "BP Crisis in Children: Think Fast, Act Slow",
+        date: "9th Nov",
         role: "Speaker",
         description: "---"
       }
     ]
   },
+  "rgundeti@gmail.com": {
+    facultyName: "Dr G Ramesh",
+    email: "rgundeti@gmail.com",
+    sessions: [
+      {
+        title: "Buying Smart: Equipping Your PICU for Function, Not Fashion",
+        date: "9th Nov",
+        role: "Panelist",
+        description: "Moderator \nDr VSV Prasad \n\nCo Panelists\nDr Anand Buthada\nDr Rafiq Ahmed \nDr Nirmal Choraria\nDr Preetam"
+      }
+    ]
+  },
+  "niteshupadhyay22@gmail.com": {
+    facultyName: "Dr. Nitish Upadhaya",
+    email: "niteshupadhyay22@gmail.com",
+    sessions: [
+      {
+        title: "Electrolyte Emergencies in the PICU: Algorithms, Controversies, and Pitfalls",
+        date: "9th Nov",
+        role: "Panelist",
+        description: "Dr. Lalitha AV (Moderator)\nCo Panelists \nDr. Suresh Kumar Panugati \nDr. Amit Vij \nDr. Atsushi Kawaguchi"
+      }
+    ]
+  },
+  "jbhaasha@gmail.com": {
+    facultyName: "DR JILANI BASHA",
+    email: "jbhaasha@gmail.com",
+    sessions: [
+      {
+        title: "POCUS (Basic)",
+        date: "6th Nov",
+        role: "Local coordinator",
+        description: "---"
+      }
+    ]
+  },
+  "nrao_aslp@yahoo.com": {
+    facultyName: "Dr Sridevi N.",
+    email: "nrao_aslp@yahoo.com",
+    sessions: [
+      {
+        title: "Non-Invasive Respiratory Support",
+        date: "6th Nov",
+        role: "Local coordinator",
+        description: "---"
+      }
+    ]
+  },
+  "mohangulla35@gmail.com": {
+    facultyName: "Dr Krishna Mohan Gulla",
+    email: "mohangulla35@gmail.com",
+    sessions: [
+      {
+        title: "Cardiac Critical Care",
+        date: "6th Nov",
+        role: "National coordinator",
+        description: "---"
+      }
+    ]
+  },
+  "mjshree@hotmail.com": {
+    facultyName: "Dr. Jayashree Muralidharan",
+    email: "mjshree@hotmail.com",
+    sessions: [
+      {
+        title: "CLINICAL RESEARCH",
+        date: "6th Nov",
+        role: "National coordinator",
+        description: "---"
+      }
+    ]
+  },
+  "kalyancriticare@gmail.com": {
+    facultyName: "Dr S kalyan Kunchapudi",
+    email: "kalyancriticare@gmail.com",
+    sessions: [
+      {
+        title: "Advanced Ventilation",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "jakkasrinu@yahoo.com": {
+    facultyName: "Srinivas Jakka",
+    email: "jakkasrinu@yahoo.com",
+    sessions: [
+      {
+        title: "Bronchoscopy",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "avinashreddy805@gmail.com": {
+    facultyName: "Dr Avinash Reddy",
+    email: "avinashreddy805@gmail.com",
+    sessions: [
+      {
+        title: "CRRT and SLED",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "lsumanpgi@gmail.com": {
+    facultyName: "DR. SUMAN L",
+    email: "lsumanpgi@gmail.com",
+    sessions: [
+      {
+        title: "CRRT and SLED",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "prmuthiah@gmail.com": {
+    facultyName: "Dr Muthiah Periyakaruppan",
+    email: "prmuthiah@gmail.com",
+    sessions: [
+      {
+        title: "Nursing Respiratory Care",
+        date: "6th Nov",
+        role: "National Coordinator",
+        description: "---"
+      }
+    ]
+  },
+  "kvsandeepreddy@gmail.com": {
+    facultyName: "Dr Venkat Sandeep Reddy",
+    email: "kvsandeepreddy@gmail.com",
+    sessions: [
+      {
+        title: "Cardiac Critical Care",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "drsuchitrajoty@gmail.com": {
+    facultyName: "Dr Suchithra D (Hyd)",
+    email: "drsuchitrajoty@gmail.com",
+    sessions: [
+      {
+        title: "CLINICAL RESEARCH",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "drsskrishna@yahoo.co.in": {
+    facultyName: "Dr Srikrishna",
+    email: "drsskrishna@yahoo.co.in",
+    sessions: [
+      {
+        title: "Transport",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "kanumala.udaykumar@gmail.com": {
+    facultyName: "DR UDAY",
+    email: "kanumala.udaykumar@gmail.com",
+    sessions: [
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "drsujeeth.27@gmail.com": {
+    facultyName: "Dr Modi Sujeeth Kumar",
+    email: "drsujeeth.27@gmail.com",
+    sessions: [
+      {
+        title: "BPICC",
+        date: "6th Nov",
+        role: "Local Cordinator",
+        description: "---"
+      }
+    ]
+  },
+  "raghupaaa@gmail.com": {
+    facultyName: "Dr Raghupathy R",
+    email: "raghupaaa@gmail.com",
+    sessions: [
+      {
+        title: "BPICC",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "prp2610@gmail.com": {
+    facultyName: "Dr Raghu Praneeth",
+    email: "prp2610@gmail.com",
+    sessions: [
+      {
+        title: "BPICC",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "sneharaj_t@yahoo.co.in": {
+    facultyName: "Dr Sneha T",
+    email: "sneharaj_t@yahoo.co.in",
+    sessions: [
+      {
+        title: "BPICC",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "nnbrishti@gmail.com": {
+    facultyName: "Dr Nandhini Sinha Roy",
+    email: "nnbrishti@gmail.com",
+    sessions: [
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "manivachagan2001@yahoo.co.in;": {
+    facultyName: "Dr Manivachagan",
+    email: "manivachagan2001@yahoo.co.in;",
+    sessions: [
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "raman.sharma1826@gmail.com": {
+    facultyName: "Dr Raman Sharma",
+    email: "raman.sharma1826@gmail.com",
+    sessions: [
+      {
+        title: "Transport",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drfebnarahiman@gmail.com": {
+    facultyName: "Dr Febna Rehman",
+    email: "drfebnarahiman@gmail.com",
+    sessions: [
+      {
+        title: "Transport",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "dr.shashwatm@gmail.com": {
+    facultyName: "Dr Shashwath",
+    email: "dr.shashwatm@gmail.com",
+    sessions: [
+      {
+        title: "Transport",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "ravimooli59@gmail.com": {
+    facultyName: "Dr Ravi Moole",
+    email: "ravimooli59@gmail.com",
+    sessions: [
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "Vasu.winny@gmail.com": {
+    facultyName: "Dr Vasudha",
+    email: "Vasu.winny@gmail.com",
+    sessions: [
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "dkrishnac7@gmail.com": {
+    facultyName: "Dr Krishna Chaitanya",
+    email: "dkrishnac7@gmail.com",
+    sessions: [
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drnarayananp@gmail.com": {
+    facultyName: "Dr Narayanan P",
+    email: "drnarayananp@gmail.com",
+    sessions: [
+      {
+        title: "CLINICAL RESEARCH",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "sudhach83@rediffmail.com": {
+    facultyName: "Dr Sudha Chandelia",
+    email: "sudhach83@rediffmail.com",
+    sessions: [
+      {
+        title: "CLINICAL RESEARCH",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "rajakumarps@gmail.com": {
+    facultyName: "Dr Rajakumar",
+    email: "rajakumarps@gmail.com",
+    sessions: [
+      {
+        title: "Nursing Respiratory Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "joshigurudutt@yahoo.com": {
+    facultyName: "Dr Gurudutt",
+    email: "joshigurudutt@yahoo.com",
+    sessions: [
+      {
+        title: "Nursing Respiratory Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drsbkn@gmail.com": {
+    facultyName: "Dr Bharath Kumar Chennai",
+    email: "drsbkn@gmail.com",
+    sessions: [
+      {
+        title: "CLINICAL RESEARCH",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "gudurukumar00@gmail.com": {
+    facultyName: "Dr Vijayakumar",
+    email: "gudurukumar00@gmail.com",
+    sessions: [
+      {
+        title: "CLINICAL RESEARCH",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      },
+      {
+        title: "Bronchoscopy",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "19.vira@gmail.com": {
+    facultyName: "Dr Raghavan (NICU)",
+    email: "19.vira@gmail.com",
+    sessions: [
+      {
+        title: "CLINICAL RESEARCH",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "sureshkumarpnd@gmail.com": {
+    facultyName: "Dr Suresh Panda",
+    email: "sureshkumarpnd@gmail.com",
+    sessions: [
+      {
+        title: "Nursing Respiratory Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "venkatreddymadireddy@gmail.com": {
+    facultyName: "DR Venkat Ramana reddy",
+    email: "venkatreddymadireddy@gmail.com",
+    sessions: [
+      {
+        title: "Nursing Respiratory Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "jamuna.nursing@aiimskalyani.edu.in": {
+    facultyName: "Ms. Jamuna (AIIMS Kalyani)",
+    email: "jamuna.nursing@aiimskalyani.edu.in",
+    sessions: [
+      {
+        title: "Transport",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "mbbssampath@gmail.com": {
+    facultyName: "Dr. Muni Sampath",
+    email: "mbbssampath@gmail.com",
+    sessions: [
+      {
+        title: "POCUS \n(Basic)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drfaisalnahdi@gmail.com": {
+    facultyName: "Dr. Faisal",
+    email: "drfaisalnahdi@gmail.com",
+    sessions: [
+      {
+        title: "POCUS \n(Basic)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "mathew.reena@gmail.com;": {
+    facultyName: "Dr. Reena Mathew",
+    email: "mathew.reena@gmail.com;",
+    sessions: [
+      {
+        title: "POCUS \n(Basic)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "vikram.hirekerur@yahoo.com": {
+    facultyName: "Dr. Vikram Hirekerpur",
+    email: "vikram.hirekerur@yahoo.com",
+    sessions: [
+      {
+        title: "POCUS (Advanced)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "ramunivinay@gmail.com": {
+    facultyName: "Dr. Viany Ramuni",
+    email: "ramunivinay@gmail.com",
+    sessions: [
+      {
+        title: "POCUS (Advanced)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "rajasekhar.gogireddy@gmail.com": {
+    facultyName: "Dr. Rajsekhar Reddy",
+    email: "rajasekhar.gogireddy@gmail.com",
+    sessions: [
+      {
+        title: "POCUS (Advanced)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "abhik118815@gmail.com": {
+    facultyName: "Dr. Abhinav KV",
+    email: "abhik118815@gmail.com",
+    sessions: [
+      {
+        title: "POCUS (Advanced)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "arvindkumarm.paed@gmail.com": {
+    facultyName: "Dr. Aravind Kumar M",
+    email: "arvindkumarm.paed@gmail.com",
+    sessions: [
+      {
+        title: "POCUS (Advanced)",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drnaveen23@outlook.com": {
+    facultyName: "Dr. Naveen Reddy",
+    email: "drnaveen23@outlook.com",
+    sessions: [
+      {
+        title: "PICU Liberation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "satyajeetsahu2013@gmail.com": {
+    facultyName: "Dr. Satyajit Sahu",
+    email: "satyajeetsahu2013@gmail.com",
+    sessions: [
+      {
+        title: "PICU Liberation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "dr.muthu87@gmail.com": {
+    facultyName: "Dr. Muthu Chidambaram (is Dr Chidambaram are also same?)",
+    email: "dr.muthu87@gmail.com",
+    sessions: [
+      {
+        title: "Non-Invasive Respiratory Support",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "mary.julina@cmcvellore.ac.in": {
+    facultyName: "Mary Julina (CMC)",
+    email: "mary.julina@cmcvellore.ac.in",
+    sessions: [
+      {
+        title: "Non-Invasive Respiratory Support",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "shivanipgimer1988@gmail.com": {
+    facultyName: "Ms Shivani (PGI)",
+    email: "shivanipgimer1988@gmail.com",
+    sessions: [
+      {
+        title: "Advanced Ventilation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "brevanth99@gmail.com": {
+    facultyName: "Dr. Revanth Baineni",
+    email: "brevanth99@gmail.com",
+    sessions: [
+      {
+        title: "Advanced Ventilation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "yashu198@yahoo.co.in": {
+    facultyName: "Dr. Yeshwanth Reddy",
+    email: "yashu198@yahoo.co.in",
+    sessions: [
+      {
+        title: "Advanced Ventilation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drsatarc@gmail.com": {
+    facultyName: "Dr. Satyabrata Roy Chaudhry",
+    email: "drsatarc@gmail.com",
+    sessions: [
+      {
+        title: "Bronchoscopy",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "sindupavithra92@gmail.com": {
+    facultyName: "Ms. Sindhu Pavitra (Mehta)",
+    email: "sindupavithra92@gmail.com",
+    sessions: [
+      {
+        title: "Bronchoscopy",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "dr.nag007gmc@gmail.com": {
+    facultyName: "Dr. Nagarjuna",
+    email: "dr.nag007gmc@gmail.com",
+    sessions: [
+      {
+        title: "Bronchoscopy",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "mounishb63@gmail.com": {
+    facultyName: "Dr. Mohneesh",
+    email: "mounishb63@gmail.com",
+    sessions: [
+      {
+        title: "Bronchoscopy",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "ale285samagna@gmail.com": {
+    facultyName: "Dr. Alekhya",
+    email: "ale285samagna@gmail.com",
+    sessions: [
+      {
+        title: "CRRT and SLED",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "satarupamukherjee2003@gmail.com": {
+    facultyName: "Dr. Satarupa Mukherjee",
+    email: "satarupamukherjee2003@gmail.com",
+    sessions: [
+      {
+        title: "Simulation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "nursemanagermh@rainbowhospitals.in": {
+    facultyName: "Ms. Deepika (Rainbow)",
+    email: "nursemanagermh@rainbowhospitals.in",
+    sessions: [
+      {
+        title: "Simulation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "rgeetha48@yahoo.com": {
+    facultyName: "Dr. Geethanjali",
+    email: "rgeetha48@yahoo.com",
+    sessions: [
+      {
+        title: "Simulation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "vjamalpuri@gmail.com": {
+    facultyName: "Dr. Vijayanand",
+    email: "vjamalpuri@gmail.com",
+    sessions: [
+      {
+        title: "Simulation",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "riyanshetty@gmail.com": {
+    facultyName: "Dr. Riyan Shetty",
+    email: "riyanshetty@gmail.com",
+    sessions: [
+      {
+        title: "ECMO",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "nandhinianand5@gmail.com": {
+    facultyName: "Ms. Nandhini (NH)",
+    email: "nandhinianand5@gmail.com",
+    sessions: [
+      {
+        title: "ECMO",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "phani.bhargavi24@gmail.com": {
+    facultyName: "Dr. Bharghavi ( Ped Cardio)",
+    email: "phani.bhargavi24@gmail.com",
+    sessions: [
+      {
+        title: "ECMO",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "dutta_monideepa@yahoo.co.in": {
+    facultyName: "Dr. Moindeep Dutta",
+    email: "dutta_monideepa@yahoo.co.in",
+    sessions: [
+      {
+        title: "Cardiac Critical Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "shwethamn0909@gmail.com": {
+    facultyName: "Dr. Shwetha Nathani",
+    email: "shwethamn0909@gmail.com",
+    sessions: [
+      {
+        title: "Cardiac Critical Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "dr.sathyanarayana.16@gmail.com": {
+    facultyName: "Dr. Sathyanarayana",
+    email: "dr.sathyanarayana.16@gmail.com",
+    sessions: [
+      {
+        title: "Cardiac Critical Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "immanuel.navin@gmail.com": {
+    facultyName: "Immanuel Navin Kumar",
+    email: "immanuel.navin@gmail.com",
+    sessions: [
+      {
+        title: "Cardiac Critical Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "bsunkoj@hotmail.com": {
+    facultyName: "Dr. Sunkoj Bhaskar",
+    email: "bsunkoj@hotmail.com",
+    sessions: [
+      {
+        title: "Nursing WS 2",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "Sreedeepks@gmail.com": {
+    facultyName: "Dr Sreedeep KS",
+    email: "Sreedeepks@gmail.com",
+    sessions: [
+      {
+        title: "Nursing WS 2",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "drpavan4u@gmail.com": {
+    facultyName: "Dr Pavan",
+    email: "drpavan4u@gmail.com",
+    sessions: [
+      {
+        title: "CRRT and SLED",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "shilpa.t22@gmail.com": {
+    facultyName: "Dr Shilpa",
+    email: "shilpa.t22@gmail.com",
+    sessions: [
+      {
+        title: "Acute Critical Care for Practicing Paediatricians",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "kiransmiles4u@gmail.com": {
+    facultyName: "Dr Kiran Kartheek",
+    email: "kiransmiles4u@gmail.com",
+    sessions: [
+      {
+        title: "BPICC",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "jkeziadavid@gmail.com": {
+    facultyName: "Dr Kezia",
+    email: "jkeziadavid@gmail.com",
+    sessions: [
+      {
+        title: "BPICC",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "snehalgdesai@gmail.com": {
+    facultyName: "Dr Snehal Desai",
+    email: "snehalgdesai@gmail.com",
+    sessions: [
+      {
+        title: "Nursing Respiratory Care",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "shamnayaz41@gmail.com": {
+    facultyName: "Ms Shamshaad",
+    email: "shamnayaz41@gmail.com",
+    sessions: [
+      {
+        title: "Nursing WS 2",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "jenniferjeintha@gmail.com": {
+    facultyName: "Ms Jennifer",
+    email: "jenniferjeintha@gmail.com",
+    sessions: [
+      {
+        title: "Nursing WS 2",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "bdharani700@gmail.com": {
+    facultyName: "Ms Dharani",
+    email: "bdharani700@gmail.com",
+    sessions: [
+      {
+        title: "Nursing WS 2",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  },
+  "reddylakshmivenkatesh86@gmail.com": {
+    facultyName: "Ms Lakshmi Reddy",
+    email: "reddylakshmivenkatesh86@gmail.com",
+    sessions: [
+      {
+        title: "Nursing WS 2",
+        date: "6th Nov",
+        role: "Workshop Faculty",
+        description: "---"
+      }
+    ]
+  }
+};
   // "praj@abhinavagroup.com": {
   //   facultyName: "Prajwal P",
   //   email: "praj@abhinavagroup.com",
