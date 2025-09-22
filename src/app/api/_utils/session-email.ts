@@ -136,7 +136,7 @@ const FACULTY_DATA = {
     email: "surjeetthappa@gmail.com",
     sessions: [
       {
-        title: "GAME ON – "Crash or Stabilise?"",
+        title: 'GAME ON – "Crash or Stabilise?"',
         date: "7th Nov",
         role: "Quizmaster",
         description: "Fellow Quizmaster:\nDr Chidambaram"
