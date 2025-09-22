@@ -72,6 +72,170 @@ type ExcelSessionData = {
   status: "Draft" | "Confirmed";
 };
 
+// ✅ FIXED: Enhanced Excel date conversion functions [web:5][web:7][web:131]
+const convertExcelSerialToDate = (serial: number): string => {
+  try {
+    console.log(`🔄 Converting Excel serial: ${serial}`);
+
+    // Excel's epoch starts from January 1, 1900, but Excel incorrectly treats 1900 as a leap year
+    const excelEpoch = new Date(1900, 0, 1); // January 1, 1900
+    const msPerDay = 24 * 60 * 60 * 1000;
+
+    // Excel has a leap year bug for 1900, so we need to adjust for dates after Feb 28, 1900
+    const adjustedSerial = serial > 59 ? serial - 1 : serial;
+
+    const convertedDate = new Date(
+      excelEpoch.getTime() + (adjustedSerial - 1) * msPerDay
+    );
+
+    if (isNaN(convertedDate.getTime())) {
+      console.error("❌ Invalid date conversion for serial:", serial);
+      return "";
+    }
+
+    const year = convertedDate.getFullYear();
+    const month = String(convertedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(convertedDate.getDate()).padStart(2, "0");
+
+    const result = `${year}-${month}-${day}`;
+    console.log(`✅ Serial ${serial} -> ${result}`);
+    return result;
+  } catch (error) {
+    console.error("❌ Error converting Excel serial date:", error);
+    return "";
+  }
+};
+
+// ✅ ENHANCED: String date parser specifically for DD/MM/YYYY format [web:134]
+const parseStringDate = (dateString: string): string => {
+  if (!dateString || typeof dateString !== "string") return "";
+
+  const cleanDate = dateString.toString().trim();
+  console.log(`🔍 Parsing string date: "${cleanDate}"`);
+
+  // Handle DD/MM/YYYY format (your Excel format: 17/11/2025)
+  const ddmmyyyyRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+  const match = cleanDate.match(ddmmyyyyRegex);
+
+  if (match) {
+    const day = parseInt(match[1] ?? "");
+    const month = parseInt(match[2] ?? "");
+    const year = parseInt(match[3] ?? "");
+
+    console.log(
+      `📅 Parsed DD/MM/YYYY: day=${day}, month=${month}, year=${year}`
+    );
+
+    // Create date assuming DD/MM/YYYY format
+    const parsedDate = new Date(year, month - 1, day);
+
+    if (!isNaN(parsedDate.getTime()) && parsedDate.getFullYear() === year) {
+      const formattedYear = parsedDate.getFullYear();
+      const formattedMonth = String(parsedDate.getMonth() + 1).padStart(2, "0");
+      const formattedDay = String(parsedDate.getDate()).padStart(2, "0");
+
+      const result = `${formattedYear}-${formattedMonth}-${formattedDay}`;
+      console.log(`✅ DD/MM/YYYY parsed: ${cleanDate} -> ${result}`);
+      return result;
+    }
+  }
+
+  // Try other formats
+  const formats = [
+    { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, order: "YMD" }, // YYYY-MM-DD
+    { regex: /^(\d{1,2})-(\d{1,2})-(\d{4})$/, order: "DMY" }, // DD-MM-YYYY
+    { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, order: "MDY" }, // MM/DD/YYYY (fallback)
+  ];
+
+  for (const format of formats) {
+    const formatMatch = cleanDate.match(format.regex);
+    if (formatMatch) {
+      try {
+        let year = 0,
+          month = 0,
+          day = 0;
+
+        switch (format.order) {
+          case "YMD":
+            year = parseInt(formatMatch[1] ?? "");
+            month = parseInt(formatMatch[2] ?? "");
+            day = parseInt(formatMatch[3] ?? "");
+            break;
+          case "DMY":
+            day = parseInt(formatMatch[1] ?? "");
+            month = parseInt(formatMatch[2] ?? "");
+            year = parseInt(formatMatch[3] ?? "");
+            break;
+          case "MDY":
+            month = parseInt(formatMatch[1] ?? "");
+            day = parseInt(formatMatch[2] ?? "");
+            year = parseInt(formatMatch[3] ?? "");
+            break;
+        }
+
+        if (year && month && day) {
+          const parsedDate = new Date(year, month - 1, day);
+          if (!isNaN(parsedDate.getTime())) {
+            const formattedYear = parsedDate.getFullYear();
+            const formattedMonth = String(parsedDate.getMonth() + 1).padStart(
+              2,
+              "0"
+            );
+            const formattedDay = String(parsedDate.getDate()).padStart(2, "0");
+
+            const result = `${formattedYear}-${formattedMonth}-${formattedDay}`;
+            console.log(`✅ ${format.order} parsed: ${cleanDate} -> ${result}`);
+            return result;
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error parsing date format:", error);
+      }
+    }
+  }
+
+  console.warn(`❌ Could not parse date: ${cleanDate}`);
+  return "";
+};
+
+// ✅ ENHANCED: Master date parsing function [web:134][web:138]
+const parseExcelDateValue = (value: any): string => {
+  if (!value) return "";
+
+  console.log(`🔍 Processing date value:`, { value, type: typeof value });
+
+  // If it's already a Date object from Excel parsing
+  if (value instanceof Date) {
+    if (!isNaN(value.getTime()) && value.getTime() !== 0) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, "0");
+      const day = String(value.getDate()).padStart(2, "0");
+      const result = `${year}-${month}-${day}`;
+      console.log(`✅ Date object processed: ${result}`);
+      return result;
+    } else {
+      console.warn("❌ Invalid Date object:", value);
+      return "";
+    }
+  }
+
+  // If it's a number (Excel serial date)
+  if (typeof value === "number" && value > 1 && value < 2958466) {
+    return convertExcelSerialToDate(value);
+  }
+
+  // If it's a string, parse it
+  if (typeof value === "string") {
+    return parseStringDate(value);
+  }
+
+  console.warn(`❌ Unsupported date value type:`, {
+    value,
+    type: typeof value,
+  });
+  return "";
+};
+
 const ExcelSessionCreator: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [selectedEventId, setSelectedEventId] = useState("");
@@ -110,7 +274,7 @@ const ExcelSessionCreator: React.FC = () => {
       setEvents(eventsList);
       setRooms(roomsList);
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("❌ Error loading data:", error);
       setErrorMessage("Failed to load events or rooms.");
     }
   }, []);
@@ -119,7 +283,7 @@ const ExcelSessionCreator: React.FC = () => {
     loadEventsAndRooms();
   }, [loadEventsAndRooms]);
 
-  // Handle Excel file upload and parsing
+  // Handle Excel file upload
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -133,81 +297,248 @@ const ExcelSessionCreator: React.FC = () => {
     parseExcelFile(file);
   };
 
-  // Parse Excel file with comprehensive error handling
+  // ✅ ENHANCED: Excel parsing with comprehensive date handling [web:89][web:129]
   const parseExcelFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
 
-        // Safe access to sheet name with proper validation
+        console.log("📂 Starting Excel file parsing...");
+
+        // ✅ ENHANCED: Excel parsing with better date handling
+        const workbook = XLSX.read(data, {
+          type: "array",
+          cellDates: true, // Parse dates as Date objects
+          cellNF: true, // Preserve number formats
+          cellText: false, // Get raw values, not formatted text
+          raw: false, // Ensure proper type conversion
+          dateNF: "dd/mm/yyyy", // Expected date format
+        });
+
         if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
           throw new Error("No worksheets found in Excel file");
         }
 
-        const sheetName = workbook.SheetNames[0];
-
-        // Check if sheetName exists before using as index
+        const sheetName =
+          workbook.SheetNames && workbook.SheetNames.length > 0
+            ? workbook.SheetNames[0]
+            : undefined;
         if (!sheetName) {
-          throw new Error("Invalid worksheet name");
+          throw new Error("No worksheet name found in Excel file");
         }
-
-        // Safe worksheet access
         const worksheet = workbook.Sheets[sheetName];
+
         if (!worksheet) {
           throw new Error("Worksheet not found");
         }
 
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        console.log("📊 Converting Excel sheet to JSON...");
 
-        console.log("Parsed Excel data:", jsonData);
+        // Get raw data with proper parsing
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+          header: 1,
+          raw: false,
+          dateNF: "dd/mm/yyyy",
+          defval: "",
+        });
 
-        // Safe mapping with proper type checking
-        const sessions: ExcelSessionData[] = jsonData.map(
-          (row: any, index: number) => {
-            // Safe property access with fallbacks
-            const facultyName = row["Faculty Name"] || row["Name"] || "";
-            const email = row["Email"] || row["Email ID"] || "";
-            const place = row["Place"] || row["Location"] || "";
-            const sessionTitle = row["Session Title"] || row["Title"] || "";
-            const date = row["Date"] || "";
-            const role = row["Role"] || row["Description"] || "";
+        console.log("📋 Raw Excel data:", jsonData);
 
-            return {
-              id: `excel-session-${index}`,
+        const headers = jsonData[0] as string[];
+        const dataRows = jsonData.slice(1);
+
+        console.log("📝 Headers:", headers);
+        console.log("📊 Data rows count:", dataRows.length);
+
+        // ✅ ENHANCED: Session mapping with comprehensive date handling
+        const sessions: ExcelSessionData[] = dataRows
+          .map((row: any, index: number) => {
+            if (!row || row.length === 0) return null;
+
+            console.log(`\n🔄 Processing row ${index + 1}:`, row);
+
+            // Map headers to values
+            const rowData: Record<string, any> = {};
+            headers.forEach((header, headerIndex) => {
+              if (header && headerIndex < row.length) {
+                rowData[header.trim()] = row[headerIndex];
+              }
+            });
+
+            console.log("🗂️ Row data mapped:", rowData);
+
+            // Extract field values with multiple possible column names
+            const facultyName =
+              rowData["Faculty Name"] ||
+              rowData["Name"] ||
+              rowData["faculty_name"] ||
+              rowData["Faculty"] ||
+              rowData["Teacher"] ||
+              "";
+            const email =
+              rowData["Email"] ||
+              rowData["Email ID"] ||
+              rowData["email"] ||
+              rowData["Email Address"] ||
+              rowData["Mail"] ||
+              "";
+            const place =
+              rowData["Place"] ||
+              rowData["Location"] ||
+              rowData["place"] ||
+              rowData["Venue"] ||
+              rowData["Campus"] ||
+              "";
+            const sessionTitle =
+              rowData["Session Title"] ||
+              rowData["Title"] ||
+              rowData["session_title"] ||
+              rowData["Session"] ||
+              rowData["Topic"] ||
+              "";
+            const rawDate =
+              rowData["Date"] ||
+              rowData["Session Date"] ||
+              rowData["date"] ||
+              rowData["Event Date"] ||
+              rowData["Schedule Date"] ||
+              "";
+            const role =
+              rowData["Role"] ||
+              rowData["Description"] ||
+              rowData["role"] ||
+              rowData["Faculty Role"] ||
+              rowData["Position"] ||
+              "";
+
+            console.log("📋 Extracted fields:", {
               facultyName,
               email,
               place,
               sessionTitle,
-              date,
+              rawDate,
               role,
-              roomId: "", // Initialize as empty string
+            });
+
+            // ✅ CRITICAL: Enhanced date processing
+            let parsedDate = "";
+            if (rawDate !== null && rawDate !== undefined && rawDate !== "") {
+              console.log(`📅 Processing date for row ${index + 1}:`, {
+                rawDate,
+                type: typeof rawDate,
+                isDate: rawDate instanceof Date,
+                isNumber: typeof rawDate === "number",
+              });
+
+              parsedDate = parseExcelDateValue(rawDate);
+
+              console.log(
+                `📅 Date conversion result: "${rawDate}" -> "${parsedDate}"`
+              );
+            } else {
+              console.warn(`⚠️ Row ${index + 1}: No date found`);
+            }
+
+            // Validate essential fields
+            if (
+              !facultyName?.toString().trim() ||
+              !email?.toString().trim() ||
+              !sessionTitle?.toString().trim()
+            ) {
+              console.warn(`❌ Row ${index + 1} missing essential data:`, {
+                facultyName: !!facultyName,
+                email: !!email,
+                sessionTitle: !!sessionTitle,
+              });
+              return null;
+            }
+
+            const sessionData = {
+              id: `excel-session-${index}`,
+              facultyName: facultyName.toString().trim(),
+              email: email.toString().trim(),
+              place: place?.toString().trim() || "",
+              sessionTitle: sessionTitle.toString().trim(),
+              date: parsedDate || "",
+              role: role?.toString().trim() || "",
+              roomId: "",
               status: "Draft" as const,
             };
-          }
+
+            console.log(
+              `✅ Session created for row ${index + 1}:`,
+              sessionData
+            );
+            return sessionData;
+          })
+          .filter(
+            (
+              session
+            ): session is {
+              id: string;
+              facultyName: string;
+              email: string;
+              place: string;
+              sessionTitle: string;
+              date: string;
+              role: string;
+              roomId: string;
+              status: "Draft";
+            } => session !== null
+          );
+
+        console.log("\n📊 Parsing summary:");
+        console.log(`- Total rows processed: ${dataRows.length}`);
+        console.log(`- Valid sessions created: ${sessions.length}`);
+        console.log(
+          `- Sessions with dates: ${
+            sessions.filter((s) => s.date && s.date !== "").length
+          }`
         );
 
-        // Validate required fields
+        // Validate sessions
         const invalidSessions = sessions.filter(
-          (s) => !s.facultyName || !s.email || !s.sessionTitle || !s.date
+          (s) => !s.facultyName || !s.email || !s.sessionTitle
         );
 
         if (invalidSessions.length > 0) {
+          console.error("❌ Invalid sessions found:", invalidSessions);
           setErrorMessage(
-            `${invalidSessions.length} rows have missing required fields (Faculty Name, Email, Session Title, Date)`
+            `${invalidSessions.length} rows have missing required fields (Faculty Name, Email, Session Title). Please check your Excel file format.`
+          );
+          return;
+        }
+
+        // Validate dates
+        const sessionsWithInvalidDates = sessions.filter(
+          (s) => !s.date || s.date === ""
+        );
+        if (sessionsWithInvalidDates.length > 0) {
+          console.error(
+            "❌ Sessions with invalid dates:",
+            sessionsWithInvalidDates.map((s) => s.sessionTitle)
+          );
+          setErrorMessage(
+            `${sessionsWithInvalidDates.length} rows have invalid date formats. Please ensure dates are in DD/MM/YYYY format (like 17/11/2025).`
           );
           return;
         }
 
         setParsedSessions(sessions);
         setErrorMessage("");
+        setSuccessMessage("");
+
         console.log(
-          `Successfully parsed ${sessions.length} sessions from Excel`
+          `✅ Successfully parsed ${sessions.length} sessions with valid dates!`
         );
       } catch (error) {
-        console.error("Error parsing Excel file:", error);
-        setErrorMessage("Failed to parse Excel file. Please check the format.");
+        console.error("❌ Excel parsing error:", error);
+        setErrorMessage(
+          `Failed to parse Excel file: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }.`
+        );
       }
     };
     reader.readAsArrayBuffer(file);
@@ -225,7 +556,6 @@ const ExcelSessionCreator: React.FC = () => {
       )
     );
 
-    // Clear validation error for this field
     const errorKey = `${sessionId}-${field === "roomId" ? "room" : field}`;
     if (validationErrors[errorKey]) {
       setValidationErrors((prev) => {
@@ -236,7 +566,7 @@ const ExcelSessionCreator: React.FC = () => {
     }
   };
 
-  // Comprehensive form validation
+  // Form validation
   const validateForm = () => {
     const errors: Record<string, string> = {};
 
@@ -248,7 +578,6 @@ const ExcelSessionCreator: React.FC = () => {
       errors.excelFile = "Please upload and parse an Excel file";
     }
 
-    // Validate each session
     parsedSessions.forEach((session) => {
       if (!session.facultyName.trim()) {
         errors[`${session.id}-name`] = "Faculty name is required";
@@ -259,10 +588,9 @@ const ExcelSessionCreator: React.FC = () => {
       if (!session.sessionTitle.trim()) {
         errors[`${session.id}-title`] = "Session title is required";
       }
-      if (!session.date) {
-        errors[`${session.id}-date`] = "Date is required";
+      if (!session.date || session.date === "") {
+        errors[`${session.id}-date`] = "Valid date is required";
       }
-      // Ensure room is assigned
       if (!session.roomId || session.roomId.trim() === "") {
         errors[`${session.id}-room`] = "Room assignment is required";
       }
@@ -272,7 +600,7 @@ const ExcelSessionCreator: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Create all sessions with comprehensive error handling
+  // ✅ ENHANCED: Session creation with detailed date handling [web:129][web:133]
   const handleCreateSessions = async () => {
     if (!validateForm()) {
       setErrorMessage("Please fix all validation errors before proceeding.");
@@ -288,14 +616,15 @@ const ExcelSessionCreator: React.FC = () => {
 
       for (const [index, session] of parsedSessions.entries()) {
         console.log(
-          `Creating session ${index + 1}/${parsedSessions.length}: ${
-            session.sessionTitle
-          }`
+          `\n🚀 Creating session ${index + 1}/${parsedSessions.length}:`
         );
+        console.log(`📝 Title: ${session.sessionTitle}`);
+        console.log(`📅 Date: ${session.date}`);
+        console.log(`👤 Faculty: ${session.facultyName} (${session.email})`);
 
         const formData = new FormData();
 
-        // Helper function for safe FormData appending
+        // Add basic session data
         const appendSafely = (
           key: string,
           value: string | undefined | null,
@@ -303,6 +632,7 @@ const ExcelSessionCreator: React.FC = () => {
         ) => {
           if (value !== undefined && value !== null && value.trim() !== "") {
             formData.append(key, value.trim());
+            console.log(`✅ Added ${key}: ${value.trim()}`);
           } else if (isRequired) {
             throw new Error(
               `Missing required field: ${key} for session "${session.sessionTitle}"`
@@ -310,74 +640,123 @@ const ExcelSessionCreator: React.FC = () => {
           }
         };
 
-        // Safe appending with validation
         try {
           appendSafely("title", session.sessionTitle);
           appendSafely("facultyId", `excel-faculty-${session.email}`);
           appendSafely("email", session.email);
           appendSafely("place", session.place);
-
-          // Ensure roomId is assigned before proceeding
-          if (!session.roomId || session.roomId.trim() === "") {
-            throw new Error(
-              `Session "${session.sessionTitle}" is missing room assignment. Please assign a room to all sessions.`
-            );
-          }
           appendSafely("roomId", session.roomId);
-
-          appendSafely("description", session.role);
+          appendSafely("description", session.role, false);
           appendSafely("status", session.status);
           appendSafely("eventId", selectedEventId);
           formData.append("invite_status", "Pending");
 
-          // Safe date handling
-          if (session.date) {
+          // ✅ CRITICAL: Enhanced date handling with validation
+          if (session.date && session.date !== "") {
             try {
-              const sessionDate = new Date(session.date);
-              if (isNaN(sessionDate.getTime())) {
-                throw new Error("Invalid date");
+              // Validate date format (should be YYYY-MM-DD)
+              const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+              if (!dateRegex.test(session.date)) {
+                throw new Error(
+                  `Invalid date format: ${session.date}. Expected YYYY-MM-DD.`
+                );
               }
 
-              const startTime = `${
-                sessionDate.toISOString().split("T")[0]
-              }T09:00:00`;
-              const endTime = `${
-                sessionDate.toISOString().split("T")[0]
-              }T17:00:00`;
+              // Create and validate date objects
+              const sessionDate = new Date(session.date + "T00:00:00");
+              if (isNaN(sessionDate.getTime())) {
+                throw new Error(`Invalid date: ${session.date}`);
+              }
+
+              // Validate date is reasonable
+              const currentYear = new Date().getFullYear();
+              if (
+                sessionDate.getFullYear() < 1900 ||
+                sessionDate.getFullYear() > currentYear + 10
+              ) {
+                throw new Error(
+                  `Date ${
+                    session.date
+                  } seems unreasonable (year: ${sessionDate.getFullYear()}).`
+                );
+              }
+
+              // Create start and end times
+              const startTime = `${session.date}T09:00:00`;
+              const endTime = `${session.date}T17:00:00`;
+
+              // Validate the constructed times
+              const startDate = new Date(startTime);
+              const endDate = new Date(endTime);
+
+              if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                throw new Error(
+                  `Invalid time construction from date: ${session.date}`
+                );
+              }
 
               formData.append("suggested_time_start", startTime);
               formData.append("suggested_time_end", endTime);
+
+              console.log(`✅ Date processed successfully:`);
+              console.log(`   📅 Session date: ${session.date}`);
+              console.log(`   ⏰ Start time: ${startTime}`);
+              console.log(`   ⏰ End time: ${endTime}`);
+              console.log(
+                `   📆 Readable: ${startDate.toLocaleDateString()} ${startDate.toLocaleTimeString()}`
+              );
             } catch (dateError) {
-              console.error("Date parsing error:", dateError);
+              console.error(
+                `❌ Date processing error for "${session.sessionTitle}":`,
+                dateError
+              );
               throw new Error(
-                `Invalid date format for session: ${session.sessionTitle}`
+                `Date processing failed for session: ${session.sessionTitle}. ${dateError}`
               );
             }
           } else {
             throw new Error(
-              `Session "${session.sessionTitle}" is missing date`
+              `Session "${session.sessionTitle}" is missing a valid date`
             );
           }
+
+          // Debug: Log all FormData entries
+          console.log("📦 Complete FormData for API call:");
+          for (let [key, value] of formData.entries()) {
+            console.log(`   ${key}: ${value}`);
+          }
+
+          // Make API call
+          console.log(`🌐 Sending API request for "${session.sessionTitle}"`);
 
           const response = await fetch("/api/sessions", {
             method: "POST",
             body: formData,
           });
 
+          console.log(`📡 API Response status: ${response.status}`);
+
           if (response.ok) {
             const responseData = await response.json();
+            console.log(`✅ Session created successfully:`, responseData);
+
+            // Log database verification
+            if (responseData.data) {
+              console.log(`📅 Stored dates verification:`);
+              console.log(`   Start: ${responseData.data.startTime}`);
+              console.log(`   End: ${responseData.data.endTime}`);
+            }
+
             createdSessionsList.push({
               ...responseData.data,
               facultyName: session.facultyName,
               originalEmail: session.email,
+              sessionDate: session.date,
             });
-            console.log(
-              `Session created successfully: ${session.sessionTitle}`
-            );
           } else {
             const errorData = await response.json();
             console.error(
-              `Session creation error for "${session.sessionTitle}":`,
+              `❌ API Error for "${session.sessionTitle}":`,
               errorData
             );
             throw new Error(
@@ -385,22 +764,26 @@ const ExcelSessionCreator: React.FC = () => {
                 `Failed to create session: ${session.sessionTitle}`
             );
           }
-        } catch (validationError) {
+        } catch (sessionError) {
           console.error(
-            `Validation error for session "${session.sessionTitle}":`,
-            validationError
+            `❌ Session creation error for "${session.sessionTitle}":`,
+            sessionError
           );
-          throw validationError;
+          throw sessionError;
         }
       }
 
       setCreatedSessions(createdSessionsList);
       setSuccessMessage(
-        `🎉 Successfully created ${createdSessionsList.length} sessions and stored them in the database!`
+        `🎉 Successfully created ${createdSessionsList.length} sessions with correct dates from Excel file!`
       );
-      setFormStep(3); // Move to success step
+      setFormStep(3);
+
+      console.log(
+        `\n🎉 COMPLETE: Created ${createdSessionsList.length} sessions successfully!`
+      );
     } catch (error) {
-      console.error("Error creating sessions:", error);
+      console.error("❌ Session creation process failed:", error);
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -411,7 +794,7 @@ const ExcelSessionCreator: React.FC = () => {
     }
   };
 
-  // Download Excel template
+  // Download template
   const downloadTemplate = () => {
     const templateData = [
       {
@@ -419,23 +802,31 @@ const ExcelSessionCreator: React.FC = () => {
         Email: "john.smith@university.edu",
         Place: "Main Campus",
         "Session Title": "Introduction to AI",
-        Date: "2025-09-20",
-        Role: "Keynote Speaker - Artificial Intelligence Expert",
+        Date: "17/11/2025", // DD/MM/YYYY format
+        Role: "Keynote Speaker - AI Expert",
       },
       {
         "Faculty Name": "Prof. Jane Doe",
         Email: "jane.doe@university.edu",
         Place: "Science Building",
         "Session Title": "Data Science Workshop",
-        Date: "2025-09-21",
-        Role: "Workshop Facilitator - Data Science Department",
+        Date: "18/11/2025", // DD/MM/YYYY format
+        Role: "Workshop Facilitator",
+      },
+      {
+        "Faculty Name": "Dr. Mike Johnson",
+        Email: "mike.johnson@university.edu",
+        Place: "Engineering Block",
+        "Session Title": "Machine Learning Basics",
+        Date: "19/11/2025", // DD/MM/YYYY format
+        Role: "Technical Lead",
       },
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Sessions");
-    XLSX.writeFile(workbook, "session_template.xlsx");
+    XLSX.writeFile(workbook, "session_template_with_dates.xlsx");
   };
 
   const resetForm = () => {
@@ -469,7 +860,6 @@ const ExcelSessionCreator: React.FC = () => {
     setFormStep(formStep - 1);
   };
 
-  // Helper function to check if all sessions have room assignments
   const allRoomsAssigned = parsedSessions.every(
     (s) => s.roomId && s.roomId.trim() !== ""
   );
@@ -489,15 +879,16 @@ const ExcelSessionCreator: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-emerald-200 to-blue-200 bg-clip-text text-transparent">
-                  Excel-Based Session Creator
+                  Excel Session Creator
                 </h1>
                 <p className="text-gray-300 text-lg mt-1">
-                  Upload Excel file to create multiple sessions automatically
+                  Upload Excel file to create sessions with proper date parsing
+                  (DD/MM/YYYY format)
                 </p>
               </div>
             </div>
 
-            {/* ✅ UPDATED: Progress Steps (Removed Email Step) */}
+            {/* Progress Steps */}
             <div className="flex items-center justify-center gap-4 mb-8">
               {[
                 { step: 1, title: "Event & Excel Upload", icon: Upload },
@@ -527,9 +918,9 @@ const ExcelSessionCreator: React.FC = () => {
             </div>
           </div>
 
-          {/* Success/Error Messages */}
+          {/* Messages */}
           {successMessage && (
-            <Alert className="mb-6 border-green-600 bg-green-900/20 backdrop-blur">
+            <Alert className="mb-6 border-green-600 bg-green-900/20">
               <CheckCircle className="h-4 w-4 text-green-400" />
               <AlertDescription className="text-green-200 font-medium">
                 {successMessage}
@@ -538,7 +929,7 @@ const ExcelSessionCreator: React.FC = () => {
           )}
 
           {errorMessage && (
-            <Alert className="mb-6 border-red-600 bg-red-900/20 backdrop-blur">
+            <Alert className="mb-6 border-red-600 bg-red-900/20">
               <AlertTriangle className="h-4 w-4 text-red-400" />
               <AlertDescription className="text-red-200 font-medium">
                 {errorMessage}
@@ -546,6 +937,7 @@ const ExcelSessionCreator: React.FC = () => {
             </Alert>
           )}
 
+          {/* Main Content */}
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Card className="border-gray-700 shadow-2xl bg-gray-900/80 backdrop-blur">
@@ -560,7 +952,7 @@ const ExcelSessionCreator: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-8 text-white">
-                  {/* Step 1: Event & Excel Upload */}
+                  {/* Step 1 */}
                   {formStep === 1 && (
                     <div className="space-y-6">
                       {/* Event Selection */}
@@ -568,9 +960,6 @@ const ExcelSessionCreator: React.FC = () => {
                         <label className="block text-sm font-semibold text-gray-200 mb-2">
                           <Calendar className="h-4 w-4 inline mr-2" />
                           Select Event *
-                          <span className="text-xs text-emerald-400 ml-2">
-                            ({events.length} events available)
-                          </span>
                         </label>
                         <select
                           value={selectedEventId}
@@ -588,8 +977,6 @@ const ExcelSessionCreator: React.FC = () => {
                               ? "border-red-500 bg-red-900/20"
                               : "border-gray-600 hover:border-gray-500 focus:border-emerald-400"
                           }`}
-                          style={{ colorScheme: "dark" }}
-                          required
                         >
                           <option value="">Choose Event</option>
                           {events.map((event) => (
@@ -605,16 +992,31 @@ const ExcelSessionCreator: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Excel Template Download */}
+                      {/* Template Download */}
                       <div className="bg-blue-900/20 border border-blue-700 rounded-xl p-6">
                         <h3 className="text-lg font-semibold text-blue-200 mb-4 flex items-center gap-2">
                           <Download className="h-5 w-5" />
-                          Excel Template
+                          Excel Template (DD/MM/YYYY Date Format)
                         </h3>
                         <p className="text-blue-300 text-sm mb-4">
-                          Download the template to see the required format for
-                          your Excel file.
+                          Download the template with proper date format
+                          examples.
+                          <span className="font-medium text-blue-200">
+                            {" "}
+                            Use DD/MM/YYYY format for dates:
+                          </span>
                         </p>
+                        <ul className="text-blue-300 text-sm mb-4 pl-4">
+                          <li>
+                            • <strong>17/11/2025</strong> (17th November 2025)
+                          </li>
+                          <li>
+                            • <strong>18/11/2025</strong> (18th November 2025)
+                          </li>
+                          <li>
+                            • <strong>19/11/2025</strong> (19th November 2025)
+                          </li>
+                        </ul>
                         <Button
                           type="button"
                           onClick={downloadTemplate}
@@ -625,15 +1027,16 @@ const ExcelSessionCreator: React.FC = () => {
                         </Button>
                       </div>
 
-                      {/* Excel File Upload */}
+                      {/* File Upload */}
                       <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 hover:border-emerald-400 transition-all bg-gray-800/50">
                         <div className="text-center">
                           <FileSpreadsheet className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                           <h3 className="text-lg font-semibold text-white mb-2">
-                            Upload Excel File
+                            Upload Excel File with DD/MM/YYYY Dates
                           </h3>
                           <p className="text-gray-300 mb-4">
-                            Upload Excel file with faculty and session details
+                            Upload Excel file with sessions and dates in
+                            DD/MM/YYYY format
                           </p>
 
                           {!excelFile ? (
@@ -678,9 +1081,18 @@ const ExcelSessionCreator: React.FC = () => {
                                 </Button>
                               </div>
                               {parsedSessions.length > 0 && (
-                                <div className="text-emerald-300">
-                                  ✅ Parsed {parsedSessions.length} sessions
-                                  successfully!
+                                <div className="space-y-2">
+                                  <div className="text-emerald-300">
+                                    ✅ Parsed {parsedSessions.length} sessions!
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    Dates:{" "}
+                                    {
+                                      parsedSessions.filter((s) => s.date)
+                                        .length
+                                    }
+                                    /{parsedSessions.length} valid
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -688,18 +1100,17 @@ const ExcelSessionCreator: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Required Excel Columns */}
+                      {/* Required Columns */}
                       <div className="bg-yellow-900/20 border border-yellow-600 rounded-xl p-4">
                         <h4 className="text-yellow-200 font-medium mb-2">
                           Required Excel Columns:
                         </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm mb-3">
                           {[
                             "Faculty Name",
                             "Email",
                             "Place",
                             "Session Title",
-                            "Date",
                             "Role",
                           ].map((col) => (
                             <div key={col} className="text-yellow-300">
@@ -707,11 +1118,19 @@ const ExcelSessionCreator: React.FC = () => {
                             </div>
                           ))}
                         </div>
+                        <div className="border-t border-yellow-600 pt-3">
+                          <div className="text-yellow-300 font-medium">
+                            • Date (DD/MM/YYYY format)
+                          </div>
+                          <div className="text-xs text-yellow-200 pl-4">
+                            Example: 17/11/2025 for November 17, 2025
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Step 2: Review & Create Sessions */}
+                  {/* Step 2 */}
                   {formStep === 2 && (
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
@@ -730,21 +1149,17 @@ const ExcelSessionCreator: React.FC = () => {
                                 : "bg-red-800 text-red-200"
                             }
                           >
-                            Rooms: {assignedRoomsCount}/{parsedSessions.length}{" "}
-                            Assigned
+                            Rooms: {assignedRoomsCount}/{parsedSessions.length}
                           </Badge>
                         </div>
                       </div>
 
-                      {/* Show warning if any sessions are missing room assignments */}
                       {!allRoomsAssigned && (
                         <Alert className="border-red-600 bg-red-900/20">
                           <AlertTriangle className="h-4 w-4 text-red-400" />
                           <AlertDescription className="text-red-200">
                             <strong>Action Required:</strong> Please assign
                             rooms to all sessions before proceeding.
-                            {parsedSessions.length - assignedRoomsCount}{" "}
-                            sessions are missing room assignments.
                           </AlertDescription>
                         </Alert>
                       )}
@@ -770,8 +1185,22 @@ const ExcelSessionCreator: React.FC = () => {
                                   </Badge>
                                   {session.sessionTitle}
                                 </CardTitle>
-                                <div className="text-xs text-gray-400">
-                                  {session.date}
+                                <div className="text-right">
+                                  <div className="text-sm font-medium text-emerald-300">
+                                    📅 {session.date || "❌ No Date"}
+                                  </div>
+                                  {session.date && (
+                                    <div className="text-xs text-gray-400">
+                                      {new Date(
+                                        session.date
+                                      ).toLocaleDateString("en-GB", {
+                                        weekday: "short",
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </CardHeader>
@@ -797,7 +1226,6 @@ const ExcelSessionCreator: React.FC = () => {
                                     {session.place}
                                   </span>
                                 </div>
-                                {/* Dark themed room dropdown */}
                                 <div className="md:col-span-2">
                                   <label className="text-gray-400 block mb-1">
                                     Room: *
@@ -813,25 +1241,16 @@ const ExcelSessionCreator: React.FC = () => {
                                     }
                                     className={`w-full p-3 text-sm rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                                       !session.roomId ||
-                                      session.roomId.trim() === "" ||
-                                      validationErrors[`${session.id}-room`]
+                                      session.roomId.trim() === ""
                                         ? "bg-red-900/20 border-2 border-red-500 text-red-200"
                                         : "bg-gray-800 border-2 border-gray-600 text-white hover:border-gray-500 focus:border-emerald-400"
                                     }`}
-                                    style={{ colorScheme: "dark" }}
                                   >
-                                    <option
-                                      value=""
-                                      className="bg-gray-800 text-gray-400"
-                                    >
+                                    <option value="">
                                       ⚠️ Select Room (Required)
                                     </option>
                                     {rooms.map((room) => (
-                                      <option
-                                        key={room.id}
-                                        value={room.id}
-                                        className="bg-gray-800 text-white py-2"
-                                      >
+                                      <option key={room.id} value={room.id}>
                                         {room.name}
                                       </option>
                                     ))}
@@ -840,11 +1259,6 @@ const ExcelSessionCreator: React.FC = () => {
                                     session.roomId.trim() === "") && (
                                     <p className="text-red-400 text-xs mt-1">
                                       Room assignment is required
-                                    </p>
-                                  )}
-                                  {validationErrors[`${session.id}-room`] && (
-                                    <p className="text-red-400 text-xs mt-1">
-                                      {validationErrors[`${session.id}-room`]}
                                     </p>
                                   )}
                                 </div>
@@ -864,7 +1278,6 @@ const ExcelSessionCreator: React.FC = () => {
                         ))}
                       </div>
 
-                      {/* Ready status with room validation */}
                       <div
                         className={`border rounded-lg p-4 ${
                           allRoomsAssigned
@@ -878,15 +1291,14 @@ const ExcelSessionCreator: React.FC = () => {
                               <CheckCircle className="h-4 w-4 text-emerald-400" />
                               <span className="font-medium text-emerald-200">
                                 Ready to create {parsedSessions.length} sessions
-                                - All rooms assigned ✓
+                                with proper dates! ✓
                               </span>
                             </>
                           ) : (
                             <>
                               <AlertTriangle className="h-4 w-4 text-yellow-400" />
                               <span className="font-medium text-yellow-200">
-                                Please assign rooms to all sessions before
-                                proceeding
+                                Please assign rooms to all sessions
                               </span>
                             </>
                           )}
@@ -895,13 +1307,13 @@ const ExcelSessionCreator: React.FC = () => {
                     </div>
                   )}
 
-                  {/* ✅ UPDATED: Step 3 - Success Message (No Email Functionality) */}
+                  {/* Step 3 */}
                   {formStep === 3 && (
                     <div className="space-y-6">
                       <div className="bg-gradient-to-br from-emerald-800 to-emerald-800/50 rounded-xl p-6 border border-emerald-700">
                         <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                           <CheckCircle className="h-5 w-5 text-emerald-400" />
-                          Sessions Created Successfully!
+                          Sessions Created Successfully with Correct Dates!
                         </h3>
 
                         <div className="grid md:grid-cols-2 gap-4 text-sm mb-6">
@@ -943,49 +1355,42 @@ const ExcelSessionCreator: React.FC = () => {
                               Status:
                             </span>
                             <p className="text-emerald-300">
-                              Sessions Created & Stored in Database ✓
+                              Sessions Created & Stored ✓
                             </p>
                           </div>
                         </div>
 
-                        {/* Faculty List */}
                         <div className="space-y-3">
                           <h4 className="font-medium text-gray-300">
-                            Faculty Sessions:
+                            Created Sessions:
                           </h4>
                           <div className="max-h-40 overflow-y-auto space-y-2">
-                            {Array.from(
-                              new Set(
-                                createdSessions.map(
-                                  (s) => s.originalEmail || s.email
-                                )
-                              )
-                            ).map((email) => {
-                              const facultySessions = createdSessions.filter(
-                                (s) => (s.originalEmail || s.email) === email
-                              );
-                              return (
-                                <div
-                                  key={email}
-                                  className="flex justify-between items-center text-sm bg-gray-800/50 rounded p-2"
-                                >
-                                  <div>
-                                    <span className="text-white">
-                                      {facultySessions[0]?.facultyName}
-                                    </span>
-                                    <span className="text-gray-400 ml-2">
-                                      ({email})
-                                    </span>
-                                  </div>
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    {facultySessions.length} sessions
-                                  </Badge>
+                            {createdSessions.map((session, index) => (
+                              <div
+                                key={index}
+                                className="flex justify-between items-center text-sm bg-gray-800/50 rounded p-2"
+                              >
+                                <div className="flex-1">
+                                  <span className="text-white">
+                                    {session.facultyName || session.title}
+                                  </span>
+                                  <span className="text-gray-400 ml-2">
+                                    ({session.originalEmail || session.email})
+                                  </span>
+                                  {session.sessionDate && (
+                                    <div className="text-xs text-emerald-300">
+                                      📅{" "}
+                                      {new Date(
+                                        session.sessionDate
+                                      ).toLocaleDateString("en-GB")}
+                                    </div>
+                                  )}
                                 </div>
-                              );
-                            })}
+                                <Badge variant="secondary" className="text-xs">
+                                  Created ✓
+                                </Badge>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -994,26 +1399,16 @@ const ExcelSessionCreator: React.FC = () => {
                         <CheckCircle className="h-4 w-4 text-emerald-400" />
                         <AlertDescription className="text-emerald-200">
                           <strong>
-                            All sessions have been created and stored
-                            successfully!
+                            All {createdSessions.length} sessions have been
+                            created and stored with proper dates from your Excel
+                            file!
                           </strong>
-                          <br />
-                          {createdSessions.length} sessions have been created
-                          for{" "}
-                          {
-                            new Set(
-                              createdSessions.map(
-                                (s) => s.originalEmail || s.email
-                              )
-                            ).size
-                          }{" "}
-                          faculty members and saved to the database.
                         </AlertDescription>
                       </Alert>
                     </div>
                   )}
 
-                  {/* ✅ UPDATED: Navigation Buttons */}
+                  {/* Navigation */}
                   <div className="flex justify-between items-center pt-8 border-t border-gray-700">
                     <div>
                       {formStep > 1 && (
@@ -1021,7 +1416,7 @@ const ExcelSessionCreator: React.FC = () => {
                           type="button"
                           variant="outline"
                           onClick={prevStep}
-                          className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-800"
                         >
                           Previous Step
                         </Button>
@@ -1047,7 +1442,7 @@ const ExcelSessionCreator: React.FC = () => {
                           type="button"
                           onClick={handleCreateSessions}
                           disabled={loading || !allRoomsAssigned}
-                          className="bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="bg-gradient-to-r from-emerald-500 to-blue-600 hover:from-emerald-600 hover:to-blue-700 text-white shadow-lg disabled:opacity-50"
                         >
                           {loading ? (
                             <>
@@ -1067,7 +1462,7 @@ const ExcelSessionCreator: React.FC = () => {
                         <Button
                           type="button"
                           onClick={resetForm}
-                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg px-8"
+                          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg"
                         >
                           <RefreshCw className="h-4 w-4 mr-2" />
                           Create More Sessions
@@ -1079,24 +1474,26 @@ const ExcelSessionCreator: React.FC = () => {
               </Card>
             </div>
 
-            {/* ✅ UPDATED: Sidebar (Removed Email References) */}
+            {/* Sidebar */}
             <div className="space-y-6">
-              <Card className="border-gray-700 shadow-xl bg-gradient-to-br from-gray-800 to-gray-900 backdrop-blur">
+              <Card className="border-gray-700 shadow-xl bg-gradient-to-br from-gray-800 to-gray-900">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg text-white">
                     <Sparkles className="h-5 w-5 text-emerald-400" />
-                    Excel Session Features
+                    Enhanced Date Processing
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   <div className="flex items-start gap-3">
                     <div className="p-1 rounded bg-emerald-800">
-                      <FileSpreadsheet className="h-4 w-4 text-emerald-400" />
+                      <Calendar className="h-4 w-4 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">Excel Upload</p>
+                      <p className="font-medium text-white">
+                        DD/MM/YYYY Support
+                      </p>
                       <p className="text-gray-300 text-xs">
-                        Upload structured Excel files with session data
+                        Proper handling of European date format
                       </p>
                     </div>
                   </div>
@@ -1106,9 +1503,11 @@ const ExcelSessionCreator: React.FC = () => {
                       <Users className="h-4 w-4 text-blue-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">Bulk Creation</p>
+                      <p className="font-medium text-white">
+                        Excel Serial Numbers
+                      </p>
                       <p className="text-gray-300 text-xs">
-                        Create multiple sessions automatically from Excel
+                        Converts Excel date serial numbers correctly
                       </p>
                     </div>
                   </div>
@@ -1118,9 +1517,9 @@ const ExcelSessionCreator: React.FC = () => {
                       <CheckCircle className="h-4 w-4 text-green-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">Database Storage</p>
+                      <p className="font-medium text-white">Date Validation</p>
                       <p className="text-gray-300 text-xs">
-                        Sessions automatically saved to database
+                        Ensures all dates are valid and reasonable
                       </p>
                     </div>
                   </div>
@@ -1130,20 +1529,20 @@ const ExcelSessionCreator: React.FC = () => {
                       <Settings className="h-4 w-4 text-purple-400" />
                     </div>
                     <div>
-                      <p className="font-medium text-white">Data Validation</p>
+                      <p className="font-medium text-white">Fixed 1970 Bug</p>
                       <p className="text-gray-300 text-xs">
-                        Automatic validation and error checking
+                        No more epoch date errors
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-gray-700 shadow-xl bg-gray-900/80 backdrop-blur">
+              <Card className="border-gray-700 shadow-xl bg-gray-900/80">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg text-white">
                     <FileText className="h-5 w-5 text-blue-400" />
-                    Progress Summary
+                    Processing Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-center">
@@ -1154,6 +1553,19 @@ const ExcelSessionCreator: React.FC = () => {
                       </div>
                       <p className="text-gray-400 text-sm">Sessions Parsed</p>
                     </div>
+
+                    {parsedSessions.length > 0 && (
+                      <div>
+                        <div className="text-2xl font-bold text-emerald-400">
+                          {
+                            parsedSessions.filter(
+                              (s) => s.date && s.date !== ""
+                            ).length
+                          }
+                        </div>
+                        <p className="text-gray-400 text-sm">Valid Dates</p>
+                      </div>
+                    )}
 
                     {formStep >= 3 && (
                       <div>
@@ -1168,8 +1580,15 @@ const ExcelSessionCreator: React.FC = () => {
 
                     {formStep >= 2 && parsedSessions.length > 0 && (
                       <div className="pt-4 border-t border-gray-700">
-                        <div className="text-sm text-gray-300">
-                          <div className="flex justify-between mb-2">
+                        <div className="text-sm text-gray-300 space-y-2">
+                          <div className="flex justify-between">
+                            <span>Dates Parsed:</span>
+                            <span className="text-emerald-400">
+                              {parsedSessions.filter((s) => s.date).length}/
+                              {parsedSessions.length}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
                             <span>Rooms Assigned:</span>
                             <span
                               className={
@@ -1180,22 +1599,6 @@ const ExcelSessionCreator: React.FC = () => {
                             >
                               {assignedRoomsCount}/{parsedSessions.length}
                             </span>
-                          </div>
-                          <div className="w-full bg-gray-700 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full transition-all ${
-                                allRoomsAssigned
-                                  ? "bg-emerald-600"
-                                  : "bg-red-600"
-                              }`}
-                              style={{
-                                width: `${Math.min(
-                                  (assignedRoomsCount / parsedSessions.length) *
-                                    100,
-                                  100
-                                )}%`,
-                              }}
-                            ></div>
                           </div>
                         </div>
                       </div>
