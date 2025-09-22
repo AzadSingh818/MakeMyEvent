@@ -5,7 +5,19 @@ const baseUrl =
 
 // Hardcoded data for Shruti and Vidyashankar
 const FACULTY_DATA = {
-  "drgsudhakar@hotmail.com": {
+  "anand07amar@gmail.com": {
+    facultyName: "Dr. G Sudhakar",
+    email: "anand07amar@gmail.com",
+    sessions: [
+      {
+        title: "Fluid, Not Flood: Smarter Resuscitation in the PICU",
+        date: "8th Nov",
+        role: "Panelist",
+        description: "Dr. Mahesh Mohite (Moderator) \nCo Panelists \nDr. Madhu Otiv \nDr. VSV Prasad \nDr. John Adabie Appiah \nDr. Mritunjay Pao"
+      }
+    ]
+  },
+    "drgsudhakar@hotmail.com": {
     facultyName: "Dr. G Sudhakar",
     email: "drgsudhakar@hotmail.com",
     sessions: [
