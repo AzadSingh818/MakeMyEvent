@@ -31,10 +31,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       eventId 
     }: ReminderRequest = req.body;
 
-    console.log('Sending reminder email to:', facultyEmail);
+    console.log('=== REMINDER EMAIL DEBUG ===');
+    console.log('Request body:', req.body);
+    console.log('Faculty Email:', facultyEmail);
+    console.log('Faculty Name:', facultyName);
 
     // Validate required fields
     if (!facultyEmail || !facultyName) {
+      console.error('❌ Missing required fields');
       return res.status(400).json({ 
         success: false, 
         error: 'Missing required fields: facultyEmail, facultyName' 
@@ -43,6 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Faculty dashboard link
     const dashboardLink = `${baseUrl.replace(/\/+$/, '')}/faculty-login?email=${encodeURIComponent(facultyEmail)}`;
+    console.log('Dashboard Link:', dashboardLink);
 
     // Simple HTML email template
     const htmlContent = `
@@ -119,36 +124,73 @@ Thank you for your time.
 
 Best regards,
 PediCritiCon 2025 Team
-    `;
+    `.trim();
 
-    console.log('Attempting to send email...');
+    console.log('📧 Attempting to send email to:', facultyEmail);
+    console.log('Email subject: 🔔 Reminder - PediCritiCon 2025');
 
-    const result = await sendMail({
-      to: facultyEmail,
-      subject: `🔔 Reminder - PediCritiCon 2025`,
-      text: textContent.trim(),
-      html: htmlContent,
-    });
+    // Try sending the email with error handling
+    let result;
+    try {
+      result = await sendMail({
+        to: facultyEmail,
+        subject: `🔔 Reminder - PediCritiCon 2025`,
+        text: textContent,
+        html: htmlContent,
+      });
 
-    console.log('Email send result:', result);
+      console.log('📧 SendMail Result:', result);
 
-    if (result.ok) {
+    } catch (emailError) {
+      console.error('❌ SendMail Error:', emailError);
+      
+      // Return specific error details
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Email sending failed',
+        details: emailError instanceof Error ? emailError.message : String(emailError),
+        debug: {
+          to: facultyEmail,
+          subject: '🔔 Reminder - PediCritiCon 2025',
+          textLength: textContent.length,
+          htmlLength: htmlContent.length
+        }
+      });
+    }
+
+    // Check result and respond accordingly
+    if (result && result.ok) {
       console.log(`✅ Reminder email sent successfully to ${facultyEmail}`);
-      res.status(200).json({ 
+      return res.status(200).json({ 
         success: true, 
         message: 'Reminder email sent successfully',
-        recipient: facultyEmail 
+        recipient: facultyEmail,
+        result: result
       });
     } else {
-      throw new Error(result.message || 'Failed to send email');
+      console.error('❌ SendMail returned error:', result);
+      
+      return res.status(500).json({ 
+        success: false, 
+        error: result?.message || 'Failed to send email - unknown error',
+        details: result,
+        debug: {
+          resultOk: result?.ok,
+          resultMessage: result?.message,
+          to: facultyEmail
+        }
+      });
     }
 
   } catch (error) {
-    console.error('❌ Error sending reminder email:', error);
-    res.status(500).json({ 
+    console.error('❌ CRITICAL ERROR in send-reminder API:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    return res.status(500).json({ 
       success: false, 
-      error: 'Failed to send reminder email',
-      details: error instanceof Error ? error.message : String(error)
+      error: 'Critical server error',
+      details: error instanceof Error ? error.message : String(error),
+      type: error instanceof Error ? error.constructor.name : typeof error
     });
   }
 }
