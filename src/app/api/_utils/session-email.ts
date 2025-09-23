@@ -4,6 +4,7 @@ const baseUrl =
   process.env.NEXT_PUBLIC_BASE_URL || "https://make-my-event.vercel.app/";
 
 // Hardcoded data for Shruti and Vidyashankar
+const FACULTY_DATA = {
 "muigoku42@gmail.com": {
     facultyName: "MUI Goku",
     email: "muigoku42@gmail.com",
@@ -16,6 +17,7 @@ const baseUrl =
       }
     ]
   },
+};
 // Generate HTML for a specific faculty member
 function renderFacultyHTML(facultyEmail: string) {
   const facultyData = FACULTY_DATA[facultyEmail as keyof typeof FACULTY_DATA];
