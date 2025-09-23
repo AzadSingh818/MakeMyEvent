@@ -1146,4 +1146,4 @@ export default PendingFacultyModal;
 //   );
 // };
 
-export default PendingFacultyModal;
+// export default PendingFacultyModal;
