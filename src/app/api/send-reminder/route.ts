@@ -89,9 +89,9 @@ export async function POST(request: NextRequest) {
             
             <p>Greetings from <strong>PediCritiCon 2025</strong>!</p>
             
-            <p>This is a reminder mail. Please give your response.</p>
+            <p>This is a gentle reminder for you to respond with Accept/Reject to the sessions scheduled for you.</p>
             
-            <p>Kindly access the faculty dashboard and give the response.</p>
+            <p>Kindly access your faculty dashboard and respond to all the session invites.</p>
 
             <div style="text-align: center; margin: 30px 0;">
               <a href="${dashboardLink}" class="cta-button">
