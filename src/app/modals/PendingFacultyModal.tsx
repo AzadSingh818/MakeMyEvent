@@ -228,42 +228,89 @@ const PendingFacultyModal: React.FC<PendingFacultyModalProps> = ({ isOpen, onClo
   const handleSendReminder = async (faculty: ApprovalFaculty) => {
     // Prevent duplicate sends
     if (sendingReminders.has(faculty.id)) {
+      console.log('Already sending reminder to:', faculty.email);
       return;
     }
 
+    console.log('Starting to send reminder to faculty:', faculty.email);
     setSendingReminders(prev => new Set(prev).add(faculty.id));
 
     try {
+      console.log('Preparing request data for:', faculty.email);
+
+      const requestData = {
+        facultyId: faculty.id,
+        facultyEmail: faculty.email,
+        facultyName: faculty.name,
+        sessionTitle: faculty.sessionTitle,
+        eventName: faculty.eventName,
+        invitationDate: faculty.invitationDate,
+        daysPending: faculty.daysPending,
+        eventId: faculty.eventId,
+      };
+
+      console.log('Request data:', requestData);
+
       const response = await fetch('/api/send-reminder', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          facultyId: faculty.id,
-          facultyEmail: faculty.email,
-          facultyName: faculty.name,
-          sessionTitle: faculty.sessionTitle,
-          eventName: faculty.eventName,
-          invitationDate: faculty.invitationDate,
-          daysPending: faculty.daysPending,
-          eventId: faculty.eventId,
-        }),
+        body: JSON.stringify(requestData),
       });
 
-      const result = await response.json();
+      console.log('Response received - Status:', response.status, 'OK:', response.ok);
 
-      if (result.success) {
+      // Check if response is ok first
+      if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          console.error('Response error text:', errorText);
+        } catch (textError) {
+          console.error('Could not read error text:', textError);
+          errorText = `HTTP ${response.status} error`;
+        }
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown server error'}`);
+      }
+
+      // Try to parse JSON only if response is ok
+      let result;
+      try {
+        const responseText = await response.text();
+        console.log('Raw response text:', responseText);
+        
+        if (responseText) {
+          result = JSON.parse(responseText);
+          console.log('Parsed result:', result);
+        } else {
+          throw new Error('Empty response from server');
+        }
+      } catch (jsonError) {
+        console.error('JSON parse error:', jsonError);
+        throw new Error('Invalid JSON response from server');
+      }
+
+      if (result && result.success) {
         // Show success message
         alert(`✅ Reminder email sent successfully to ${faculty.email}`);
+        console.log('✅ Email sent successfully:', result);
       } else {
-        throw new Error(result.error || 'Failed to send reminder');
+        throw new Error(result?.error || result?.message || 'Failed to send reminder - unknown error');
       }
 
     } catch (error) {
-      console.error('Error sending reminder:', error);
-      alert(`❌ Failed to send reminder to ${faculty.email}. Please try again.`);
+      console.error('❌ Error sending reminder:', error);
+      
+      // Show more specific error message
+      let errorMessage = 'Unknown error occurred';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      alert(`❌ Failed to send reminder to ${faculty.email}\n\nError: ${errorMessage}`);
     } finally {
+      console.log('Cleaning up sending state for:', faculty.email);
       setSendingReminders(prev => {
         const newSet = new Set(prev);
         newSet.delete(faculty.id);
