@@ -17,6 +17,18 @@ const FACULTY_DATA = {
       }
     ]
   },
+  "arunlal0905@yahoo.com": {
+    facultyName: "Arun Lal",
+    email: "arunlal0905@yahoo.com",
+    sessions: [
+      {
+        title: "Advanced Pediatric Critical Care Management",
+        date: "8/11",
+        role: "Speaker",
+        description: "---"
+      }
+    ]
+  },
 };
 // Generate HTML for a specific faculty member
 function renderFacultyHTML(facultyEmail: string) {

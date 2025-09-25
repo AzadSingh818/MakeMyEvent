@@ -38,6 +38,11 @@ const EMAIL_PROVIDERS: Record<string, Omit<EmailProvider, 'key'>> = {
     name: 'Rediffmail', 
     domains: ['rediffmail.com', 'rediff.com'], 
     color: 'bg-blue-100 text-blue-800' 
+  },
+  hotmail: {
+    name: 'Hotmail/Outlook',
+    domains: ['hotmail.com', 'hotmail.co.uk', 'hotmail.fr', 'hotmail.de', 'live.com', 'outlook.com', 'msn.com'],
+    color: 'bg-blue-100 text-blue-900'
   }
 };
 
@@ -463,7 +468,7 @@ export default function FacultyLoginPage() {
         {/* Provider Support Information */}
         <div className="mt-6 p-4 bg-gray-700/30 rounded-lg">
           <h4 className="text-sm font-medium text-gray-300 mb-3">Supported Email Providers</h4>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-3">
             <div className="text-center">
               <div className="w-8 h-8 mx-auto mb-1 bg-red-100 rounded-full flex items-center justify-center">
                 <span className="text-red-600 text-xs font-bold">G</span>
@@ -481,6 +486,12 @@ export default function FacultyLoginPage() {
                 <span className="text-blue-600 text-xs font-bold">R</span>
               </div>
               <span className="text-xs text-gray-400">Rediff</span>
+            </div>
+            <div className="text-center">
+              <div className="w-8 h-8 mx-auto mb-1 bg-blue-100 rounded-full flex items-center justify-center">
+                <span className="text-blue-900 text-xs font-bold">H</span>
+              </div>
+              <span className="text-xs text-gray-400">Hotmail</span>
             </div>
           </div>
           <p className="text-xs text-gray-500 text-center mt-3">

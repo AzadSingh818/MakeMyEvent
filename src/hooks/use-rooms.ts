@@ -12,7 +12,7 @@ export interface Room {
   isActive: boolean;
   createdAt: string;
 }
-
+ 
 export interface RoomsResponse {
   success: boolean;
   data: Room[];
