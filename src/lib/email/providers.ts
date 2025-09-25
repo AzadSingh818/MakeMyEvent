@@ -24,6 +24,12 @@ export const EMAIL_PROVIDERS: Record<string, EmailProviderInfo> = {
     domains: ['rediffmail.com', 'rediff.com'],
     color: 'bg-blue-100 text-blue-800',
     supported: true
+  },
+  hotmail: {
+    name: 'Hotmail/Outlook',
+    domains: ['hotmail.com', 'hotmail.co.uk', 'hotmail.fr', 'hotmail.de', 'live.com', 'outlook.com', 'msn.com'],
+    color: 'bg-blue-100 text-blue-900',
+    supported: true
   }
 };
 
@@ -54,7 +60,7 @@ export function isValidEmailProvider(email: string): boolean {
 export const createEmailTransporter = () => {
   const nodemailer = require("nodemailer");
   
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false, // true for 465, false for 587
