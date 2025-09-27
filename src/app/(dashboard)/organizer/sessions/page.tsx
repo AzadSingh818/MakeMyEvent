@@ -1,4 +1,4 @@
-// src/app/(dashboard)/organizer/sessions/page.tsx - UPDATED: With popup notifications and email updates
+// src/app/(dashboard)/organizer/sessions/page.tsx - FIXED: Null safety for filters
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
@@ -49,29 +49,29 @@ import {
 type InviteStatus = "Pending" | "Accepted" | "Declined";
 
 type SessionRow = {
-  eventName: any;
+  eventName?: string | null;
   id: string;
   eventId?: string;
   title: string;
   facultyName: string;
   email: string;
   place: string;
-  roomName?: string;
-  roomId?: string;
-  description?: string;
-  startTime?: string;
-  endTime?: string;
+  roomName?: string | null;
+  roomId?: string | null;
+  description?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   status: "Draft" | "Confirmed";
   inviteStatus: InviteStatus;
   rejectionReason?: "NotInterested" | "SuggestedTopic" | "TimeConflict";
-  suggestedTopic?: string;
-  suggestedTimeStart?: string;
-  suggestedTimeEnd?: string;
-  optionalQuery?: string;
+  suggestedTopic?: string | null;
+  suggestedTimeStart?: string | null;
+  suggestedTimeEnd?: string | null;
+  optionalQuery?: string | null;
   facultyId?: string;
-  duration?: string;
-  formattedStartTime?: string;
-  formattedEndTime?: string;
+  duration?: string | null;
+  formattedStartTime?: string | null;
+  formattedEndTime?: string | null;
   eventInfo?: {
     id: string;
     name: string;
@@ -103,6 +103,14 @@ type DraftSession = {
   endTime?: string;
   status: "Draft" | "Confirmed";
   description?: string;
+};
+
+// ✅ FIXED: Safe string helper function
+const safeToLowerCase = (value: any): string => {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  return String(value).toLowerCase();
 };
 
 // Helper functions
@@ -156,22 +164,39 @@ const statusBadge = (s: "Draft" | "Confirmed") => {
   );
 };
 
-const toInputDateTime = (iso?: string) => {
+const toInputDateTime = (iso?: string | null) => {
   if (!iso) return "";
-  const d = new Date(iso);
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "";
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  } catch (error) {
+    console.warn("Error parsing date:", iso, error);
+    return "";
+  }
 };
 
-const calculateDuration = (startTime?: string, endTime?: string) => {
+const calculateDuration = (
+  startTime?: string | null,
+  endTime?: string | null
+) => {
   if (!startTime || !endTime) return "";
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-  const minutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-  if (minutes <= 0) return "";
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return hours > 0 ? `${hours}h ${mins}m` : `${minutes} min`;
+  try {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return "";
+
+    const minutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
+    if (minutes <= 0) return "";
+
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}h ${mins}m` : `${minutes} min`;
+  } catch (error) {
+    console.warn("Error calculating duration:", error);
+    return "";
+  }
 };
 
 const AllSessions: React.FC = () => {
@@ -261,7 +286,7 @@ const AllSessions: React.FC = () => {
 
       const processedEvents: Event[] = eventsArray.map((event: any) => ({
         id: event.id,
-        name: event.name,
+        name: event.name || "Unnamed Event",
         location: event.venue || event.location || "TBA",
         status: event.status || "DRAFT",
         startDate: event.startdate || event.startDate,
@@ -330,6 +355,7 @@ const AllSessions: React.FC = () => {
 
       const sessionsList = sData.data?.sessions || sData.sessions || sData;
 
+      // ✅ FIXED: Ensure all session data has safe defaults
       const mapped: SessionRow[] = sessionsList.map((s: any) => {
         const roomId =
           s.roomId ?? rData.find((r: any) => r.name === s.roomName)?.id;
@@ -337,21 +363,33 @@ const AllSessions: React.FC = () => {
 
         return {
           ...s,
-          roomId,
+          // ✅ Ensure all string fields have safe defaults
+          id: s.id || "",
+          title: s.title || "Untitled Session",
+          facultyName: s.facultyName || "Unknown Faculty",
+          email: s.email || "",
+          place: s.place || "",
+          roomName: s.roomName || null,
+          roomId: roomId || null,
+          description: s.description || null,
+          eventName: s.eventName || null,
+          startTime: s.startTime || s.time || null,
+          endTime: s.endTime || null,
+          status: s.status || "Draft",
+          inviteStatus: s.inviteStatus || "Pending",
           duration,
-          startTime: s.startTime || s.time,
           formattedStartTime: s.startTime
             ? new Date(s.startTime).toLocaleString()
-            : undefined,
+            : null,
           formattedEndTime: s.endTime
             ? new Date(s.endTime).toLocaleString()
-            : undefined,
+            : null,
         };
       });
 
       setSessions(mapped);
-      setRooms(rData);
-      setFaculties(fData);
+      setRooms(rData || []);
+      setFaculties(fData || []);
     } catch (e) {
       console.error("Failed to load data:", e);
       toast({
@@ -550,20 +588,31 @@ const AllSessions: React.FC = () => {
     window.history.replaceState({}, "", newUrl.toString());
   };
 
-  // Filtered sessions
+  // ✅ FIXED: Safe filtered sessions with proper null checks
   const filteredSessions = sessions.filter((session) => {
-    const matchesSearch =
-      session.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      session.facultyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      session.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      session.place.toLowerCase().includes(searchTerm.toLowerCase());
+    try {
+      // ✅ Safe search matching with null checks
+      const searchTermLower = safeToLowerCase(searchTerm);
+      const matchesSearch =
+        searchTermLower === "" ||
+        safeToLowerCase(session.title).includes(searchTermLower) ||
+        safeToLowerCase(session.facultyName).includes(searchTermLower) ||
+        safeToLowerCase(session.email).includes(searchTermLower) ||
+        safeToLowerCase(session.place).includes(searchTermLower) ||
+        safeToLowerCase(session.eventName).includes(searchTermLower) ||
+        safeToLowerCase(session.roomName).includes(searchTermLower);
 
-    const matchesStatus =
-      statusFilter === "all" || session.status === statusFilter;
-    const matchesInvite =
-      inviteFilter === "all" || session.inviteStatus === inviteFilter;
+      const matchesStatus =
+        statusFilter === "all" || session.status === statusFilter;
+      const matchesInvite =
+        inviteFilter === "all" || session.inviteStatus === inviteFilter;
 
-    return matchesSearch && matchesStatus && matchesInvite;
+      return matchesSearch && matchesStatus && matchesInvite;
+    } catch (error) {
+      console.warn("Error filtering session:", session.id, error);
+      // Return true to include the session even if filtering fails
+      return true;
+    }
   });
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
@@ -580,12 +629,12 @@ const AllSessions: React.FC = () => {
     setDraft((d) => ({
       ...d,
       [id]: {
-        place: row.place ?? "",
-        roomId: row.roomId,
+        place: row.place || "",
+        roomId: row.roomId || "",
         startTime: toInputDateTime(row.startTime),
         endTime: toInputDateTime(row.endTime),
         status: row.status,
-        description: row.description ?? "",
+        description: row.description || "",
       },
     }));
   };
@@ -1334,7 +1383,7 @@ const AllSessions: React.FC = () => {
                             {/* Invite Status */}
                             <td className="p-4">{badge(s.inviteStatus)}</td>
 
-                            {/* Actions - UPDATED with email sending indicator */}
+                            {/* Actions */}
                             <td className="p-4">
                               {isEditing ? (
                                 <div className="flex items-center gap-2">
