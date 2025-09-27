@@ -8,6 +8,11 @@ import {
   updateSessionById,
   deleteSessionById,
 } from "@/lib/database/session-queries";
+import {
+  getUserById,
+  getUserByEmail,
+  updateUserById,
+} from "@/lib/database/user-queries";
 import { createSessionWithEvent } from "@/lib/database/event-session-integration";
 import { sendInviteEmail } from "../_utils/session-email";
 
@@ -263,10 +268,10 @@ export async function GET() {
   }
 }
 
-// ✅ UPDATED: PUT method for updating sessions with new fields
+// ✅ UPDATED: PUT method with user table updates (SQL-based)
 export async function PUT(req: NextRequest) {
   try {
-    console.log("\n🔄 Starting session update...");
+    console.log("\n🔄 Starting session update with user table support...");
 
     const url = new URL(req.url);
     const sessionId = url.searchParams.get("id");
@@ -293,9 +298,12 @@ export async function PUT(req: NextRequest) {
     console.log("📦 Update data received:", body);
 
     // Extract and validate update fields
-    const updateData: any = {};
+    const sessionUpdateData: any = {};
+    const userUpdateData: any = {};
+    let shouldUpdateUser = false;
+    let facultyUserId = existingSession.facultyId;
 
-    // ✅ NEW: Handle title updates
+    // ✅ Handle title updates
     if (body.title !== undefined) {
       if (!body.title || !body.title.trim()) {
         return NextResponse.json(
@@ -303,10 +311,10 @@ export async function PUT(req: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.title = body.title.trim();
+      sessionUpdateData.title = body.title.trim();
     }
 
-    // ✅ NEW: Handle faculty name updates
+    // ✅ Handle faculty name updates (requires user table update)
     if (body.facultyName !== undefined) {
       if (!body.facultyName || !body.facultyName.trim()) {
         return NextResponse.json(
@@ -314,10 +322,13 @@ export async function PUT(req: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.facultyName = body.facultyName.trim();
+
+      // Store the new faculty name to update in user table
+      userUpdateData.name = body.facultyName.trim();
+      shouldUpdateUser = true;
     }
 
-    // ✅ NEW: Handle email updates with validation
+    // ✅ Handle email updates with validation (requires user table update)
     if (body.email !== undefined) {
       if (!body.email || !body.email.trim()) {
         return NextResponse.json(
@@ -334,31 +345,58 @@ export async function PUT(req: NextRequest) {
         );
       }
 
-      updateData.facultyEmail = body.email.trim();
+      const newEmail = body.email.trim();
+
+      // ✅ Handle email change logic
+      if (existingSession.facultyEmail !== newEmail) {
+        console.log(
+          `📧 Email change detected: ${existingSession.facultyEmail} -> ${newEmail}`
+        );
+
+        // Check if user with new email already exists
+        const existingUserWithNewEmail = await getUserByEmail(newEmail);
+
+        if (existingUserWithNewEmail) {
+          // User with new email exists, update session to point to this user
+          facultyUserId = existingUserWithNewEmail.id;
+          sessionUpdateData.facultyId = existingUserWithNewEmail.id;
+          sessionUpdateData.facultyEmail = newEmail;
+          console.log(
+            `✅ Switching session to existing user: ${existingUserWithNewEmail.name}`
+          );
+        } else {
+          // Update existing user's email
+          userUpdateData.email = newEmail;
+          sessionUpdateData.facultyEmail = newEmail;
+          shouldUpdateUser = true;
+          console.log(`📧 Will update user email to: ${newEmail}`);
+        }
+      }
     }
 
     if (body.description !== undefined) {
-      updateData.description = body.description?.trim() || null;
+      sessionUpdateData.description = body.description?.trim() || null;
     }
 
     if (body.place !== undefined) {
-      updateData.place = body.place.trim();
+      sessionUpdateData.place = body.place.trim();
     }
 
     if (body.roomId !== undefined) {
-      updateData.hallId = body.roomId;
+      sessionUpdateData.hallId = body.roomId;
     }
 
     if (body.facultyId !== undefined) {
-      updateData.facultyId = body.facultyId;
+      facultyUserId = body.facultyId;
+      sessionUpdateData.facultyId = body.facultyId;
     }
 
     if (body.status !== undefined) {
-      updateData.status = body.status;
+      sessionUpdateData.status = body.status;
     }
 
     if (body.inviteStatus !== undefined) {
-      updateData.inviteStatus = body.inviteStatus;
+      sessionUpdateData.inviteStatus = body.inviteStatus;
     }
 
     // Handle date/time updates
@@ -374,9 +412,9 @@ export async function PUT(req: NextRequest) {
             { status: 400 }
           );
         }
-        updateData.startTime = finalStartTime;
+        sessionUpdateData.startTime = finalStartTime;
       } else {
-        updateData.startTime = null;
+        sessionUpdateData.startTime = null;
       }
     }
 
@@ -389,9 +427,9 @@ export async function PUT(req: NextRequest) {
             { status: 400 }
           );
         }
-        updateData.endTime = finalEndTime;
+        sessionUpdateData.endTime = finalEndTime;
       } else {
-        updateData.endTime = null;
+        sessionUpdateData.endTime = null;
       }
     }
 
@@ -417,8 +455,8 @@ export async function PUT(req: NextRequest) {
 
       // Check for conflicts with other sessions
       const conflictData = {
-        facultyId: updateData.facultyId || existingSession.facultyId,
-        roomId: updateData.hallId || existingSession.hallId,
+        facultyId: facultyUserId || existingSession.facultyId || "",
+        roomId: sessionUpdateData.hallId || existingSession.hallId || "",
         startTime: finalStartTime,
         endTime: finalEndTime,
       };
@@ -436,10 +474,38 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    console.log("💾 Final update data:", updateData);
+    console.log("💾 Session update data:", sessionUpdateData);
+    console.log("👤 User update data:", userUpdateData);
+    console.log("🔄 Should update user:", shouldUpdateUser);
 
-    // Update session in database
-    const updatedSession = await updateSessionById(sessionId, updateData);
+    // ✅ Update user table first if needed
+    if (
+      shouldUpdateUser &&
+      Object.keys(userUpdateData).length > 0 &&
+      facultyUserId
+    ) {
+      console.log(`👤 Updating user ${facultyUserId} in users table...`);
+
+      const updatedUser = await updateUserById(facultyUserId, userUpdateData);
+
+      if (!updatedUser) {
+        console.error("❌ Failed to update user in users table");
+        return NextResponse.json(
+          { success: false, error: "Failed to update faculty information" },
+          { status: 500 }
+        );
+      }
+
+      console.log(
+        `✅ User updated successfully: ${updatedUser.name} (${updatedUser.email})`
+      );
+    }
+
+    // ✅ Update session in database
+    const updatedSession = await updateSessionById(
+      sessionId,
+      sessionUpdateData
+    );
 
     if (!updatedSession) {
       return NextResponse.json(
@@ -456,13 +522,27 @@ export async function PUT(req: NextRequest) {
     const faculty = faculties.find((f) => f.id === updatedSession.facultyId);
     const room = rooms.find((r) => r.id === updatedSession.hallId);
 
+    // ✅ Get updated user data if user was updated
+    let finalFacultyName = updatedSession.facultyName || "Unknown Faculty";
+    let finalFacultyEmail = updatedSession.facultyEmail || "";
+
+    if (shouldUpdateUser && facultyUserId) {
+      const updatedUserData = await getUserById(facultyUserId);
+      if (updatedUserData) {
+        finalFacultyName = updatedUserData.name;
+        finalFacultyEmail = updatedUserData.email;
+      }
+    } else if (faculty) {
+      finalFacultyName = faculty.name;
+      finalFacultyEmail = faculty.email;
+    }
+
     const enrichedSession = {
       ...updatedSession,
-      facultyName:
-        updatedSession.facultyName || faculty?.name || "Unknown Faculty",
+      facultyName: finalFacultyName,
       roomName: room?.name || "Unknown Room",
       roomId: updatedSession.hallId,
-      email: updatedSession.facultyEmail || "",
+      email: finalFacultyEmail,
     };
 
     return NextResponse.json(
@@ -470,6 +550,7 @@ export async function PUT(req: NextRequest) {
         success: true,
         message: "Session updated successfully",
         data: enrichedSession,
+        userUpdated: shouldUpdateUser,
       },
       { status: 200 }
     );
@@ -547,7 +628,7 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// POST handler for creating sessions
+// POST handler for creating sessions (unchanged - already working)
 export async function POST(req: NextRequest) {
   try {
     console.log("\n🚀 Starting session creation with email integration...");
