@@ -38,8 +38,8 @@ export interface DatabaseSession {
   suggestedTimeStart?: string;
   suggestedTimeEnd?: string;
   optionalQuery?: string;
-  travel?: boolean;        // ✅ Add this
-  accommodation?: boolean; // ✅ Add this
+  travel?: boolean;
+  accommodation?: boolean;
   createdAt?: string;
   updatedAt?: string;
   roomName?: string;
@@ -141,7 +141,7 @@ export async function getRooms(): Promise<Room[]> {
       capacity: row.capacity,
       location: row.location,
     }));
-  } catch (error) { 
+  } catch (error) {
     console.error("❌ Error fetching rooms:", error);
     return [];
   }
@@ -150,7 +150,6 @@ export async function getRooms(): Promise<Room[]> {
 /**
  * Get all sessions with enriched data - FIXED: Proper faculty name joining
  */
-// src/lib/database/session-queries.ts - FIXED: Event name fetching
 export async function getAllSessions(): Promise<DatabaseSession[]> {
   try {
     console.log("🔍 Fetching all sessions with event names...");
@@ -182,11 +181,7 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
         -- Fix room name fetching (both rooms and halls tables)
         COALESCE(r.name, h.name, 'Unknown Room') as "roomName",
         -- Fix event name fetching with debugging
-        COALESCE(e.name, 'Event Not Found') as "eventName",
-        -- Add debug fields
-        cs.event_id as "debugEventId",
-        e.id as "debugJoinedEventId",
-        e.name as "debugEventName"
+        COALESCE(e.name, 'Event Not Found') as "eventName"
       FROM conference_sessions cs
       LEFT JOIN session_metadata sm ON cs.id = sm.session_id
       LEFT JOIN users u ON sm.faculty_id = u.id
@@ -196,19 +191,8 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
       ORDER BY cs.start_time DESC
     `);
 
-    // Debug output for first row
-    if (result.rows.length > 0) {
-      console.log("🔍 Debug first session result:", {
-        eventId: result.rows[0].debugEventId,
-        joinedEventId: result.rows[0].debugJoinedEventId,
-        eventName: result.rows[0].debugEventName,
-        finalEventName: result.rows[0].eventName
-      });
-    }
-
     console.log(`📊 Found ${result.rows.length} sessions`);
-    console.log("📊 Query result:", result.rows[0]);
-    console.log("📊 Event name from DB:", result.rows[0]?.eventName);
+
     return result.rows.map((row) => ({
       id: row.id,
       title: row.title,
@@ -233,13 +217,14 @@ export async function getAllSessions(): Promise<DatabaseSession[]> {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       roomName: row.roomName,
-      eventName: row.eventName, // This should now show proper event names
+      eventName: row.eventName,
     }));
   } catch (error) {
     console.error("❌ Error fetching sessions:", error);
     return [];
   }
 }
+
 /**
  * Get session by ID
  */
@@ -308,6 +293,8 @@ export async function getSessionById(
       suggestedTimeStart: row.suggestedTimeStart,
       suggestedTimeEnd: row.suggestedTimeEnd,
       optionalQuery: row.optionalQuery,
+      travel: row.travel,
+      accommodation: row.accommodation,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       roomName: row.roomName,
@@ -316,6 +303,211 @@ export async function getSessionById(
   } catch (error) {
     console.error("❌ Error fetching session by ID:", error);
     return null;
+  }
+}
+
+/**
+ * ✅ NEW: Update session by ID - Complete implementation
+ */
+export async function updateSessionById(
+  sessionId: string,
+  updateData: Partial<DatabaseSession>
+): Promise<DatabaseSession | null> {
+  try {
+    console.log("🔄 Updating session:", sessionId, updateData);
+
+    // Start transaction
+    await query("BEGIN");
+
+    try {
+      // Update conference_sessions table
+      const sessionUpdateFields: string[] = [];
+      const sessionUpdateValues: any[] = [];
+      let sessionParamIndex = 1;
+
+      if (updateData.title !== undefined) {
+        sessionUpdateFields.push(`title = $${sessionParamIndex++}`);
+        sessionUpdateValues.push(updateData.title);
+      }
+
+      if (updateData.description !== undefined) {
+        sessionUpdateFields.push(`description = $${sessionParamIndex++}`);
+        sessionUpdateValues.push(updateData.description);
+      }
+
+      if (updateData.startTime !== undefined) {
+        sessionUpdateFields.push(`start_time = $${sessionParamIndex++}`);
+        sessionUpdateValues.push(updateData.startTime);
+      }
+
+      if (updateData.endTime !== undefined) {
+        sessionUpdateFields.push(`end_time = $${sessionParamIndex++}`);
+        sessionUpdateValues.push(updateData.endTime);
+      }
+
+      if (updateData.hallId !== undefined) {
+        sessionUpdateFields.push(`hall_id = $${sessionParamIndex++}`);
+        sessionUpdateValues.push(updateData.hallId);
+      }
+
+      if (updateData.eventId !== undefined) {
+        sessionUpdateFields.push(`event_id = $${sessionParamIndex++}`);
+        sessionUpdateValues.push(updateData.eventId);
+      }
+
+      // Update conference_sessions if there are fields to update
+      if (sessionUpdateFields.length > 0) {
+        sessionUpdateFields.push("updated_at = NOW()");
+        sessionUpdateValues.push(sessionId);
+
+        const sessionUpdateQuery = `
+          UPDATE conference_sessions 
+          SET ${sessionUpdateFields.join(", ")} 
+          WHERE id = $${sessionParamIndex}
+        `;
+
+        console.log("📊 Session update query:", sessionUpdateQuery);
+        console.log("📊 Session update values:", sessionUpdateValues);
+
+        await query(sessionUpdateQuery, sessionUpdateValues);
+      }
+
+      // Update session_metadata table
+      const metadataUpdateFields: string[] = [];
+      const metadataUpdateValues: any[] = [];
+      let metadataParamIndex = 1;
+
+      if (updateData.facultyId !== undefined) {
+        metadataUpdateFields.push(`faculty_id = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.facultyId);
+      }
+
+      if (updateData.facultyEmail !== undefined) {
+        metadataUpdateFields.push(`faculty_email = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.facultyEmail);
+      }
+
+      if (updateData.place !== undefined) {
+        metadataUpdateFields.push(`place = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.place);
+      }
+
+      if (updateData.status !== undefined) {
+        metadataUpdateFields.push(`status = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.status);
+      }
+
+      if (updateData.inviteStatus !== undefined) {
+        metadataUpdateFields.push(`invite_status = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.inviteStatus);
+      }
+
+      if (updateData.rejectionReason !== undefined) {
+        metadataUpdateFields.push(
+          `rejection_reason = $${metadataParamIndex++}`
+        );
+        metadataUpdateValues.push(updateData.rejectionReason);
+      }
+
+      if (updateData.suggestedTopic !== undefined) {
+        metadataUpdateFields.push(`suggested_topic = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.suggestedTopic);
+      }
+
+      if (updateData.suggestedTimeStart !== undefined) {
+        metadataUpdateFields.push(
+          `suggested_time_start = $${metadataParamIndex++}`
+        );
+        metadataUpdateValues.push(updateData.suggestedTimeStart);
+      }
+
+      if (updateData.suggestedTimeEnd !== undefined) {
+        metadataUpdateFields.push(
+          `suggested_time_end = $${metadataParamIndex++}`
+        );
+        metadataUpdateValues.push(updateData.suggestedTimeEnd);
+      }
+
+      if (updateData.optionalQuery !== undefined) {
+        metadataUpdateFields.push(`optional_query = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.optionalQuery);
+      }
+
+      if (updateData.travel !== undefined) {
+        metadataUpdateFields.push(`travel = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.travel);
+      }
+
+      if (updateData.accommodation !== undefined) {
+        metadataUpdateFields.push(`accommodation = $${metadataParamIndex++}`);
+        metadataUpdateValues.push(updateData.accommodation);
+      }
+
+      // Update session_metadata if there are fields to update
+      if (metadataUpdateFields.length > 0) {
+        metadataUpdateFields.push("updated_at = NOW()");
+        metadataUpdateValues.push(sessionId);
+
+        const metadataUpdateQuery = `
+          UPDATE session_metadata 
+          SET ${metadataUpdateFields.join(", ")} 
+          WHERE session_id = $${metadataParamIndex}
+        `;
+
+        console.log("📊 Metadata update query:", metadataUpdateQuery);
+        console.log("📊 Metadata update values:", metadataUpdateValues);
+
+        await query(metadataUpdateQuery, metadataUpdateValues);
+      }
+
+      await query("COMMIT");
+      console.log("✅ Session updated successfully");
+
+      // Return updated session
+      return await getSessionById(sessionId);
+    } catch (error) {
+      await query("ROLLBACK");
+      throw error;
+    }
+  } catch (error) {
+    console.error("❌ Error updating session:", error);
+    return null;
+  }
+}
+
+/**
+ * ✅ NEW: Delete session by ID - Complete implementation
+ */
+export async function deleteSessionById(sessionId: string): Promise<boolean> {
+  try {
+    console.log("🗑️ Deleting session:", sessionId);
+
+    // Start transaction
+    await query("BEGIN");
+
+    try {
+      // Delete metadata first (due to foreign key constraint)
+      await query("DELETE FROM session_metadata WHERE session_id = $1", [
+        sessionId,
+      ]);
+
+      // Delete session
+      const result = await query(
+        "DELETE FROM conference_sessions WHERE id = $1",
+        [sessionId]
+      );
+
+      await query("COMMIT");
+      console.log("✅ Session deleted successfully");
+
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      await query("ROLLBACK");
+      throw error;
+    }
+  } catch (error) {
+    console.error("❌ Error deleting session:", error);
+    return false;
   }
 }
 
@@ -387,7 +579,6 @@ export async function updateSessionMetadata(
     const result = await query(updateQuery, updateValues);
     console.log("✅ Session metadata updated successfully");
 
-    // FIXED: Handle null rowCount
     return (result.rowCount ?? 0) > 0;
   } catch (error) {
     console.error("❌ Error updating session metadata:", error);
@@ -420,7 +611,6 @@ export async function deleteSession(sessionId: string): Promise<boolean> {
       await query("COMMIT");
       console.log("✅ Session deleted successfully");
 
-      // FIXED: Handle null rowCount
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
       await query("ROLLBACK");

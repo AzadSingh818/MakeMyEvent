@@ -1,4 +1,4 @@
-// src/app/(dashboard)/organizer/sessions/page.tsx - FIXED: Event loading from database
+// src/app/(dashboard)/organizer/sessions/page.tsx - UPDATED: With popup notifications and email updates
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useToast } from "../../../../components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,7 @@ import {
   Plus,
   Timer,
   CalendarDays,
+  Send,
 } from "lucide-react";
 
 type InviteStatus = "Pending" | "Accepted" | "Declined";
@@ -85,7 +87,7 @@ type Event = {
   startDate: string;
   endDate: string;
   createdByName?: string;
-  _count: {
+  count: {
     sessions: number;
     registrations: number;
   };
@@ -166,17 +168,16 @@ const calculateDuration = (startTime?: string, endTime?: string) => {
   const start = new Date(startTime);
   const end = new Date(endTime);
   const minutes = Math.round((end.getTime() - start.getTime()) / (1000 * 60));
-  if (minutes > 0) {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${minutes} min`;
-  }
-  return "";
+  if (minutes <= 0) return "";
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return hours > 0 ? `${hours}h ${mins}m` : `${minutes} min`;
 };
 
 const AllSessions: React.FC = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast, ToastContainer } = useToast();
 
   // State
   const [sessions, setSessions] = useState<SessionRow[]>([]);
@@ -189,7 +190,9 @@ const AllSessions: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<
     "all" | "Draft" | "Confirmed"
   >("all");
-  const [inviteFilter, setInviteFilter] = useState<"all" | InviteStatus>("all");
+  const [inviteFilter, setInviteFilter] = useState<
+    "all" | InviteStatus | "all"
+  >("all");
   const [selectedEventId, setSelectedEventId] = useState<string>("all");
 
   // Session creation modal
@@ -201,6 +204,12 @@ const AllSessions: React.FC = () => {
   const [draft, setDraft] = useState<Record<string, DraftSession>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
+  const [sendingEmail, setSendingEmail] = useState<Record<string, boolean>>({});
+
+  // Store original values for change tracking
+  const [originalValues, setOriginalValues] = useState<
+    Record<string, SessionRow>
+  >({});
 
   // Get URL params
   const eventIdFromUrl = searchParams.get("eventId");
@@ -216,7 +225,7 @@ const AllSessions: React.FC = () => {
     }
   }, [eventIdFromUrl, actionFromUrl]);
 
-  // FIXED: Separate event loading function with proper API response handling
+  // Load events function
   const loadEvents = async () => {
     try {
       setEventsLoading(true);
@@ -238,8 +247,7 @@ const AllSessions: React.FC = () => {
       const data = await response.json();
       console.log("Events API Response:", data);
 
-      // FIXED: Handle the correct API response format
-      let eventsArray = [];
+      let eventsArray: any[];
       if (data.success && data.data && data.data.events) {
         eventsArray = data.data.events;
       } else if (data.events) {
@@ -251,18 +259,17 @@ const AllSessions: React.FC = () => {
         eventsArray = [];
       }
 
-      // FIXED: Process events with proper field mapping
       const processedEvents: Event[] = eventsArray.map((event: any) => ({
         id: event.id,
         name: event.name,
         location: event.venue || event.location || "TBA",
         status: event.status || "DRAFT",
-        startDate: event.start_date || event.startDate,
-        endDate: event.end_date || event.endDate,
-        createdByName: event.created_by_name || event.createdByName,
-        _count: {
-          sessions: event._count?.sessions || 0,
-          registrations: event._count?.registrations || 0,
+        startDate: event.startdate || event.startDate,
+        endDate: event.enddate || event.endDate,
+        createdByName: event.createdbyname || event.createdByName,
+        count: {
+          sessions: event.count?.sessions || 0,
+          registrations: event.count?.registrations || 0,
         },
       }));
 
@@ -273,7 +280,6 @@ const AllSessions: React.FC = () => {
     } catch (error) {
       console.error("Error loading events:", error);
 
-      // FIXED: Fallback events only if API fails
       const fallbackEvents: Event[] = [
         {
           id: "event-1",
@@ -286,7 +292,7 @@ const AllSessions: React.FC = () => {
           endDate: new Date(
             Date.now() + 32 * 24 * 60 * 60 * 1000
           ).toISOString(),
-          _count: { sessions: 0, registrations: 0 },
+          count: { sessions: 0, registrations: 0 },
         },
       ];
       setEvents(fallbackEvents);
@@ -297,6 +303,7 @@ const AllSessions: React.FC = () => {
 
   const load = async (showLoading = true) => {
     if (showLoading) setLoading(true);
+
     try {
       await loadEvents();
 
@@ -321,8 +328,8 @@ const AllSessions: React.FC = () => {
         fRes.json(),
       ]);
 
-      const sessionsList =
-        sData.data?.sessions || sData.sessions || sData || [];
+      const sessionsList = sData.data?.sessions || sData.sessions || sData;
+
       const mapped: SessionRow[] = sessionsList.map((s: any) => {
         const roomId =
           s.roomId ?? rData.find((r: any) => r.name === s.roomName)?.id;
@@ -343,10 +350,15 @@ const AllSessions: React.FC = () => {
       });
 
       setSessions(mapped);
-      setRooms(rData || []);
-      setFaculties(fData || []);
+      setRooms(rData);
+      setFaculties(fData);
     } catch (e) {
       console.error("Failed to load data:", e);
+      toast({
+        type: "error",
+        title: "Loading Error",
+        description: "Failed to load session data. Please refresh the page.",
+      });
     } finally {
       if (showLoading) setLoading(false);
     }
@@ -357,6 +369,145 @@ const AllSessions: React.FC = () => {
     const id = setInterval(() => load(false), 10000);
     return () => clearInterval(id);
   }, [selectedEventId]);
+
+  // Helper function to detect changes
+  const detectChanges = (
+    sessionId: string,
+    originalSession: SessionRow,
+    updatedData: DraftSession
+  ) => {
+    const changes: { field: string; oldValue: any; newValue: any }[] = [];
+
+    if (originalSession.place !== updatedData.place) {
+      changes.push({
+        field: "place",
+        oldValue: originalSession.place,
+        newValue: updatedData.place,
+      });
+    }
+
+    if (originalSession.roomId !== updatedData.roomId) {
+      const oldRoomName =
+        rooms.find((r) => r.id === originalSession.roomId)?.name ||
+        originalSession.roomName;
+      const newRoomName = rooms.find((r) => r.id === updatedData.roomId)?.name;
+      changes.push({
+        field: "roomId",
+        oldValue: oldRoomName,
+        newValue: newRoomName,
+      });
+    }
+
+    if (originalSession.status !== updatedData.status) {
+      changes.push({
+        field: "status",
+        oldValue: originalSession.status,
+        newValue: updatedData.status,
+      });
+    }
+
+    if (originalSession.description !== updatedData.description) {
+      changes.push({
+        field: "description",
+        oldValue: originalSession.description,
+        newValue: updatedData.description,
+      });
+    }
+
+    // Check time changes
+    const originalStartTime = originalSession.startTime;
+    const newStartTime = updatedData.startTime
+      ? new Date(updatedData.startTime).toISOString()
+      : null;
+
+    if (originalStartTime !== newStartTime) {
+      changes.push({
+        field: "startTime",
+        oldValue: originalStartTime,
+        newValue: newStartTime,
+      });
+    }
+
+    const originalEndTime = originalSession.endTime;
+    const newEndTime = updatedData.endTime
+      ? new Date(updatedData.endTime).toISOString()
+      : null;
+
+    if (originalEndTime !== newEndTime) {
+      changes.push({
+        field: "endTime",
+        oldValue: originalEndTime,
+        newValue: newEndTime,
+      });
+    }
+
+    return changes;
+  };
+
+  // Send session update email
+  const sendSessionUpdateEmail = async (sessionId: string, changes: any[]) => {
+    const session = sessions.find((s) => s.id === sessionId);
+    const event = events.find((e) => e.id === session?.eventId);
+
+    if (!session || !session.email) {
+      console.log("No session or email found for update notification");
+      return { success: false };
+    }
+
+    try {
+      setSendingEmail((prev) => ({ ...prev, [sessionId]: true }));
+
+      const response = await fetch("/api/send-session-update", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: session.id,
+          facultyEmail: session.email,
+          facultyName: session.facultyName,
+          sessionTitle: session.title,
+          eventName: event?.name || session.eventName || "Conference",
+          place: session.place,
+          roomName: session.roomName || "TBA",
+          startTime: session.startTime,
+          endTime: session.endTime,
+          status: session.status,
+          description: session.description,
+          changes: changes,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast({
+          type: "success",
+          title: "Email Sent",
+          description: `Update notification sent to ${session.facultyName}`,
+        });
+        return { success: true };
+      } else {
+        console.error("Email sending failed:", result);
+        toast({
+          type: "warning",
+          title: "Email Failed",
+          description: "Session updated but email notification failed to send",
+        });
+        return { success: false };
+      }
+    } catch (error) {
+      console.error("Error sending update email:", error);
+      toast({
+        type: "warning",
+        title: "Email Error",
+        description: "Session updated but email notification failed",
+      });
+      return { success: false };
+    } finally {
+      setSendingEmail((prev) => ({ ...prev, [sessionId]: false }));
+    }
+  };
 
   // Event selection handler
   const handleEventChange = (eventId: string) => {
@@ -373,7 +524,7 @@ const AllSessions: React.FC = () => {
   // Create session handlers
   const handleCreateSession = (eventId?: string) => {
     setPreselectedEventId(
-      eventId || selectedEventId !== "all" ? selectedEventId : ""
+      eventId || (selectedEventId !== "all" ? selectedEventId : "")
     );
     setShowCreateModal(true);
   };
@@ -382,6 +533,13 @@ const AllSessions: React.FC = () => {
     setShowCreateModal(false);
     setPreselectedEventId("");
     load(false);
+    toast({
+      type: "success",
+      title: "Session Created",
+      description: `New session "${
+        session.title || "Untitled"
+      }" has been created successfully`,
+    });
   };
 
   const handleCloseCreateModal = () => {
@@ -414,6 +572,10 @@ const AllSessions: React.FC = () => {
   const onEdit = (id: string) => {
     const row = sessions.find((s) => s.id === id);
     if (!row) return;
+
+    // Store original values for change detection
+    setOriginalValues((prev) => ({ ...prev, [id]: row }));
+
     setEditing((e) => ({ ...e, [id]: true }));
     setDraft((d) => ({
       ...d,
@@ -435,6 +597,12 @@ const AllSessions: React.FC = () => {
       delete nd[id];
       return nd;
     });
+    // Clear original values
+    setOriginalValues((prev) => {
+      const newOriginal = { ...prev };
+      delete newOriginal[id];
+      return newOriginal;
+    });
   };
 
   const onChangeDraft = (
@@ -444,16 +612,16 @@ const AllSessions: React.FC = () => {
   ) => {
     setDraft((d) => ({
       ...d,
-      [id]: {
-        ...d[id],
-        [field]: value,
-      } as DraftSession,
+      [id]: { ...d[id], [field]: value } as DraftSession,
     }));
   };
 
+  // ✅ UPDATED: Edit functionality with popup and email notifications
   const onSave = async (id: string) => {
     const body = draft[id];
-    if (!body) return;
+    const originalSession = originalValues[id];
+
+    if (!body || !originalSession) return;
 
     let isoStartTime: string | null = null;
     let isoEndTime: string | null = null;
@@ -469,64 +637,137 @@ const AllSessions: React.FC = () => {
       const start = new Date(isoStartTime);
       const end = new Date(isoEndTime);
       if (end <= start) {
-        alert("End time must be after start time");
+        toast({
+          type: "error",
+          title: "Invalid Time",
+          description: "End time must be after start time",
+        });
         return;
       }
       const durationMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
       if (durationMinutes < 15) {
-        alert("Session must be at least 15 minutes long");
+        toast({
+          type: "error",
+          title: "Invalid Duration",
+          description: "Session must be at least 15 minutes long",
+        });
         return;
       }
     }
 
     const payload = {
       ...body,
-      startTime: isoStartTime,
-      endTime: isoEndTime,
-      time: isoStartTime,
+      startTime: isoStartTime ?? undefined,
+      endTime: isoEndTime ?? undefined,
     };
+
+    // Detect what changed
+    const changes = detectChanges(id, originalSession, payload);
 
     setSaving((s) => ({ ...s, [id]: true }));
 
     try {
-      const res = await fetch(`/api/sessions/${id}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/sessions?id=${id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to update session");
+        toast({
+          type: "error",
+          title: "Update Failed",
+          description: err.error || "Failed to update session",
+        });
         return;
+      }
+
+      const responseData = await res.json();
+      console.log("✅ Session updated successfully:", responseData);
+
+      // Show success popup
+      toast({
+        type: "success",
+        title: "Session Updated",
+        description: `Session "${originalSession.title}" has been updated successfully`,
+        duration: 4000,
+      });
+
+      // Send update email if there are changes
+      if (changes.length > 0) {
+        // Show email sending notification
+        toast({
+          type: "info",
+          title: "Sending Email",
+          description: "Sending update notification to faculty member...",
+          duration: 3000,
+        });
+
+        await sendSessionUpdateEmail(id, changes);
       }
 
       await load(false);
       onCancel(id);
     } catch (e) {
       console.error("Session update error:", e);
-      alert("Failed to update session");
+      toast({
+        type: "error",
+        title: "Update Error",
+        description: "Failed to update session. Please try again.",
+      });
     } finally {
       setSaving((s) => ({ ...s, [id]: false }));
     }
   };
 
+  // ✅ UPDATED: Delete functionality with popup notification
   const onDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this session?")) return;
+    const session = sessions.find((s) => s.id === id);
+    const sessionTitle = session?.title || "this session";
+
+    if (
+      !confirm(
+        `Are you sure you want to delete "${sessionTitle}"? This action cannot be undone.`
+      )
+    )
+      return;
 
     setDeleting((d) => ({ ...d, [id]: true }));
 
     try {
-      const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/sessions?id=${id}`, {
+        method: "DELETE",
+      });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to delete session.");
+        toast({
+          type: "error",
+          title: "Delete Failed",
+          description: err.error || "Failed to delete session",
+        });
         return;
       }
+
+      const responseData = await res.json();
+      console.log("✅ Session deleted successfully:", responseData);
+
+      // Show success popup
+      toast({
+        type: "success",
+        title: "Session Deleted",
+        description: `Session "${sessionTitle}" has been deleted successfully`,
+      });
+
       await load(false);
     } catch (e) {
-      console.error(e);
-      alert("Failed to delete session.");
+      console.error("Delete error:", e);
+      toast({
+        type: "error",
+        title: "Delete Error",
+        description: "Failed to delete session. Please try again.",
+      });
     } finally {
       setDeleting((d) => ({ ...d, [id]: false }));
     }
@@ -548,7 +789,8 @@ const AllSessions: React.FC = () => {
                     Session Management
                   </h1>
                   <p className="text-gray-300 text-lg mt-1">
-                    Event-based session management with real-time updates
+                    Event-based session management with real-time updates &
+                    notifications
                   </p>
                 </div>
               </div>
@@ -578,14 +820,14 @@ const AllSessions: React.FC = () => {
               </div>
             </div>
 
-            {/* Event Selection - FIXED: Show loading state and better error handling */}
+            {/* Event Selection */}
             <Card className="border-gray-700 bg-gray-900/50 backdrop-blur mb-6">
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <CalendarDays className="h-5 w-5 text-gray-400" />
                     <label className="text-sm font-medium text-gray-300">
-                      Filter by Event:
+                      Filter by Event
                     </label>
                   </div>
                   <div className="flex-1 max-w-md">
@@ -618,7 +860,7 @@ const AllSessions: React.FC = () => {
                               <div className="flex flex-col">
                                 <div className="font-medium">{event.name}</div>
                                 <div className="text-xs text-gray-400">
-                                  {event.location} • {event._count.sessions}{" "}
+                                  {event.location} • {event.count.sessions}{" "}
                                   sessions
                                 </div>
                               </div>
@@ -634,7 +876,7 @@ const AllSessions: React.FC = () => {
                         {selectedEvent.status}
                       </Badge>
                       <span className="text-sm text-gray-400">
-                        {selectedEvent._count.sessions} sessions
+                        {selectedEvent.count.sessions} sessions
                       </span>
                     </div>
                   )}
@@ -674,7 +916,6 @@ const AllSessions: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-
               <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -694,7 +935,6 @@ const AllSessions: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-
               <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -714,7 +954,6 @@ const AllSessions: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-
               <Card className="border-gray-700 bg-gray-900/50 backdrop-blur">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
@@ -752,7 +991,6 @@ const AllSessions: React.FC = () => {
                       className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
-
                   <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-gray-400" />
                     <select
@@ -765,7 +1003,6 @@ const AllSessions: React.FC = () => {
                       <option value="Confirmed">Confirmed</option>
                     </select>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-gray-400" />
                     <select
@@ -779,7 +1016,6 @@ const AllSessions: React.FC = () => {
                       <option value="Declined">Declined</option>
                     </select>
                   </div>
-
                   <div className="text-sm text-gray-400">
                     Showing {filteredSessions.length} of {sessions.length}{" "}
                     sessions
@@ -897,7 +1133,7 @@ const AllSessions: React.FC = () => {
                         <th className="text-left p-4 font-semibold text-gray-200 min-w-[120px]">
                           Invite Status
                         </th>
-                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[120px]">
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[140px]">
                           Actions
                         </th>
                       </tr>
@@ -908,6 +1144,7 @@ const AllSessions: React.FC = () => {
                         const d = draft[s.id];
                         const isSaving = saving[s.id];
                         const isDeleting = deleting[s.id];
+                        const isSendingEmail = sendingEmail[s.id];
 
                         return (
                           <tr
@@ -915,9 +1152,7 @@ const AllSessions: React.FC = () => {
                             className={`hover:bg-gray-800/50 transition-colors ${
                               isEditing
                                 ? "bg-blue-900/10 border border-blue-800/30"
-                                : ""
-                            } ${
-                              index % 2 === 0
+                                : index % 2 === 0
                                 ? "bg-gray-900/20"
                                 : "bg-gray-900/40"
                             }`}
@@ -1040,7 +1275,7 @@ const AllSessions: React.FC = () => {
                                     }
                                   />
                                 </div>
-                              ) : s.startTime || s.endTime ? (
+                              ) : s.startTime && s.endTime ? (
                                 <div className="text-xs space-y-1">
                                   {s.startTime && (
                                     <div className="text-green-300">
@@ -1056,6 +1291,14 @@ const AllSessions: React.FC = () => {
                                         End:
                                       </span>{" "}
                                       {s.formattedEndTime}
+                                    </div>
+                                  )}
+                                  {s.duration && (
+                                    <div className="text-blue-300">
+                                      <span className="text-gray-400">
+                                        Duration:
+                                      </span>{" "}
+                                      {s.duration}
                                     </div>
                                   )}
                                 </div>
@@ -1091,14 +1334,14 @@ const AllSessions: React.FC = () => {
                             {/* Invite Status */}
                             <td className="p-4">{badge(s.inviteStatus)}</td>
 
-                            {/* Actions */}
+                            {/* Actions - UPDATED with email sending indicator */}
                             <td className="p-4">
                               {isEditing ? (
                                 <div className="flex items-center gap-2">
                                   <Button
                                     size="sm"
                                     onClick={() => onSave(s.id)}
-                                    disabled={isSaving}
+                                    disabled={isSaving || isSendingEmail}
                                     className="bg-green-600 hover:bg-green-700 text-white h-8 px-2"
                                   >
                                     {isSaving ? (
@@ -1111,7 +1354,7 @@ const AllSessions: React.FC = () => {
                                     size="sm"
                                     variant="outline"
                                     onClick={() => onCancel(s.id)}
-                                    disabled={isSaving}
+                                    disabled={isSaving || isSendingEmail}
                                     className="border-gray-600 text-gray-300 hover:bg-gray-800 h-8 px-2"
                                   >
                                     <X className="h-3 w-3" />
@@ -1142,6 +1385,12 @@ const AllSessions: React.FC = () => {
                                   </Button>
                                 </div>
                               )}
+                              {isSendingEmail && (
+                                <div className="text-xs text-blue-400 mt-1 flex items-center gap-1">
+                                  <Send className="h-3 w-3 animate-pulse" />
+                                  Sending email...
+                                </div>
+                              )}
                             </td>
                           </tr>
                         );
@@ -1161,23 +1410,26 @@ const AllSessions: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Create Session Modal */}
+        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Session</DialogTitle>
+            </DialogHeader>
+            <SessionForm
+              eventId={preselectedEventId}
+              session={undefined}
+              onSuccess={handleSessionCreated}
+              onCancel={handleCloseCreateModal}
+              halls={[]}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
-      {/* Create Session Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Create New Session</DialogTitle>
-          </DialogHeader>
-          <SessionForm
-            eventId={preselectedEventId || ""}
-            session={undefined}
-            onSuccess={handleSessionCreated}
-            onCancel={handleCloseCreateModal}
-            halls={[]}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Toast Container */}
+      <ToastContainer />
     </OrganizerLayout>
   );
 };
