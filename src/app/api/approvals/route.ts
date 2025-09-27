@@ -1,41 +1,45 @@
 // src/app/api/approvals/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth/config';
-import { query } from '@/lib/database/connection';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth/config";
+import { query } from "@/lib/database/connection";
+import { z } from "zod";
 
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
-
-// आपका existing code...
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // FIXED: Make all fields optional and handle null properly
 const approvalQuerySchema = z.object({
   eventId: z.string().optional().nullable(),
   sessionId: z.string().optional().nullable(),
-  status: z.enum(['ACCEPTED', 'DECLINED', 'PENDING', 'TENTATIVE']).optional().nullable(),
-  type: z.enum(['events', 'sessions', 'faculty', 'stats']).optional().nullable()
+  status: z
+    .enum(["ACCEPTED", "DECLINED", "PENDING", "TENTATIVE"])
+    .optional()
+    .nullable(),
+  type: z
+    .enum(["events", "sessions", "faculty", "stats"])
+    .optional()
+    .nullable(),
 });
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
 
     // Get raw parameters and handle null values
     const rawParams = {
-      eventId: searchParams.get('eventId'),
-      sessionId: searchParams.get('sessionId'),
-      status: searchParams.get('status'),
-      type: searchParams.get('type')
+      eventId: searchParams.get("eventId"),
+      sessionId: searchParams.get("sessionId"),
+      status: searchParams.get("status"),
+      type: searchParams.get("type"),
     };
 
-    console.log('Raw params received:', rawParams);
+    console.log("Raw params received:", rawParams);
 
     // Parse and validate, but handle null gracefully
     const parsedParams = approvalQuerySchema.parse(rawParams);
@@ -45,14 +49,14 @@ export async function GET(request: NextRequest) {
       eventId: parsedParams.eventId || undefined,
       sessionId: parsedParams.sessionId || undefined,
       status: parsedParams.status || undefined,
-      type: parsedParams.type || 'faculty'
+      type: parsedParams.type || "faculty",
     };
 
-    console.log('Processed query data:', queryData);
+    console.log("Processed query data:", queryData);
 
     switch (queryData.type) {
-      case 'events':
-        console.log('📋 Fetching events...');
+      case "events":
+        console.log("📋 Fetching events...");
 
         // FIXED: Use session_metadata with case-insensitive status matching
         const eventsQuery = `
@@ -76,11 +80,11 @@ export async function GET(request: NextRequest) {
         `;
 
         const eventsResult = await query(eventsQuery);
-        console.log('📊 Events found:', eventsResult.rows.length);
+        console.log("📊 Events found:", eventsResult.rows.length);
 
         return NextResponse.json({
           success: true,
-          data: eventsResult.rows.map(row => ({
+          data: eventsResult.rows.map((row) => ({
             id: row.id,
             name: row.name,
             startDate: row.startDate,
@@ -90,19 +94,19 @@ export async function GET(request: NextRequest) {
             acceptedCount: parseInt(row.acceptedCount) || 0,
             declinedCount: parseInt(row.declinedCount) || 0,
             pendingCount: parseInt(row.pendingCount) || 0,
-            tentativeCount: parseInt(row.tentativeCount) || 0
-          }))
+            tentativeCount: parseInt(row.tentativeCount) || 0,
+          })),
         });
 
-      case 'sessions':
+      case "sessions":
         if (!queryData.eventId) {
           return NextResponse.json(
-            { success: false, error: 'eventId is required for sessions type' },
+            { success: false, error: "eventId is required for sessions type" },
             { status: 400 }
           );
         }
 
-        console.log('📋 Fetching sessions for event:', queryData.eventId);
+        console.log("📋 Fetching sessions for event:", queryData.eventId);
 
         // FIXED: Use session_metadata with case-insensitive status matching
         const sessionsQuery = `
@@ -126,11 +130,11 @@ export async function GET(request: NextRequest) {
         `;
 
         const sessionsResult = await query(sessionsQuery, [queryData.eventId]);
-        console.log('📊 Sessions found:', sessionsResult.rows.length);
+        console.log("📊 Sessions found:", sessionsResult.rows.length);
 
         return NextResponse.json({
           success: true,
-          data: sessionsResult.rows.map(row => ({
+          data: sessionsResult.rows.map((row) => ({
             id: row.id,
             title: row.title,
             startTime: row.startTime,
@@ -140,14 +144,14 @@ export async function GET(request: NextRequest) {
             acceptedCount: parseInt(row.acceptedCount) || 0,
             declinedCount: parseInt(row.declinedCount) || 0,
             pendingCount: parseInt(row.pendingCount) || 0,
-            tentativeCount: parseInt(row.tentativeCount) || 0
-          }))
+            tentativeCount: parseInt(row.tentativeCount) || 0,
+          })),
         });
 
-      case 'faculty':
+      case "faculty":
         if (!queryData.status) {
           return NextResponse.json(
-            { success: false, error: 'status is required for faculty type' },
+            { success: false, error: "status is required for faculty type" },
             { status: 400 }
           );
         }
@@ -156,9 +160,14 @@ export async function GET(request: NextRequest) {
         let facultyParams;
 
         if (queryData.sessionId) {
-          console.log('📋 Fetching faculty for session:', queryData.sessionId, 'status:', queryData.status);
+          console.log(
+            "📋 Fetching faculty for session:",
+            queryData.sessionId,
+            "status:",
+            queryData.status
+          );
 
-          // FIXED: Use case-insensitive status matching
+          // ✅ UPDATED: Include session creation date for specific session
           const dbStatusLower = queryData.status.toLowerCase();
 
           facultyQuery = `
@@ -178,6 +187,7 @@ export async function GET(request: NextRequest) {
               sm.updated_at as "responseDate",
               sm.rejection_reason as "rejectionReason",
               sm.created_at as "invitationDate",
+              cs.created_at as "sessionCreatedDate",
               sm.place,
               sm.travel,
               sm.accommodation,
@@ -191,14 +201,18 @@ export async function GET(request: NextRequest) {
             LEFT JOIN conference_sessions cs ON sm.session_id = cs.id
             LEFT JOIN events e ON cs.event_id = e.id
             WHERE sm.session_id = $1 AND LOWER(sm.invite_status) = $2
-            ORDER BY COALESCE(u.name, sm.faculty_email) ASC
+            ORDER BY cs.created_at DESC, COALESCE(u.name, sm.faculty_email) ASC
           `;
           facultyParams = [queryData.sessionId, dbStatusLower];
-
         } else if (queryData.eventId) {
-          console.log('📋 Fetching faculty for event:', queryData.eventId, 'status:', queryData.status);
+          console.log(
+            "📋 Fetching faculty for event:",
+            queryData.eventId,
+            "status:",
+            queryData.status
+          );
 
-          // FIXED: Use case-insensitive status matching
+          // ✅ UPDATED: Include session creation date for all sessions in event
           const dbStatusLower = queryData.status.toLowerCase();
 
           facultyQuery = `
@@ -218,6 +232,7 @@ export async function GET(request: NextRequest) {
               sm.updated_at as "responseDate",
               sm.rejection_reason as "rejectionReason",
               sm.created_at as "invitationDate",
+              cs.created_at as "sessionCreatedDate",
               sm.place,
               sm.travel,
               sm.accommodation,
@@ -231,30 +246,46 @@ export async function GET(request: NextRequest) {
             LEFT JOIN conference_sessions cs ON sm.session_id = cs.id
             LEFT JOIN events e ON cs.event_id = e.id
             WHERE cs.event_id = $1 AND LOWER(sm.invite_status) = $2
-            ORDER BY COALESCE(u.name, sm.faculty_email) ASC
+            ORDER BY cs.created_at DESC, COALESCE(u.name, sm.faculty_email) ASC
           `;
           facultyParams = [queryData.eventId, dbStatusLower];
-
         } else {
           return NextResponse.json(
-            { success: false, error: 'Either eventId or sessionId is required' },
+            {
+              success: false,
+              error: "Either eventId or sessionId is required",
+            },
             { status: 400 }
           );
         }
 
         const facultyResult = await query(facultyQuery, facultyParams);
-        console.log('📊 Faculty found:', facultyResult.rows.length);
+        console.log("📊 Faculty found:", facultyResult.rows.length);
+
+        // ✅ UPDATED: Format dates properly in the response
+        const formattedFacultyData = facultyResult.rows.map((row) => ({
+          ...row,
+          invitationDate: row.invitationDate
+            ? new Date(row.invitationDate).toISOString()
+            : null,
+          sessionCreatedDate: row.sessionCreatedDate
+            ? new Date(row.sessionCreatedDate).toISOString()
+            : null,
+          responseDate: row.responseDate
+            ? new Date(row.responseDate).toISOString()
+            : null,
+        }));
 
         return NextResponse.json({
           success: true,
-          data: facultyResult.rows,
-          count: facultyResult.rows.length
+          data: formattedFacultyData,
+          count: formattedFacultyData.length,
         });
 
-      case 'stats':
+      case "stats":
         if (!queryData.eventId) {
           return NextResponse.json(
-            { success: false, error: 'eventId is required for stats type' },
+            { success: false, error: "eventId is required for stats type" },
             { status: 400 }
           );
         }
@@ -276,29 +307,32 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           success: true,
-          data: statsResult.rows[0]
+          data: statsResult.rows[0],
         });
 
       default:
         return NextResponse.json(
-          { success: false, error: 'Invalid type parameter' },
+          { success: false, error: "Invalid type parameter" },
           { status: 400 }
         );
     }
-
   } catch (error) {
-    console.error('Error in approvals API:', error);
+    console.error("Error in approvals API:", error);
 
     if (error instanceof z.ZodError) {
-      console.error('Zod validation error:', error.errors);
+      console.error("Zod validation error:", error.errors);
       return NextResponse.json(
-        { success: false, error: 'Invalid query parameters', details: error.errors },
+        {
+          success: false,
+          error: "Invalid query parameters",
+          details: error.errors,
+        },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
