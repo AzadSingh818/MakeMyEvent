@@ -1,4 +1,4 @@
-// src/app/(dashboard)/organizer/sessions/page.tsx - FIXED: Null safety for filters
+// src/app/(dashboard)/organizer/sessions/page.tsx - UPDATED: Extended editing with email, name, and title
 "use client";
 
 import React, { useEffect, useState, Suspense } from "react";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useToast } from "../../../../components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,7 @@ import {
   Timer,
   CalendarDays,
   Send,
+  User,
 } from "lucide-react";
 
 type InviteStatus = "Pending" | "Accepted" | "Declined";
@@ -96,7 +97,11 @@ type Event = {
 type RoomLite = { id: string; name: string };
 type Faculty = { id: string; name: string };
 
+// ✅ UPDATED: Extended DraftSession to include email, facultyName, and title
 type DraftSession = {
+  title: string;
+  facultyName: string;
+  email: string;
   place: string;
   roomId?: string;
   startTime?: string;
@@ -105,7 +110,7 @@ type DraftSession = {
   description?: string;
 };
 
-// ✅ FIXED: Safe string helper function
+// ✅ Safe string helper function
 const safeToLowerCase = (value: any): string => {
   if (value === null || value === undefined) {
     return "";
@@ -197,6 +202,12 @@ const calculateDuration = (
     console.warn("Error calculating duration:", error);
     return "";
   }
+};
+
+// ✅ Email validation helper
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
 };
 
 const AllSessions: React.FC = () => {
@@ -355,7 +366,7 @@ const AllSessions: React.FC = () => {
 
       const sessionsList = sData.data?.sessions || sData.sessions || sData;
 
-      // ✅ FIXED: Ensure all session data has safe defaults
+      // ✅ Ensure all session data has safe defaults
       const mapped: SessionRow[] = sessionsList.map((s: any) => {
         const roomId =
           s.roomId ?? rData.find((r: any) => r.name === s.roomName)?.id;
@@ -408,13 +419,40 @@ const AllSessions: React.FC = () => {
     return () => clearInterval(id);
   }, [selectedEventId]);
 
-  // Helper function to detect changes
+  // ✅ UPDATED: Helper function to detect changes including new fields
   const detectChanges = (
     sessionId: string,
     originalSession: SessionRow,
     updatedData: DraftSession
   ) => {
     const changes: { field: string; oldValue: any; newValue: any }[] = [];
+
+    // Check title changes
+    if (originalSession.title !== updatedData.title) {
+      changes.push({
+        field: "title",
+        oldValue: originalSession.title,
+        newValue: updatedData.title,
+      });
+    }
+
+    // Check faculty name changes
+    if (originalSession.facultyName !== updatedData.facultyName) {
+      changes.push({
+        field: "facultyName",
+        oldValue: originalSession.facultyName,
+        newValue: updatedData.facultyName,
+      });
+    }
+
+    // Check email changes
+    if (originalSession.email !== updatedData.email) {
+      changes.push({
+        field: "email",
+        oldValue: originalSession.email,
+        newValue: updatedData.email,
+      });
+    }
 
     if (originalSession.place !== updatedData.place) {
       changes.push({
@@ -588,7 +626,7 @@ const AllSessions: React.FC = () => {
     window.history.replaceState({}, "", newUrl.toString());
   };
 
-  // ✅ FIXED: Safe filtered sessions with proper null checks
+  // ✅ Safe filtered sessions with proper null checks
   const filteredSessions = sessions.filter((session) => {
     try {
       // ✅ Safe search matching with null checks
@@ -617,7 +655,7 @@ const AllSessions: React.FC = () => {
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);
 
-  // Edit handlers
+  // ✅ UPDATED: Edit handlers with extended fields
   const onEdit = (id: string) => {
     const row = sessions.find((s) => s.id === id);
     if (!row) return;
@@ -629,6 +667,9 @@ const AllSessions: React.FC = () => {
     setDraft((d) => ({
       ...d,
       [id]: {
+        title: row.title || "",
+        facultyName: row.facultyName || "",
+        email: row.email || "",
         place: row.place || "",
         roomId: row.roomId || "",
         startTime: toInputDateTime(row.startTime),
@@ -665,12 +706,49 @@ const AllSessions: React.FC = () => {
     }));
   };
 
-  // ✅ UPDATED: Edit functionality with popup and email notifications
+  // ✅ UPDATED: Save functionality with validation for new fields
   const onSave = async (id: string) => {
     const body = draft[id];
     const originalSession = originalValues[id];
 
     if (!body || !originalSession) return;
+
+    // ✅ Validation for new fields
+    if (!body.title.trim()) {
+      toast({
+        type: "error",
+        title: "Validation Error",
+        description: "Session title cannot be empty",
+      });
+      return;
+    }
+
+    if (!body.facultyName.trim()) {
+      toast({
+        type: "error",
+        title: "Validation Error",
+        description: "Faculty name cannot be empty",
+      });
+      return;
+    }
+
+    if (!body.email.trim()) {
+      toast({
+        type: "error",
+        title: "Validation Error",
+        description: "Email cannot be empty",
+      });
+      return;
+    }
+
+    if (!isValidEmail(body.email)) {
+      toast({
+        type: "error",
+        title: "Validation Error",
+        description: "Please enter a valid email address",
+      });
+      return;
+    }
 
     let isoStartTime: string | null = null;
     let isoEndTime: string | null = null;
@@ -704,14 +782,21 @@ const AllSessions: React.FC = () => {
       }
     }
 
+    // ✅ UPDATED: Include new fields in payload
     const payload = {
-      ...body,
-      startTime: isoStartTime ?? undefined,
-      endTime: isoEndTime ?? undefined,
+      title: body.title.trim(),
+      facultyName: body.facultyName.trim(),
+      email: body.email.trim(),
+      place: body.place.trim(),
+      roomId: body.roomId,
+      startTime: isoStartTime,
+      endTime: isoEndTime,
+      status: body.status,
+      description: body.description?.trim(),
     };
 
     // Detect what changed
-    const changes = detectChanges(id, originalSession, payload);
+    const changes = detectChanges(id, originalSession, body);
 
     setSaving((s) => ({ ...s, [id]: true }));
 
@@ -739,7 +824,7 @@ const AllSessions: React.FC = () => {
       toast({
         type: "success",
         title: "Session Updated",
-        description: `Session "${originalSession.title}" has been updated successfully`,
+        description: `Session "${body.title}" has been updated successfully`,
         duration: 4000,
       });
 
@@ -770,7 +855,7 @@ const AllSessions: React.FC = () => {
     }
   };
 
-  // ✅ UPDATED: Delete functionality with popup notification
+  // ✅ Delete functionality with popup notification
   const onDelete = async (id: string) => {
     const session = sessions.find((s) => s.id === id);
     const sessionTitle = session?.title || "this session";
@@ -838,7 +923,7 @@ const AllSessions: React.FC = () => {
                     Session Management
                   </h1>
                   <p className="text-gray-300 text-lg mt-1">
-                    Event-based session management with real-time updates &
+                    Event-based session management with comprehensive editing &
                     notifications
                   </p>
                 </div>
@@ -1132,7 +1217,7 @@ const AllSessions: React.FC = () => {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-800 border-b border-gray-700">
                       <tr>
-                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[250px]">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4" />
                             Session Title
@@ -1146,13 +1231,13 @@ const AllSessions: React.FC = () => {
                             </div>
                           </th>
                         )}
-                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[150px]">
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
                           <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4" />
-                            Faculty
+                            <User className="h-4 w-4" />
+                            Faculty Name
                           </div>
                         </th>
-                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[200px]">
+                        <th className="text-left p-4 font-semibold text-gray-200 min-w-[250px]">
                           <div className="flex items-center gap-2">
                             <Mail className="h-4 w-4" />
                             Email
@@ -1206,14 +1291,48 @@ const AllSessions: React.FC = () => {
                                 : "bg-gray-900/40"
                             }`}
                           >
-                            {/* Title */}
+                            {/* ✅ UPDATED: Editable Session Title */}
                             <td className="p-4">
-                              <div className="font-medium text-white">
-                                {s.title}
-                              </div>
-                              {s.description && (
-                                <div className="text-xs text-gray-400 mt-1 line-clamp-2">
-                                  {s.description}
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <input
+                                    className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
+                                    placeholder="Session Title"
+                                    value={d?.title || ""}
+                                    onChange={(e) =>
+                                      onChangeDraft(
+                                        s.id,
+                                        "title",
+                                        e.target.value
+                                      )
+                                    }
+                                  />
+                                  {s.description && (
+                                    <textarea
+                                      className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-xs focus:border-blue-500 focus:outline-none resize-none"
+                                      placeholder="Description"
+                                      rows={2}
+                                      value={d?.description || ""}
+                                      onChange={(e) =>
+                                        onChangeDraft(
+                                          s.id,
+                                          "description",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  )}
+                                </div>
+                              ) : (
+                                <div>
+                                  <div className="font-medium text-white">
+                                    {s.title}
+                                  </div>
+                                  {s.description && (
+                                    <div className="text-xs text-gray-400 mt-1 line-clamp-2">
+                                      {s.description}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </td>
@@ -1238,18 +1357,45 @@ const AllSessions: React.FC = () => {
                               </td>
                             )}
 
-                            {/* Faculty */}
+                            {/* ✅ UPDATED: Editable Faculty Name */}
                             <td className="p-4">
-                              <div className="text-gray-200">
-                                {s.facultyName}
-                              </div>
+                              {isEditing ? (
+                                <input
+                                  className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
+                                  placeholder="Faculty Name"
+                                  value={d?.facultyName || ""}
+                                  onChange={(e) =>
+                                    onChangeDraft(
+                                      s.id,
+                                      "facultyName",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                              ) : (
+                                <div className="text-gray-200">
+                                  {s.facultyName}
+                                </div>
+                              )}
                             </td>
 
-                            {/* Email */}
+                            {/* ✅ UPDATED: Editable Email */}
                             <td className="p-4">
-                              <div className="text-gray-300 text-xs">
-                                {s.email}
-                              </div>
+                              {isEditing ? (
+                                <input
+                                  type="email"
+                                  className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
+                                  placeholder="faculty@example.com"
+                                  value={d?.email || ""}
+                                  onChange={(e) =>
+                                    onChangeDraft(s.id, "email", e.target.value)
+                                  }
+                                />
+                              ) : (
+                                <div className="text-gray-300 text-xs">
+                                  {s.email}
+                                </div>
+                              )}
                             </td>
 
                             {/* Place */}
@@ -1257,6 +1403,7 @@ const AllSessions: React.FC = () => {
                               {isEditing ? (
                                 <input
                                   className="w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm focus:border-blue-500 focus:outline-none"
+                                  placeholder="Location"
                                   value={d?.place || ""}
                                   onChange={(e) =>
                                     onChangeDraft(s.id, "place", e.target.value)

@@ -75,8 +75,17 @@ export async function POST(request: NextRequest) {
         let displayOldValue = change.oldValue;
         let displayNewValue = change.newValue;
 
-        // Format field names
+        // Format field names and values
         switch (change.field) {
+          case "title":
+            displayField = "Session Title";
+            break;
+          case "facultyName":
+            displayField = "Faculty Name";
+            break;
+          case "email":
+            displayField = "Email Address";
+            break;
           case "startTime":
             displayField = "Start Time";
             displayOldValue = change.oldValue
@@ -215,7 +224,7 @@ export async function POST(request: NextRequest) {
             <p>We hope this message finds you well. We're writing to inform you that your session details have been updated.</p>
 
             <div class="session-info">
-              <h3 style="color: #764ba2; margin-top: 0;">📋 Session Information</h3>
+              <h3 style="color: #764ba2; margin-top: 0;">📋 Updated Session Information</h3>
               <p><strong>Session Title:</strong> ${sessionTitle}</p>
               <p><strong>Event:</strong> ${eventName}</p>
               <p><strong>Location:</strong> ${place}</p>
@@ -279,8 +288,34 @@ export async function POST(request: NextRequest) {
     // Simple text version
     const changesText = changes
       .map((change) => {
-        const field =
+        let field =
           change.field.charAt(0).toUpperCase() + change.field.slice(1);
+
+        // Format field names for text
+        switch (change.field) {
+          case "title":
+            field = "Session Title";
+            break;
+          case "facultyName":
+            field = "Faculty Name";
+            break;
+          case "email":
+            field = "Email Address";
+            break;
+          case "startTime":
+            field = "Start Time";
+            break;
+          case "endTime":
+            field = "End Time";
+            break;
+          case "roomId":
+            field = "Room";
+            break;
+          case "place":
+            field = "Location";
+            break;
+        }
+
         return `- ${field}: "${change.oldValue || "Not set"}" → "${
           change.newValue || "Not set"
         }"`;
@@ -292,7 +327,7 @@ Dear ${facultyName},
 
 Your session details have been updated for ${eventName}.
 
-SESSION INFORMATION:
+UPDATED SESSION INFORMATION:
 - Title: ${sessionTitle}
 - Event: ${eventName}
 - Location: ${place}

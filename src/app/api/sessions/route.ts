@@ -263,7 +263,7 @@ export async function GET() {
   }
 }
 
-// ✅ NEW: PUT method for updating sessions
+// ✅ UPDATED: PUT method for updating sessions with new fields
 export async function PUT(req: NextRequest) {
   try {
     console.log("\n🔄 Starting session update...");
@@ -295,12 +295,50 @@ export async function PUT(req: NextRequest) {
     // Extract and validate update fields
     const updateData: any = {};
 
+    // ✅ NEW: Handle title updates
     if (body.title !== undefined) {
+      if (!body.title || !body.title.trim()) {
+        return NextResponse.json(
+          { success: false, error: "Session title cannot be empty" },
+          { status: 400 }
+        );
+      }
       updateData.title = body.title.trim();
     }
 
+    // ✅ NEW: Handle faculty name updates
+    if (body.facultyName !== undefined) {
+      if (!body.facultyName || !body.facultyName.trim()) {
+        return NextResponse.json(
+          { success: false, error: "Faculty name cannot be empty" },
+          { status: 400 }
+        );
+      }
+      updateData.facultyName = body.facultyName.trim();
+    }
+
+    // ✅ NEW: Handle email updates with validation
+    if (body.email !== undefined) {
+      if (!body.email || !body.email.trim()) {
+        return NextResponse.json(
+          { success: false, error: "Email cannot be empty" },
+          { status: 400 }
+        );
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(body.email.trim())) {
+        return NextResponse.json(
+          { success: false, error: "Please enter a valid email address" },
+          { status: 400 }
+        );
+      }
+
+      updateData.facultyEmail = body.email.trim();
+    }
+
     if (body.description !== undefined) {
-      updateData.description = body.description.trim();
+      updateData.description = body.description?.trim() || null;
     }
 
     if (body.place !== undefined) {
@@ -313,10 +351,6 @@ export async function PUT(req: NextRequest) {
 
     if (body.facultyId !== undefined) {
       updateData.facultyId = body.facultyId;
-    }
-
-    if (body.email !== undefined) {
-      updateData.facultyEmail = body.email.trim();
     }
 
     if (body.status !== undefined) {
@@ -424,7 +458,8 @@ export async function PUT(req: NextRequest) {
 
     const enrichedSession = {
       ...updatedSession,
-      facultyName: faculty?.name || "Unknown Faculty",
+      facultyName:
+        updatedSession.facultyName || faculty?.name || "Unknown Faculty",
       roomName: room?.name || "Unknown Room",
       roomId: updatedSession.hallId,
       email: updatedSession.facultyEmail || "",
@@ -451,7 +486,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// ✅ NEW: DELETE method for deleting sessions
+// ✅ DELETE method for deleting sessions
 export async function DELETE(req: NextRequest) {
   try {
     console.log("\n🗑️ Starting session deletion...");
